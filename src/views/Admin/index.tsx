@@ -80,7 +80,14 @@ export default function AdminPanel() {
   );
 }
 
-function TabButton({ active, onClick, icon, label }: any) {
+interface TabButtonProps {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+}
+
+function TabButton({ active, onClick, icon, label }: TabButtonProps) {
   return (
     <button 
       onClick={onClick}

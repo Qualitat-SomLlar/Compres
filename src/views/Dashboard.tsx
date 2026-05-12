@@ -12,7 +12,6 @@ import {
   ArrowUpRight,
   ShieldAlert
 } from 'lucide-react';
-} from 'lucide-react';
 import { CATEGORIES } from '../constants';
 import { cn } from '../lib/utils';
 import { useRequests } from '../hooks/useRequests';

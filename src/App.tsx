@@ -32,7 +32,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { User } from './types';
 import { cn } from './lib/utils';
 
-const SidebarItem = ({ to, icon: Icon, label, active }: { to: string, icon: any, label: string, active?: boolean }) => (
+const SidebarItem = ({ to, icon: Icon, label, active }: { to: string, icon: React.ElementType, label: string, active?: boolean }) => (
   <Link 
     to={to} 
     className={cn(
@@ -182,8 +182,8 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/compres" element={<RequestsList />} />
-          <Route path="/compres/nova" element={<NewRequest user={currentUser} />} />
-          <Route path="/compres/:id" element={<RequestDetail user={currentUser} />} />
+          <Route path="/compres/nova" element={<NewRequest user={user} />} />
+          <Route path="/compres/:id" element={<RequestDetail user={user} />} />
           <Route path="/proveidors" element={<SupplierManager />} />
           <Route path="/incidencies" element={<IncidentManager />} />
           <Route path="/informes" element={<Reports />} />

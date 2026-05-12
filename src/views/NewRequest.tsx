@@ -34,7 +34,7 @@ export default function NewRequest({ user }: { user: User }) {
     subcategory: '',
     destinationCenterId: '',
     destinationCenterName: '',
-    description: '',
+    itemDescription: '',
     justification: '',
     urgency: 'mitjana' as 'baixa' | 'mitjana' | 'alta' | 'critica',
     deadline: '',
@@ -292,8 +292,8 @@ export default function NewRequest({ user }: { user: User }) {
                 required
                 placeholder="Què s'ha de comprar exactament?" 
                 className="input-field font-bold" 
-                value={formData.description}
-                onChange={e => setFormData({...formData, description: e.target.value})}
+                value={formData.itemDescription}
+                onChange={e => setFormData({...formData, itemDescription: e.target.value})}
               />
             </div>
 

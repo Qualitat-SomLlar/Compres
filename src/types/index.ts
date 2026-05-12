@@ -61,6 +61,10 @@ export interface PurchaseRequest {
   finalAmount?: number;
   status: RequestStatus;
   
+  // Destí
+  destinationCenterId?: string;
+  destinationCenterName?: string;
+  
   // Control de 3 pressupostos
   requiresThreeQuotes: boolean;
   quotesCount?: number;
