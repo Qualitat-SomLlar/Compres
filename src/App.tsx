@@ -1,0 +1,160 @@
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
+import { 
+  LayoutDashboard, 
+  ShoppingCart, 
+  Users, 
+  AlertTriangle, 
+  FileText, 
+  Settings, 
+  LogOut, 
+  Menu, 
+  X,
+  PlusCircle,
+  Bell
+} from 'lucide-react';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+// Views (To be implemented in next steps)
+import Dashboard from './views/Dashboard';
+import RequestsList from './views/RequestsList';
+import NewRequest from './views/NewRequest';
+import SupplierManager from './views/SupplierManager';
+import IncidentManager from './views/IncidentManager';
+import RequestDetail from './views/RequestDetail';
+import Reports from './views/Reports';
+import AdminPanel from './views/Admin';
+
+// Types
+import { User } from './types';
+import { MOCK_USERS } from './lib/mockData';
+import { cn } from './lib/utils';
+
+const SidebarItem = ({ to, icon: Icon, label, active }: { to: string, icon: any, label: string, active?: boolean }) => (
+  <Link 
+    to={to} 
+    className={cn(
+      "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group text-slate-400 hover:text-white hover:bg-slate-800/50",
+      active && "bg-slate-800 text-white shadow-sm ring-1 ring-white/10"
+    )}
+  >
+    <Icon size={20} className={cn("transition-transform group-hover:scale-110", active && "text-brand-accent")} />
+    <span className="font-medium">{label}</span>
+  </Link>
+);
+
+const AppLayout = ({ children, user }: { children: React.ReactNode, user: User }) => {
+  const [isSidebarOpen, setSidebarOpen] = useState(true);
+  const location = useLocation();
+
+  return (
+    <div className="flex min-h-screen">
+      {/* Sidebar */}
+      <aside 
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 w-72 bg-brand-secondary text-slate-300 transform transition-transform duration-300 ease-in-out border-r border-dashboard-border shadow-2xl",
+          !isSidebarOpen && "-translate-x-full"
+        )}
+      >
+        <div className="flex flex-col h-full p-6">
+          <div className="flex items-center gap-3 mb-10 px-2">
+            <div className="w-10 h-10 bg-brand-primary rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-[0_0_20px_rgba(59,130,246,0.5)] ring-1 ring-white/20">
+              SL
+            </div>
+            <div>
+              <h1 className="text-white font-bold text-lg tracking-tight">Som Llar</h1>
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Gestió de Compres</p>
+            </div>
+          </div>
+
+          <nav className="flex-1 space-y-2">
+            <SidebarItem to="/" icon={LayoutDashboard} label="Dashboard" active={location.pathname === '/'} />
+            <SidebarItem to="/compres" icon={ShoppingCart} label="Sol·licituds" active={location.pathname.startsWith('/compres')} />
+            <SidebarItem to="/proveidors" icon={Users} label="Proveïdors" active={location.pathname.startsWith('/proveidors')} />
+            <SidebarItem to="/incidencies" icon={AlertTriangle} label="Incidències" active={location.pathname.startsWith('/incidencies')} />
+            <SidebarItem to="/informes" icon={FileText} label="Informes" active={location.pathname === '/informes'} />
+            
+            <div className="pt-6 pb-2">
+              <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest px-4 mb-2">SISTEMA</p>
+              <SidebarItem to="/admin" icon={Settings} label="Administració" active={location.pathname.startsWith('/admin')} />
+            </div>
+          </nav>
+
+          <div className="mt-auto space-y-4">
+            <div className="p-4 bg-white/[0.03] rounded-2xl border border-white/5">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-xs font-bold text-white uppercase shadow-lg shadow-blue-500/20">
+                  {user.name.charAt(0)}
+                </div>
+                <div className="overflow-hidden">
+                  <p className="text-sm font-semibold text-white truncate">{user.name}</p>
+                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">{user.role.replace('_', ' ')}</p>
+                </div>
+              </div>
+              <button className="w-full flex items-center gap-2 justify-center py-2 text-xs font-medium text-slate-500 hover:text-white transition-colors border-t border-white/5 mt-2">
+                <LogOut size={14} /> Tancar sessió
+              </button>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className={cn(
+        "flex-1 transition-all duration-300 ease-in-out",
+        isSidebarOpen ? "ml-72" : "ml-0"
+      )}>
+        {/* Header */}
+        <header className="sticky top-0 z-40 h-16 bg-dashboard-card/50 backdrop-blur-xl border-b border-dashboard-border px-8 flex items-center justify-between">
+          <button 
+            onClick={() => setSidebarOpen(!isSidebarOpen)}
+            className="p-2 hover:bg-white/5 rounded-lg text-slate-400 transition-colors"
+          >
+            {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+
+          <div className="flex items-center gap-4">
+            <button className="relative p-2 text-slate-400 hover:text-brand-primary transition-colors">
+              <Bell size={20} />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-[#151c2c]"></span>
+            </button>
+            
+            <Link to="/compres/nova" className="btn-primary flex items-center gap-2 text-sm py-2">
+              <PlusCircle size={18} />
+              <span>Nova Compra</span>
+            </Link>
+          </div>
+        </header>
+
+        {/* Viewport */}
+        <div className="p-8 max-w-7xl mx-auto">
+          {children}
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default function App() {
+  // Simulem usuari loguejat (Tècnic per defecte per veure flux)
+  const [currentUser] = useState<User>(MOCK_USERS[0]);
+
+  return (
+    <Router>
+      <AppLayout user={currentUser}>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/compres" element={<RequestsList />} />
+          <Route path="/compres/nova" element={<NewRequest user={currentUser} />} />
+          <Route path="/compres/:id" element={<RequestDetail user={currentUser} />} />
+          <Route path="/proveidors" element={<SupplierManager />} />
+          <Route path="/incidencies" element={<IncidentManager />} />
+          <Route path="/informes" element={<Reports />} />
+          <Route path="/admin" element={<AdminPanel />} />
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </AppLayout>
+    </Router>
+  );
+}

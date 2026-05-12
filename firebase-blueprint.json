@@ -1,0 +1,38 @@
+{
+  "entities": {
+    "purchaseRequests": {
+      "title": "Sol·licitud de Compra",
+      "description": "Document principal del procés de compra.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "technicianId": { "type": "string" },
+        "status": { "type": "string", "enum": ["esborrany", "pendent_coordinacio", "pendent_direccio", "aprovada"] },
+        "estimatedAmount": { "type": "number" },
+        "analyticCode": { "type": "string" },
+        "requiresThreeQuotes": { "type": "boolean" }
+      },
+      "required": ["technicianId", "estimatedAmount", "analyticCode"]
+    },
+    "suppliers": {
+      "title": "Proveïdor",
+      "description": "Registre de proveïdors de Som Llar.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "nif": { "type": "string" },
+        "status": { "type": "string", "enum": ["homologat", "candidat", "bloquejat"] }
+      }
+    }
+  },
+  "firestore": {
+    "/purchaseRequests/{requestId}": {
+      "schema": "purchaseRequests",
+      "description": "Sol·licituds de compra individuals."
+    },
+    "/suppliers/{supplierId}": {
+      "schema": "suppliers",
+      "description": "Catàleg de proveïdors."
+    }
+  }
+}

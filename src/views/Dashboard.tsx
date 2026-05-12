@@ -1,0 +1,175 @@
+import React from 'react';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+  PieChart, Pie, Cell, Legend 
+} from 'recharts';
+import { 
+  TrendingUp, 
+  AlertCircle, 
+  CheckCircle2, 
+  Clock, 
+  Euro, 
+  ArrowUpRight,
+  ShieldAlert
+} from 'lucide-react';
+import { MOCK_REQUESTS } from '../lib/mockData';
+import { CATEGORIES, STATUS_LABELS } from '../constants';
+import { cn } from '../lib/utils';
+
+const COLORS = ['#1e3a8a', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
+const KpiCard = ({ title, value, icon: Icon, trend, colorClass, isAlert }: any) => (
+  <div className={cn("stat-card card p-6 group cursor-default", isAlert && "stat-alert")}>
+    <div className="flex items-start justify-between">
+      <div>
+        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">{title}</p>
+        <h3 className="text-3xl font-black text-white">{value}</h3>
+        {trend && (
+          <div className="flex items-center gap-1 mt-3 text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full w-fit">
+            <ArrowUpRight size={12} />
+            <span>{trend}</span>
+          </div>
+        )}
+      </div>
+      <div className={cn("p-3 rounded-2xl transition-all duration-300 group-hover:scale-110 group-hover:rotate-6", colorClass)}>
+        <Icon size={24} />
+      </div>
+    </div>
+  </div>
+);
+
+export default function Dashboard() {
+  // Mock data calculations
+  const totalSpend = MOCK_REQUESTS.reduce((acc, curr) => acc + curr.estimatedAmount, 0);
+  const pendingApprovals = MOCK_REQUESTS.filter(r => r.status.includes('pendent')).length;
+  const urgentCount = MOCK_REQUESTS.filter(r => r.urgency === 'alta' || r.urgency === 'critica').length;
+  
+  const statusData = [
+    { name: 'Pendent', value: pendingApprovals },
+    { name: 'Aprovades', value: MOCK_REQUESTS.filter(r => r.status === 'aprovada').length },
+    { name: 'Incidències', value: MOCK_REQUESTS.filter(r => r.status === 'incidencia').length },
+  ];
+
+  const categoryData = CATEGORIES.map(cat => ({
+    name: cat.name,
+    import: MOCK_REQUESTS.filter(r => r.category === cat.id).reduce((acc, r) => acc + r.estimatedAmount, 0)
+  })).filter(d => d.import > 0);
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-700">
+      <div>
+        <h2 className="text-3xl font-black text-white mb-2">Tauler de Control de Compres</h2>
+        <p className="text-slate-400 text-sm">Monitoratge de fluxos d'aprovació i gestió de pressupostos</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <KpiCard 
+          title="Total Sol·licituds" 
+          value={MOCK_REQUESTS.length} 
+          icon={TrendingUp} 
+          trend="+12% VS MES ANT."
+          colorClass="bg-blue-500/10 text-blue-500"
+        />
+        <KpiCard 
+          title="Import Estimat" 
+          value={`${totalSpend.toLocaleString()} €`} 
+          icon={Euro} 
+          colorClass="bg-emerald-500/10 text-emerald-500"
+        />
+        <KpiCard 
+          title="Pendents d'Aprovació" 
+          value={pendingApprovals} 
+          icon={Clock} 
+          colorClass="bg-amber-500/10 text-amber-500"
+        />
+        <KpiCard 
+          title="Compres Urgents" 
+          value={urgentCount} 
+          icon={AlertCircle} 
+          colorClass="bg-red-500/10 text-red-500"
+          isAlert
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Gràfic d'imports per categoria */}
+        <div className="card p-8 lg:col-span-2">
+          <div className="flex items-center justify-between mb-10">
+            <h4 className="text-lg font-bold">Import per Categoria de Compra</h4>
+            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-white/5 px-3 py-1 rounded-full">DADES REALS</div>
+          </div>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={categoryData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                <XAxis dataKey="name" fontSize={11} tickLine={false} axisLine={false} stroke="#64748b" />
+                <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#64748b" tickFormatter={(v) => `${v}€`} />
+                <Tooltip 
+                  cursor={{fill: 'rgba(255,255,255,0.02)'}}
+                  contentStyle={{ backgroundColor: '#151c2c', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.5)' }}
+                />
+                <Bar dataKey="import" fill="#3b82f6" radius={[6, 6, 0, 0]} barSize={40} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Estat de les sol·licituds */}
+        <div className="card p-8">
+          <h4 className="text-lg font-bold mb-10">Estat de les Sol·licituds</h4>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={statusData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={70}
+                  outerRadius={90}
+                  paddingAngle={8}
+                  dataKey="value"
+                  stroke="none"
+                >
+                  {statusData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#151c2c', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}
+                />
+                <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{paddingTop: '20px', fontSize: '11px', fontWeight: 'bold'}} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Secció d'Alertes Crítiques */}
+      <div className="card border-red-500/20 bg-red-500/[0.02]">
+        <div className="px-6 py-4 border-b border-red-500/10 flex items-center gap-3 text-red-500 font-bold uppercase tracking-widest text-xs">
+          <ShieldAlert size={18} />
+          <span>Riscos i Incidències Crítiques</span>
+        </div>
+        <div className="p-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="bg-white/[0.03] p-6 rounded-2xl border border-red-500/10 hover:bg-white/[0.05] transition-all cursor-default">
+              <p className="text-[10px] font-black text-red-500 uppercase mb-2 tracking-tighter">Regla 3 Pressupostos</p>
+              <p className="text-2xl font-black text-white">1 expedient</p>
+              <p className="text-xs text-slate-500 mt-2 leading-relaxed">Servei {'>'} 5.000€ detectat sense la documentació comparativa requerida.</p>
+            </div>
+            <div className="bg-white/[0.02] p-6 rounded-2xl border border-white/5 opacity-50">
+              <p className="text-[10px] font-black text-orange-500 uppercase mb-2 tracking-tighter">Codi Analític Pendent</p>
+              <p className="text-2xl font-black text-white">0 expedients</p>
+              <p className="text-xs text-slate-500 mt-2 leading-relaxed">Totes les operacions d'aquest mes tenen assignació de projecte.</p>
+            </div>
+            <div className="bg-white/[0.02] p-6 rounded-2xl border border-white/5 opacity-50">
+              <p className="text-[10px] font-black text-indigo-500 uppercase mb-2 tracking-tighter">Proveïdors No Homologats</p>
+              <p className="text-2xl font-black text-white">0 expedients</p>
+              <p className="text-xs text-slate-500 mt-2 leading-relaxed">El 100% de les compres s'han realitzat amb proveïdors verificats.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
