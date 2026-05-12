@@ -12,38 +12,21 @@ import {
   ArrowUpRight,
   FileText
 } from 'lucide-react';
-import { MOCK_REQUESTS } from '../lib/mockData';
-import { STATUS_LABELS } from '../constants';
-
-const StatusBadge = ({ status }: { status: string }) => {
-  const config = STATUS_LABELS[status] || { label: status, color: 'bg-white/10' };
-  
-  const themeClasses: Record<string, string> = {
-    pendent_coordinacio: 'badge-pending',
-    pendent_direccio: 'badge-pending',
-    pendent_finances: 'badge-pending',
-    aprovada: 'badge-success',
-    denegada: 'badge-danger',
-    retornada: 'badge-danger',
-    incidencia: 'badge-danger'
-  };
-
-  return (
-    <span className={`badge shrink-0 text-[10px] py-1 px-3 ${themeClasses[status] || 'bg-white/10 text-slate-400'}`}>
-      {config.label.toUpperCase()}
-    </span>
-  );
-};
+import StatusBadge from '../components/StatusBadge';
+import { useRequests } from '../hooks/useRequests';
 
 export default function RequestsList() {
   const [searchTerm, setSearchTerm] = useState('');
+  const { requests } = useRequests();
 
-  const filteredRequests = MOCK_REQUESTS.filter(r => 
-    r.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.itemDescription.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.createdByUserName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (r.requestingTechnicianName && r.requestingTechnicianName.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredRequests = React.useMemo(() => {
+    return requests.filter(r => 
+      r.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      r.itemDescription.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      r.createdByUserName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (r.requestingTechnicianName && r.requestingTechnicianName.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+  }, [requests, searchTerm]);
 
   return (
     <div className="space-y-10 animate-in fade-in duration-700">

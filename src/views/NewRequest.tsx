@@ -11,15 +11,18 @@ import {
   User as UserIcon,
   ShieldCheck
 } from 'lucide-react';
-import { User, Worker, Attachment, DestinationCenter, AnalyticCode, AttachmentCategory } from '../types';
+import toast from 'react-hot-toast';
+import { User, Worker, Attachment, AttachmentCategory, RequestStatus } from '../types';
 import { CATEGORIES, AREAS } from '../constants';
 import { MOCK_ANALYTIC_CODES, MOCK_CENTERS } from '../lib/mockData';
 import WorkerSelector from '../components/WorkerSelector';
 import FileUploader from '../components/FileUploader';
 import AttachmentList from '../components/AttachmentList';
+import { useRequests } from '../hooks/useRequests';
 
 export default function NewRequest({ user }: { user: User }) {
   const navigate = useNavigate();
+  const { addRequest } = useRequests();
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [formData, setFormData] = useState({
     requestingTechnicianId: '',
@@ -33,7 +36,7 @@ export default function NewRequest({ user }: { user: User }) {
     destinationCenterName: '',
     description: '',
     justification: '',
-    urgency: 'mitjana',
+    urgency: 'mitjana' as 'baixa' | 'mitjana' | 'alta' | 'critica',
     deadline: '',
     estimatedAmount: 0,
     requiresThreeQuotes: false
@@ -82,26 +85,41 @@ export default function NewRequest({ user }: { user: User }) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.requestingTechnicianId) {
-      alert('Siusplau, selecciona el tècnic sol·licitant');
+      toast.error('Siusplau, selecciona el tècnic sol·licitant');
       return;
     }
     if (!formData.projectId) {
-      alert('Siusplau, selecciona un projecte');
+      toast.error('Siusplau, selecciona un projecte');
       return;
     }
     if (!formData.analyticCode) {
-      alert('Siusplau, selecciona un codi analític');
+      toast.error('Siusplau, selecciona un codi analític');
       return;
     }
     if (!formData.destinationCenterId) {
-      alert('Siusplau, selecciona un centre de destí');
+      toast.error('Siusplau, selecciona un centre de destí');
       return;
     }
     
-    // Aquí aniria la lògica d'enviament a Firestore
-    console.log('Enviant sol·licitud:', { ...formData, attachments });
-    alert('Sol·licitud enviada correctament');
-    navigate('/compres');
+    // Enviament real a Firestore
+    toast.promise(
+      addRequest({
+        ...formData,
+        createdByUserId: user.id,
+        createdByUserName: user.name,
+        createdByUserEmail: user.email,
+        areaId: user.areaId,
+        attachmentsCount: attachments.length,
+        status: 'pendent_coordinacio'
+      }),
+      {
+        loading: 'Enviant sol·licitud a Firestore...',
+        success: 'Sol·licitud enviada correctament!',
+        error: 'Error al enviar la sol·licitud',
+      }
+    ).then(() => {
+      navigate('/compres');
+    });
   };
 
   return (
@@ -338,7 +356,7 @@ export default function NewRequest({ user }: { user: User }) {
               <select 
                 className="input-field font-bold"
                 value={formData.urgency}
-                onChange={e => setFormData({...formData, urgency: e.target.value as any})}
+                onChange={e => setFormData({...formData, urgency: e.target.value as 'baixa' | 'mitjana' | 'alta' | 'critica'})}
               >
                 <option value="baixa">Baixa</option>
                 <option value="mitjana">Mitjana (Estàndard)</option>

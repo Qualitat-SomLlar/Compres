@@ -12,13 +12,23 @@ import {
   ArrowUpRight,
   ShieldAlert
 } from 'lucide-react';
-import { MOCK_REQUESTS } from '../lib/mockData';
-import { CATEGORIES, STATUS_LABELS } from '../constants';
+} from 'lucide-react';
+import { CATEGORIES } from '../constants';
 import { cn } from '../lib/utils';
+import { useRequests } from '../hooks/useRequests';
 
 const COLORS = ['#1e3a8a', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
-const KpiCard = ({ title, value, icon: Icon, trend, colorClass, isAlert }: any) => (
+interface KpiCardProps {
+  title: string;
+  value: string | number;
+  icon: React.ElementType;
+  trend?: string;
+  colorClass: string;
+  isAlert?: boolean;
+}
+
+const KpiCard = ({ title, value, icon: Icon, trend, colorClass, isAlert }: KpiCardProps) => (
   <div className={cn("stat-card card p-6 group cursor-default", isAlert && "stat-alert")}>
     <div className="flex items-start justify-between">
       <div>
@@ -39,21 +49,20 @@ const KpiCard = ({ title, value, icon: Icon, trend, colorClass, isAlert }: any) 
 );
 
 export default function Dashboard() {
-  // Mock data calculations
-  const totalSpend = MOCK_REQUESTS.reduce((acc, curr) => acc + curr.estimatedAmount, 0);
-  const pendingApprovals = MOCK_REQUESTS.filter(r => r.status.includes('pendent')).length;
-  const urgentCount = MOCK_REQUESTS.filter(r => r.urgency === 'alta' || r.urgency === 'critica').length;
-  
-  const statusData = [
-    { name: 'Pendent', value: pendingApprovals },
-    { name: 'Aprovades', value: MOCK_REQUESTS.filter(r => r.status === 'aprovada').length },
-    { name: 'Incidències', value: MOCK_REQUESTS.filter(r => r.status === 'incidencia').length },
-  ];
+  const { requests, stats } = useRequests();
 
-  const categoryData = CATEGORIES.map(cat => ({
-    name: cat.name,
-    import: MOCK_REQUESTS.filter(r => r.category === cat.id).reduce((acc, r) => acc + r.estimatedAmount, 0)
-  })).filter(d => d.import > 0);
+  const statusData = React.useMemo(() => [
+    { name: 'Pendent', value: stats.pendingApprovals },
+    { name: 'Aprovades', value: stats.approvedCount },
+    { name: 'Incidències', value: stats.incidentsCount },
+  ], [stats]);
+
+  const categoryData = React.useMemo(() => {
+    return CATEGORIES.map(cat => ({
+      name: cat.name,
+      import: requests.filter(r => r.category === cat.id).reduce((acc, r) => acc + r.estimatedAmount, 0)
+    })).filter(d => d.import > 0);
+  }, [requests]);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
@@ -65,26 +74,26 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <KpiCard 
           title="Total Sol·licituds" 
-          value={MOCK_REQUESTS.length} 
+          value={stats.totalRequests} 
           icon={TrendingUp} 
           trend="+12% VS MES ANT."
           colorClass="bg-blue-500/10 text-blue-500"
         />
         <KpiCard 
           title="Import Estimat" 
-          value={`${totalSpend.toLocaleString()} €`} 
+          value={`${stats.totalSpend.toLocaleString()} €`} 
           icon={Euro} 
           colorClass="bg-emerald-500/10 text-emerald-500"
         />
         <KpiCard 
           title="Pendents d'Aprovació" 
-          value={pendingApprovals} 
+          value={stats.pendingApprovals} 
           icon={Clock} 
           colorClass="bg-amber-500/10 text-amber-500"
         />
         <KpiCard 
           title="Compres Urgents" 
-          value={urgentCount} 
+          value={stats.urgentCount} 
           icon={AlertCircle} 
           colorClass="bg-red-500/10 text-red-500"
           isAlert

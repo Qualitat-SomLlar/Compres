@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { Toaster } from 'react-hot-toast';
 
 // Views (To be implemented in next steps)
 import Dashboard from './views/Dashboard';
@@ -26,9 +27,9 @@ import RequestDetail from './views/RequestDetail';
 import Reports from './views/Reports';
 import AdminPanel from './views/Admin';
 
-// Types
+// Auth and Types
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { User } from './types';
-import { MOCK_USERS } from './lib/mockData';
 import { cn } from './lib/utils';
 
 const SidebarItem = ({ to, icon: Icon, label, active }: { to: string, icon: any, label: string, active?: boolean }) => (
@@ -132,17 +133,52 @@ const AppLayout = ({ children, user }: { children: React.ReactNode, user: User }
           {children}
         </div>
       </main>
+      <Toaster 
+        position="bottom-right" 
+        toastOptions={{
+          style: {
+            background: '#1e293b',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.1)',
+          }
+        }}
+      />
     </div>
   );
 };
 
 export default function App() {
-  // Simulem usuari loguejat (Tècnic per defecte per veure flux)
-  const [currentUser] = useState<User>(MOCK_USERS[0]);
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+}
+
+function AppContent() {
+  const { user, loading, loginAsMockUser } = useAuth();
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center bg-brand-secondary text-brand-primary">Carregant...</div>;
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-brand-secondary gap-4">
+        <h1 className="text-3xl font-black text-white mb-4">Gestió de Compres</h1>
+        <button onClick={() => loginAsMockUser('tecnic')} className="btn-primary py-3 px-8 text-xs font-black uppercase">
+          Entrar com a Tècnic (Proves)
+        </button>
+        <button onClick={() => loginAsMockUser('finances')} className="btn-secondary py-3 px-8 text-xs font-black uppercase border-brand-primary/20 text-brand-primary">
+          Entrar com a Finances (Proves)
+        </button>
+      </div>
+    );
+  }
 
   return (
     <Router>
-      <AppLayout user={currentUser}>
+      <AppLayout user={user}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/compres" element={<RequestsList />} />

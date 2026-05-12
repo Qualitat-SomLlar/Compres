@@ -16,24 +16,32 @@ import {
   User as UserIcon,
   ShieldCheck
 } from 'lucide-react';
-import { MOCK_REQUESTS, MOCK_SUPPLIERS, MOCK_WORKERS } from '../lib/mockData';
-import { STATUS_LABELS, ROLE_LABELS } from '../constants';
-import { User, RequestStatus } from '../types';
+import toast from 'react-hot-toast';
+import { STATUS_LABELS } from '../constants';
+import { User, RequestStatus, AttachmentCategory } from '../types';
 import { cn } from '../lib/utils';
 import AttachmentList from '../components/AttachmentList';
+import StatusBadge from '../components/StatusBadge';
+import { useRequests } from '../hooks/useRequests';
 
 export default function RequestDetail({ user }: { user: User }) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const request = MOCK_REQUESTS.find(r => r.id === id);
+  const { getRequestById, updateRequestStatus } = useRequests();
   
+  const request = id ? getRequestById(id) : undefined;
   const [comment, setComment] = useState('');
 
   if (!request) return <div className="p-20 text-center font-black text-slate-500 uppercase tracking-widest bg-brand-secondary rounded-3xl border border-white/5">No s'ha trobat la sol·licitud</div>;
 
-  const handleAction = (newStatus: RequestStatus) => {
-    alert(`Estat canviat a: ${STATUS_LABELS[newStatus].label}`);
-    navigate('/compres');
+  const handleAction = async (newStatus: RequestStatus) => {
+    try {
+      await updateRequestStatus(request.id, newStatus);
+      toast.success(`Estat canviat a: ${STATUS_LABELS[newStatus]?.label || newStatus}`);
+      navigate('/compres');
+    } catch (error) {
+      toast.error("Error al canviar l'estat");
+    }
   };
 
   const isCoordinator = user.role === 'coordinacio';
@@ -50,7 +58,7 @@ export default function RequestDetail({ user }: { user: User }) {
       downloadURL: '#',
       mimeType: 'application/pdf',
       size: 1250000,
-      category: 'pressupost' as any,
+      category: 'pressupost' as AttachmentCategory,
       uploadedByUserId: 'u1',
       uploadedByUserName: 'Joan Tècnic',
       createdAt: '2024-04-01T11:00:00Z'
@@ -66,12 +74,7 @@ export default function RequestDetail({ user }: { user: User }) {
         </button>
 
         <div className="flex items-center gap-3">
-          <span className={cn(
-            "px-6 py-2 rounded-xl text-[10px] font-black tracking-[0.2em] shadow-2xl border",
-            STATUS_LABELS[request.status]?.color || 'bg-white/5 text-slate-500 border-white/10'
-          )}>
-            {STATUS_LABELS[request.status]?.label?.toUpperCase() || request.status.toUpperCase()}
-          </span>
+          <StatusBadge status={request.status} className="px-6 py-2 rounded-xl text-[10px] font-black tracking-[0.2em] shadow-2xl border text-base" />
         </div>
       </div>
 
@@ -266,7 +269,15 @@ export default function RequestDetail({ user }: { user: User }) {
   );
 }
 
-const TimelineStep = ({ title, status, role, date, active }: any) => {
+interface TimelineStepProps {
+  title: string;
+  status: 'pending' | 'completed' | 'error';
+  role: string;
+  date?: string;
+  active?: boolean;
+}
+
+const TimelineStep = ({ title, status, role, date, active }: TimelineStepProps) => {
   return (
     <div className="relative pl-10 group">
       <div className={cn(
