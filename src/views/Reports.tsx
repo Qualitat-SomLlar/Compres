@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   BarChart3, 
   Download, 
@@ -204,9 +205,9 @@ export default function Reports() {
                     </span>
                   </td>
                   <td className="px-8 py-6 text-right">
-                    <button className="p-2 bg-white/5 rounded-xl text-slate-500 hover:text-brand-primary transition-all">
+                    <Link to={`/compres/${request.id}`} className="inline-block p-2 bg-white/5 rounded-xl text-slate-500 hover:text-brand-primary transition-all">
                       <ArrowUpRight size={16} />
-                    </button>
+                    </Link>
                   </td>
                 </tr>
               ))}

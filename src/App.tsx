@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { Toaster } from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 
 // Views (To be implemented in next steps)
 import Dashboard from './views/Dashboard';
@@ -48,6 +48,7 @@ const SidebarItem = ({ to, icon: Icon, label, active }: { to: string, icon: Reac
 const AppLayout = ({ children, user }: { children: React.ReactNode, user: User }) => {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const location = useLocation();
+  const { logout } = useAuth();
 
   return (
     <div className="flex min-h-screen">
@@ -93,7 +94,7 @@ const AppLayout = ({ children, user }: { children: React.ReactNode, user: User }
                   <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">{user.role.replace('_', ' ')}</p>
                 </div>
               </div>
-              <button className="w-full flex items-center gap-2 justify-center py-2 text-xs font-medium text-slate-500 hover:text-white transition-colors border-t border-white/5 mt-2">
+              <button onClick={logout} className="w-full flex items-center gap-2 justify-center py-2 text-xs font-medium text-slate-500 hover:text-white transition-colors border-t border-white/5 mt-2">
                 <LogOut size={14} /> Tancar sessió
               </button>
             </div>
@@ -116,7 +117,7 @@ const AppLayout = ({ children, user }: { children: React.ReactNode, user: User }
           </button>
 
           <div className="flex items-center gap-4">
-            <button className="relative p-2 text-slate-400 hover:text-brand-primary transition-colors">
+            <button onClick={() => toast('No hi ha notificacions noves', { icon: '🔔' })} className="relative p-2 text-slate-400 hover:text-brand-primary transition-colors">
               <Bell size={20} />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-[#151c2c]"></span>
             </button>

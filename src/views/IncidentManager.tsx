@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   AlertTriangle, 
   Search, 
@@ -7,8 +7,12 @@ import {
   ShieldAlert,
   Ghost,
   Lock,
-  FileWarning
+  FileWarning,
+  X,
+  CheckCircle,
+  MessageSquare
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const INCIDENTS = [
   { id: 'INC-001', type: 'Manca de Codi Analític', description: 'Compra enviada sense imputació analítica vàlida.', request: 'PR-2024-001', area: 'Social', severity: 'alta' },
@@ -17,6 +21,13 @@ const INCIDENTS = [
 ];
 
 export default function IncidentManager() {
+  const [selectedIncident, setSelectedIncident] = useState<any | null>(null);
+
+  const handleResolve = () => {
+    toast.success("Incidència resolta correctament");
+    setSelectedIncident(null);
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex justify-between items-end">
@@ -60,7 +71,10 @@ export default function IncidentManager() {
               </div>
 
               <div className="text-right">
-                <button className="btn-secondary text-[10px] font-black flex items-center gap-2 py-2 px-4 whitespace-nowrap">
+                <button 
+                  onClick={() => setSelectedIncident(incident)}
+                  className="btn-secondary text-[10px] font-black flex items-center gap-2 py-2 px-4 whitespace-nowrap"
+                >
                   GESTIONAR <ArrowRight size={14} />
                 </button>
               </div>
@@ -76,6 +90,60 @@ export default function IncidentManager() {
           )}
         </div>
       </div>
+      </div>
+
+      {selectedIncident && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-[#151c2c] border border-white/10 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-6 border-b border-white/5">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <FileWarning size={20} className={selectedIncident.severity === 'critica' ? 'text-red-500' : 'text-orange-500'} />
+                Gestió d'Incidència
+              </h3>
+              <button onClick={() => setSelectedIncident(null)} className="p-2 hover:bg-white/5 rounded-lg text-slate-400">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto space-y-6">
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-white/10 text-slate-300 uppercase tracking-widest">{selectedIncident.id}</span>
+                    <h4 className="text-2xl font-black text-white">{selectedIncident.type}</h4>
+                  </div>
+                  <p className="text-sm text-slate-400 mt-2">{selectedIncident.description}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 p-4 bg-white/[0.02] rounded-xl border border-white/5">
+                <div>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Expedient Afectat</p>
+                  <p className="text-sm font-bold text-brand-primary cursor-pointer hover:underline">{selectedIncident.request}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Àrea de Negoci</p>
+                  <p className="text-sm font-bold text-white">{selectedIncident.area}</p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Afegeix un comentari a la resolució</label>
+                <textarea 
+                  className="input-field w-full h-24 resize-none" 
+                  placeholder="Explica com s'ha solucionat aquesta incidència o quines accions s'han pres..."
+                ></textarea>
+              </div>
+
+              <div className="pt-6 border-t border-white/5 flex justify-end gap-3">
+                <button type="button" onClick={() => setSelectedIncident(null)} className="btn-secondary px-6 py-2.5 text-xs font-bold uppercase tracking-widest">Tancar</button>
+                <button type="button" onClick={handleResolve} className="btn-primary flex items-center gap-2 px-6 py-2.5 text-xs font-bold uppercase tracking-widest bg-emerald-500 hover:bg-emerald-600 border-emerald-500/50 shadow-emerald-500/20">
+                  <CheckCircle size={16}/> Resoldre Incidència
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

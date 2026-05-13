@@ -12,6 +12,7 @@ import {
   ArrowUpRight,
   FileText
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import StatusBadge from '../components/StatusBadge';
 import { useRequests } from '../hooks/useRequests';
 
@@ -52,7 +53,7 @@ export default function RequestsList() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <button className="p-3 bg-white/5 border border-white/5 rounded-xl text-slate-400 hover:text-white transition-colors">
+          <button onClick={() => toast.success("Filtres avançats en desenvolupament")} className="p-3 bg-white/5 border border-white/5 rounded-xl text-slate-400 hover:text-white transition-colors">
             <Filter size={18} />
           </button>
           <Link to="/compres/nova" className="btn-primary flex items-center gap-3 py-3 px-6 text-xs font-black tracking-widest uppercase">

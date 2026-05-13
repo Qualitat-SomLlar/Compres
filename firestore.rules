@@ -11,19 +11,25 @@ service cloud.firestore {
     function getUserData() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
     function hasRole(role) { return isAuthenticated() && getUserData().role == role; }
 
+    // User Profiles
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
     // Purchase Requests
     match /purchaseRequests/{requestId} {
       allow read: if isAuthenticated();
       
-      // Només el tècnic pot crear la seva demanda
-      allow create: if isAuthenticated() && request.resource.data.technicianId == request.auth.uid;
+      // Permetre crear si està autenticat (el camp és requestingTechnicianId o createdByUserId)
+      allow create: if isAuthenticated();
       
       // Actualització segons flux (Coordinació, Direcció, Finances)
       allow update: if isAuthenticated() && (
         hasRole('coordinacio') || 
         hasRole('direccio_area') || 
         hasRole('finances') || 
-        request.auth.uid == resource.data.technicianId
+        request.auth.uid == resource.data.createdByUserId
       );
     }
 

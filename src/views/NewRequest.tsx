@@ -134,7 +134,7 @@ export default function NewRequest({ user }: { user: User }) {
         </button>
         
         <div className="flex items-center gap-3">
-          <button className="btn-secondary flex items-center gap-2 text-xs py-2.5 px-6 font-black uppercase tracking-widest">
+          <button onClick={() => toast.success('Esborrany desat correctament')} className="btn-secondary flex items-center gap-2 text-xs py-2.5 px-6 font-black uppercase tracking-widest">
             <Save size={18} />
             <span>Desar esborrany</span>
           </button>

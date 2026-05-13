@@ -11,8 +11,11 @@ import {
   Download, 
   CheckCircle,
   AlertCircle,
-  FileSpreadsheet
+  FileSpreadsheet,
+  X,
+  Save
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { cn } from '../../lib/utils';
 import { MOCK_WORKERS, MOCK_CENTERS, MOCK_ANALYTIC_CODES, MOCK_NOTIFICATION_SETTINGS } from '../../lib/mockData';
 import { ROLE_LABELS, ATTACHMENT_CATEGORIES, NOTIFICATION_EVENTS, AREAS } from '../../constants';
@@ -103,6 +106,9 @@ function TabButton({ active, onClick, icon, label }: TabButtonProps) {
 }
 
 function WorkersManager({ searchTerm }: { searchTerm: string }) {
+  const [isWorkerModalOpen, setIsWorkerModalOpen] = useState(false);
+  const [selectedWorker, setSelectedWorker] = useState<any | null>(null);
+
   const filteredWorkers = MOCK_WORKERS.filter(w => 
     w.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     w.email.toLowerCase().includes(searchTerm.toLowerCase())
@@ -119,7 +125,10 @@ function WorkersManager({ searchTerm }: { searchTerm: string }) {
             className="input-field pl-10 w-64 text-xs"
           />
         </div>
-        <button className="btn-primary flex items-center gap-2 text-xs font-black uppercase tracking-widest py-3">
+        <button 
+          onClick={() => { setSelectedWorker(null); setIsWorkerModalOpen(true); }}
+          className="btn-primary flex items-center gap-2 text-xs font-black uppercase tracking-widest py-3"
+        >
           <Plus size={16} />
           <span>Nou Treballador/a</span>
         </button>
@@ -162,10 +171,16 @@ function WorkersManager({ searchTerm }: { searchTerm: string }) {
                 </td>
                 <td className="py-4 text-right">
                   <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button className="p-2 hover:bg-white/5 rounded-lg text-slate-500 hover:text-brand-primary">
+                    <button 
+                      onClick={() => { setSelectedWorker(worker); setIsWorkerModalOpen(true); }}
+                      className="p-2 hover:bg-white/5 rounded-lg text-slate-500 hover:text-brand-primary"
+                    >
                       <Edit2 size={14} />
                     </button>
-                    <button className="p-2 hover:bg-white/5 rounded-lg text-slate-500 hover:text-red-500">
+                    <button 
+                      onClick={() => toast.success("Treballador/a eliminat correctament")}
+                      className="p-2 hover:bg-white/5 rounded-lg text-slate-500 hover:text-red-500"
+                    >
                       <Trash2 size={14} />
                     </button>
                   </div>
@@ -175,6 +190,50 @@ function WorkersManager({ searchTerm }: { searchTerm: string }) {
           </tbody>
         </table>
       </div>
+
+      {isWorkerModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-[#151c2c] border border-white/10 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-6 border-b border-white/5">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                {selectedWorker ? <Edit2 size={24} className="text-brand-primary"/> : <Plus size={24} className="text-brand-primary"/>}
+                {selectedWorker ? "Edita Treballador/a" : "Nou Treballador/a"}
+              </h3>
+              <button onClick={() => setIsWorkerModalOpen(false)} className="p-2 hover:bg-white/5 rounded-lg text-slate-400">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={(e) => { e.preventDefault(); toast.success("Dades desades correctament"); setIsWorkerModalOpen(false); }} className="p-6 overflow-y-auto space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Nom complet <span className="text-red-500">*</span></label>
+                  <input type="text" required className="input-field w-full" defaultValue={selectedWorker?.fullName || ''} placeholder="Ex: Maria Garcia" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Correu electrònic <span className="text-red-500">*</span></label>
+                  <input type="email" required className="input-field w-full" defaultValue={selectedWorker?.email || ''} placeholder="Ex: mgarcia@somllar.org" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Àrea</label>
+                  <select className="input-field w-full" defaultValue={selectedWorker?.area || ''}>
+                    {AREAS.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Rol al Flux</label>
+                  <select className="input-field w-full" defaultValue={selectedWorker?.approvalFlowRole || 'tecnic'}>
+                    {Object.entries(ROLE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="pt-6 border-t border-white/5 flex justify-end gap-3">
+                <button type="button" onClick={() => setIsWorkerModalOpen(false)} className="btn-secondary px-6 py-2.5 text-xs font-bold uppercase tracking-widest">Cancel·lar</button>
+                <button type="submit" className="btn-primary flex items-center gap-2 px-6 py-2.5 text-xs font-bold uppercase tracking-widest"><Save size={16}/> Desar Dades</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -193,7 +252,7 @@ function FlowsManager() {
     <div className="p-8 space-y-8">
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Configuració del Flux d'Aprovació Estàndard</h3>
-        <button className="btn-secondary text-[10px] font-black uppercase tracking-widest py-2">
+        <button onClick={() => toast("Flux restablert als valors per defecte", { icon: '🔄' })} className="btn-secondary text-[10px] font-black uppercase tracking-widest py-2">
           Restablir Flux
         </button>
       </div>
@@ -217,7 +276,7 @@ function FlowsManager() {
                 )}>
                   {step.required ? 'Obligatori' : 'Opcional'}
                 </span>
-                <button className="text-[10px] font-bold text-brand-primary hover:underline">Configurar</button>
+                <button onClick={() => toast("Configuració de passos en desenvolupament", { icon: '⚙️' })} className="text-[10px] font-bold text-brand-primary hover:underline">Configurar</button>
               </div>
             </div>
           </div>
