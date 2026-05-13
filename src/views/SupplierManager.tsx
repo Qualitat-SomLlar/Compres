@@ -111,7 +111,6 @@ export default function SupplierManager() {
           </div>
         ))}
       </div>
-      </div>
 
       {/* New Supplier Modal */}
       {isNewSupplierModalOpen && (
