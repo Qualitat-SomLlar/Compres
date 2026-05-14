@@ -16,6 +16,7 @@ import { User, Worker, Attachment, AttachmentCategory, RequestStatus } from '../
 import { CATEGORIES, AREAS } from '../constants';
 import { MOCK_ANALYTIC_CODES, MOCK_CENTERS } from '../lib/mockData';
 import WorkerSelector from '../components/WorkerSelector';
+import CustomSelect from '../components/CustomSelect';
 import FileUploader from '../components/FileUploader';
 import AttachmentList from '../components/AttachmentList';
 import { useRequests } from '../hooks/useRequests';
@@ -173,7 +174,7 @@ export default function NewRequest({ user }: { user: User }) {
         </section>
 
         {/* Bloc 1: Context del Projecte */}
-        <section className="card p-10 relative overflow-hidden">
+        <section className="card p-10 relative z-40 !overflow-visible">
           <div className="absolute top-0 right-0 w-48 h-48 bg-brand-primary/5 blur-3xl -mr-24 -mt-24 rounded-full"></div>
           <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-10 flex items-center gap-3 relative z-10">
             <div className="p-2 bg-white/5 rounded-lg text-slate-500">1</div>
@@ -183,64 +184,60 @@ export default function NewRequest({ user }: { user: User }) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative z-10">
             <div className="space-y-3">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Projecte <span className="text-red-500">*</span></label>
-              <select 
-                required
-                className="input-field"
+              <CustomSelect
+                placeholder="Selecciona projecte"
                 value={formData.projectId}
-                onChange={e => setFormData({...formData, projectId: e.target.value})}
-              >
-                <option value="">Selecciona projecte</option>
-                <option value="SOC-01">Programes Socials Generals</option>
-                <option value="REHAB-BCN">Rehabilitació BCN</option>
-                <option value="EMERG-ACCES">Emergència Accés Habitatge</option>
-              </select>
+                onChange={v => setFormData({...formData, projectId: v})}
+                options={[
+                  { value: 'SOC-01', label: 'Programes Socials Generals' },
+                  { value: 'REHAB-BCN', label: 'Rehabilitació BCN' },
+                  { value: 'EMERG-ACCES', label: 'Emergència Accés Habitatge' }
+                ]}
+              />
             </div>
 
             <div className="space-y-3">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                 Codi Analític <span className="text-red-500">*</span>
               </label>
-              <select 
-                required
-                className="input-field"
+              <CustomSelect
+                placeholder="Selecciona codi"
                 value={formData.analyticCode}
-                onChange={e => setFormData({...formData, analyticCode: e.target.value})}
-              >
-                <option value="">Selecciona codi</option>
-                {MOCK_ANALYTIC_CODES.map(ac => (
-                  <option key={ac.id} value={ac.code}>{ac.code} - {ac.description}</option>
-                ))}
-              </select>
+                onChange={v => setFormData({...formData, analyticCode: v})}
+                options={MOCK_ANALYTIC_CODES.map(ac => ({
+                  value: ac.code,
+                  label: ac.code,
+                  description: ac.description
+                }))}
+              />
             </div>
 
             <div className="space-y-3">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                 Centre de Destí <span className="text-red-500">*</span>
               </label>
-              <select 
-                required
-                className="input-field"
+              <CustomSelect
+                placeholder="Selecciona centre"
                 value={formData.destinationCenterId}
-                onChange={e => {
-                  const center = MOCK_CENTERS.find(c => c.id === e.target.value);
+                onChange={v => {
+                  const center = MOCK_CENTERS.find(c => c.id === v);
                   setFormData({
                     ...formData, 
-                    destinationCenterId: e.target.value,
+                    destinationCenterId: v,
                     destinationCenterName: center?.name || ''
                   });
                 }}
-              >
-                <option value="">Selecciona centre</option>
-                {MOCK_CENTERS.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+                options={MOCK_CENTERS.map(c => ({
+                  value: c.id,
+                  label: c.name
+                }))}
+              />
             </div>
           </div>
         </section>
 
         {/* Bloc 2: Detalls de la Compra */}
-        <section className="card p-10 relative overflow-hidden">
+        <section className="card p-10 relative z-30 !overflow-visible">
           <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-10 flex items-center gap-3 relative z-10">
             <div className="p-2 bg-white/5 rounded-lg text-slate-500">2</div>
             Descripció del Bé o Servei
@@ -250,17 +247,15 @@ export default function NewRequest({ user }: { user: User }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Categoria</label>
-                <select 
-                  required
-                  className="input-field"
+                <CustomSelect
+                  placeholder="Selecciona categoria"
                   value={formData.category}
-                  onChange={e => setFormData({...formData, category: e.target.value})}
-                >
-                  <option value="">Selecciona categoria</option>
-                  {CATEGORIES.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
+                  onChange={v => setFormData({...formData, category: v})}
+                  options={CATEGORIES.map(cat => ({
+                    value: cat.id,
+                    label: cat.name
+                  }))}
+                />
               </div>
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Subcategoria</label>
@@ -323,7 +318,7 @@ export default function NewRequest({ user }: { user: User }) {
         </section>
 
         {/* Bloc 4: Pressupost i Terminis */}
-        <section className="card p-10 bg-brand-primary/[0.01]">
+        <section className="card p-10 bg-brand-primary/[0.01] relative z-20 !overflow-visible">
           <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-10 flex items-center gap-3">
             <div className="p-2 bg-white/5 rounded-lg text-slate-500">4</div>
             Validació Econòmica
@@ -342,16 +337,16 @@ export default function NewRequest({ user }: { user: User }) {
             </div>
             <div className="space-y-3">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Prioritat de compra</label>
-              <select 
-                className="input-field"
+              <CustomSelect
                 value={formData.urgency}
-                onChange={e => setFormData({...formData, urgency: e.target.value as 'baixa' | 'mitjana' | 'alta' | 'critica'})}
-              >
-                <option value="baixa">Baixa</option>
-                <option value="mitjana">Mitjana (Estàndard)</option>
-                <option value="alta">Alta</option>
-                <option value="critica">Crítica (Interrupció servei)</option>
-              </select>
+                onChange={v => setFormData({...formData, urgency: v as 'baixa' | 'mitjana' | 'alta' | 'critica'})}
+                options={[
+                  { value: 'baixa', label: 'Baixa' },
+                  { value: 'mitjana', label: 'Mitjana (Estàndard)' },
+                  { value: 'alta', label: 'Alta' },
+                  { value: 'critica', label: 'Crítica (Interrupció servei)' }
+                ]}
+              />
             </div>
             <div className="space-y-3">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Termini desitjat</label>
