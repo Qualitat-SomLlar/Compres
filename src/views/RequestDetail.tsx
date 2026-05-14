@@ -257,10 +257,20 @@ export default function RequestDetail({ user }: { user: User }) {
                 value={comment}
                 onChange={e => setComment(e.target.value)}
               />
-              <div className="flex gap-3">
-                 <button onClick={() => handleAction('retornada')} className="btn-secondary flex-1 py-3 text-[10px] font-black uppercase tracking-widest border-red-500/20 text-red-500 hover:bg-red-500/10">Retornar</button>
-                 <button onClick={() => handleAction('aprovada')} className="btn-primary flex-1 py-3 text-[10px] font-black uppercase tracking-widest">Validar</button>
-              </div>
+              {request.status === 'comanda_emesa' ? (
+                <div className="flex gap-3 mt-4">
+                   <button onClick={() => handleAction('rebuda')} className="btn-primary flex-1 py-3 text-[10px] font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500">Confirmar Recepció</button>
+                </div>
+              ) : request.status === 'rebuda' ? (
+                <div className="flex gap-3 mt-4">
+                   <button onClick={() => handleAction('tancada')} className="btn-primary flex-1 py-3 text-[10px] font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500">Validar Factura i Tancar</button>
+                </div>
+              ) : request.status !== 'tancada' && request.status !== 'rebutjada' ? (
+                <div className="flex gap-3 mt-4">
+                   <button onClick={() => handleAction('retornada')} className="btn-secondary flex-1 py-3 text-[10px] font-black uppercase tracking-widest border-red-500/20 text-red-500 hover:bg-red-500/10">Retornar</button>
+                   <button onClick={() => handleAction('aprovada')} className="btn-primary flex-1 py-3 text-[10px] font-black uppercase tracking-widest">Validar</button>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

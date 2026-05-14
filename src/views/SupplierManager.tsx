@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import { Supplier } from '../types';
 import { 
   Users, 
   Search, 
@@ -35,9 +36,54 @@ const StatusBadge = ({ status }: { status: string }) => {
 };
 
 export default function SupplierManager() {
+  const [suppliers, setSuppliers] = useState<Supplier[]>(MOCK_SUPPLIERS as any);
   const [searchTerm, setSearchTerm] = useState('');
   const [isNewSupplierModalOpen, setIsNewSupplierModalOpen] = useState(false);
-  const [selectedSupplier, setSelectedSupplier] = useState<any | null>(null);
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedSupplier) return;
+    
+    setIsUploading(true);
+    // Mock upload
+    setTimeout(() => {
+      const newDoc = { id: Math.random().toString(), name: file.name, date: new Date().toISOString().split('T')[0], type: 'Normatiu' };
+      const updatedSupplier = { ...selectedSupplier, documents: [...(selectedSupplier.documents || []), newDoc] };
+      
+      setSuppliers(prev => prev.map(s => s.id === updatedSupplier.id ? updatedSupplier : s));
+      setSelectedSupplier(updatedSupplier);
+      setIsUploading(false);
+      toast.success('Document pujat correctament');
+    }, 1000);
+  };
+
+  const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    if (!selectedSupplier) return;
+    const newStatus = e.target.value as any;
+    const updatedSupplier = { ...selectedSupplier, status: newStatus };
+    setSuppliers(prev => prev.map(s => s.id === updatedSupplier.id ? updatedSupplier : s));
+    setSelectedSupplier(updatedSupplier);
+    toast.success('Estat actualitzat correctament');
+  };
+
+  const handleRatingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selectedSupplier) return;
+    const newRating = parseInt(e.target.value) || 0;
+    const updatedSupplier = { ...selectedSupplier, rating: newRating };
+    setSuppliers(prev => prev.map(s => s.id === updatedSupplier.id ? updatedSupplier : s));
+    setSelectedSupplier(updatedSupplier);
+  };
+  
+  const handleCriticalityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    if (!selectedSupplier) return;
+    const newCrit = e.target.value as any;
+    const updatedSupplier = { ...selectedSupplier, criticality: newCrit };
+    setSuppliers(prev => prev.map(s => s.id === updatedSupplier.id ? updatedSupplier : s));
+    setSelectedSupplier(updatedSupplier);
+  };
 
   const handleSaveSupplier = (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,7 +121,7 @@ export default function SupplierManager() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {MOCK_SUPPLIERS.map(supplier => (
+        {suppliers.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()) || s.nif.toLowerCase().includes(searchTerm.toLowerCase())).map(supplier => (
           <div key={supplier.id} className="card p-8 flex flex-col hover:border-brand-primary/50 transition-all duration-500 group">
             <div className="flex items-start justify-between mb-8">
               <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center text-slate-500 group-hover:bg-brand-primary/10 group-hover:text-brand-primary transition-all duration-500 shadow-inner">
@@ -171,26 +217,91 @@ export default function SupplierManager() {
                   <h4 className="text-2xl font-black text-white">{selectedSupplier.name}</h4>
                   <p className="text-sm text-slate-400">NIF: {selectedSupplier.nif}</p>
                 </div>
-                <StatusBadge status={selectedSupplier.status} />
+                <div className="flex flex-col items-end gap-2">
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Estat Homologació</p>
+                  <select 
+                    value={selectedSupplier.status} 
+                    onChange={handleStatusChange}
+                    className="input-field py-1 px-3 text-xs font-bold bg-[#1e293b]"
+                  >
+                    <option value="candidat">Candidat</option>
+                    <option value="pendent_documentacio">Pend. Documentació</option>
+                    <option value="en_revisio">En Revisió</option>
+                    <option value="homologat">Homologat</option>
+                    <option value="bloquejat">Bloquejat</option>
+                    <option value="baixa">Baixa</option>
+                  </select>
+                </div>
               </div>
               
-              <div className="grid grid-cols-2 gap-4 p-4 bg-white/[0.02] rounded-xl border border-white/5">
+              <div className="grid grid-cols-3 gap-4 p-4 bg-white/[0.02] rounded-xl border border-white/5">
                 <div>
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Categoria</p>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Categoria</p>
                   <p className="text-sm text-white font-medium capitalize">{selectedSupplier.category}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Criticitat</p>
-                  <p className={`text-sm font-medium capitalize ${selectedSupplier.criticality === 'alta' ? 'text-red-500' : 'text-white'}`}>{selectedSupplier.criticality}</p>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Criticitat</p>
+                  <select 
+                    value={selectedSupplier.criticality} 
+                    onChange={handleCriticalityChange}
+                    className={`input-field w-full py-1 px-2 text-xs font-bold capitalize bg-[#1e293b] ${selectedSupplier.criticality === 'alta' ? 'text-red-500' : 'text-white'}`}
+                  >
+                    <option value="baixa">Baixa</option>
+                    <option value="mitjana">Mitjana</option>
+                    <option value="alta">Alta</option>
+                  </select>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Puntuació (0-100)</p>
+                  <input 
+                    type="number" 
+                    min="0" max="100" 
+                    value={selectedSupplier.rating} 
+                    onChange={handleRatingChange}
+                    className="input-field w-full py-1 px-2 text-xs font-bold bg-[#1e293b]"
+                  />
                 </div>
               </div>
               
               <div>
-                <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 border-b border-white/5 pb-2">Documentació</h5>
-                <div className="p-8 text-center bg-white/[0.01] border border-white/5 rounded-xl border-dashed">
-                  <p className="text-xs text-slate-500 font-medium">No hi ha documents adjunts per aquest proveïdor.</p>
-                  <button className="mt-4 btn-secondary text-[10px] font-black uppercase tracking-widest py-2 px-4">Pujar Document</button>
+                <div className="flex justify-between items-center mb-3 border-b border-white/5 pb-2">
+                  <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Documentació</h5>
+                  <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                    className="btn-secondary text-[10px] font-black uppercase tracking-widest py-1.5 px-3 flex items-center gap-1"
+                  >
+                    <Plus size={12} />
+                    {isUploading ? 'Pujant...' : 'Pujar Document'}
+                  </button>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    onChange={handleFileUpload}
+                  />
                 </div>
+                
+                {selectedSupplier.documents && selectedSupplier.documents.length > 0 ? (
+                  <div className="space-y-2">
+                    {selectedSupplier.documents.map((doc: any) => (
+                      <div key={doc.id} className="flex justify-between items-center p-3 bg-white/[0.02] border border-white/5 rounded-xl">
+                        <div className="flex items-center gap-3">
+                          <ShieldCheck size={16} className="text-emerald-500" />
+                          <div>
+                            <p className="text-xs font-bold text-white">{doc.name}</p>
+                            <p className="text-[10px] text-slate-500">{doc.date} · {doc.type}</p>
+                          </div>
+                        </div>
+                        <button className="text-[10px] font-black text-brand-primary uppercase hover:underline">Veure</button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center bg-white/[0.01] border border-white/5 rounded-xl border-dashed">
+                    <p className="text-xs text-slate-500 font-medium">No hi ha documents adjunts per aquest proveïdor.</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

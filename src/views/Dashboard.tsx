@@ -152,6 +152,32 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Indicadors de Gestió de Proveïdors (SP2) */}
+      <h3 className="text-xl font-bold text-white pt-4">Indicadors de Qualitat (Proveïdors)</h3>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <KpiCard 
+          title="Fitxes Actualitzades" 
+          value="85%" 
+          icon={CheckCircle2} 
+          trend="Objectiu: 100%"
+          colorClass="bg-emerald-500/10 text-emerald-500"
+        />
+        <KpiCard 
+          title="Satisfacció" 
+          value="92%" 
+          icon={TrendingUp} 
+          trend="Objectiu: >85%"
+          colorClass="bg-blue-500/10 text-blue-500"
+        />
+        <KpiCard 
+          title="Incidències" 
+          value="0" 
+          icon={AlertCircle} 
+          trend="Aquest mes"
+          colorClass="bg-emerald-500/10 text-emerald-500"
+        />
+      </div>
+
       {/* Secció d'Alertes Crítiques */}
       <div className="card border-red-500/20 bg-red-500/[0.02]">
         <div className="px-6 py-4 border-b border-red-500/10 flex items-center gap-3 text-red-500 font-bold uppercase tracking-widest text-xs">

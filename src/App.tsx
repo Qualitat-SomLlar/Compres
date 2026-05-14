@@ -157,7 +157,7 @@ export default function App() {
 }
 
 function AppContent() {
-  const { user, loading, loginAsMockUser } = useAuth();
+  const { user, loading, loginWithMicrosoft } = useAuth();
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-brand-secondary text-brand-primary">Carregant...</div>;
@@ -167,11 +167,11 @@ function AppContent() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-brand-secondary gap-4">
         <h1 className="text-3xl font-black text-white mb-4">Gestió de Compres</h1>
-        <button onClick={() => loginAsMockUser('tecnic')} className="btn-primary py-3 px-8 text-xs font-black uppercase">
-          Entrar com a Tècnic (Proves)
+        <button onClick={() => loginWithMicrosoft('tecnic')} className="btn-primary py-3 px-8 text-xs font-black uppercase">
+          Entrar com a Tècnic
         </button>
-        <button onClick={() => loginAsMockUser('finances')} className="btn-secondary py-3 px-8 text-xs font-black uppercase border-brand-primary/20 text-brand-primary">
-          Entrar com a Finances (Proves)
+        <button onClick={() => loginWithMicrosoft('finances')} className="btn-secondary py-3 px-8 text-xs font-black uppercase border-brand-primary/20 text-brand-primary">
+          Entrar com a Finances
         </button>
       </div>
     );

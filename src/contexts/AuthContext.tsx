@@ -1,20 +1,20 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db } from '../lib/firebase';
-import { onAuthStateChanged, User as FirebaseUser, signInAnonymously } from 'firebase/auth';
+import { onAuthStateChanged, User as FirebaseUser, signInWithPopup, OAuthProvider } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { User, UserRole } from '../types';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  loginAsMockUser: (role?: UserRole) => Promise<void>;
+  loginWithMicrosoft: (role?: UserRole) => Promise<void>;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
-  loginAsMockUser: async () => {},
+  loginWithMicrosoft: async () => {},
   logout: async () => {}
 });
 
@@ -57,20 +57,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return unsubscribe;
   }, []);
 
-  // Mètode temporal per facilitar les proves sense haver de fer login amb Microsoft
-  const loginAsMockUser = async (role: UserRole = 'tecnic') => {
+  // Login amb Microsoft assignant el rol escollit a l'inici
+  const loginWithMicrosoft = async (role: UserRole = 'tecnic') => {
     setLoading(true);
     try {
-      const credential = await signInAnonymously(auth);
-      // Actualitzem el rol si ja existeix
+      const provider = new OAuthProvider('microsoft.com');
+      const credential = await signInWithPopup(auth, provider);
+      
+      // Actualitzem les dades i el rol a Firestore
       await setDoc(doc(db, 'users', credential.user.uid), {
-        name: `Usuari ${role}`,
-        email: `${role}@somllar.org`,
+        name: credential.user.displayName || `Usuari ${role}`,
+        email: credential.user.email || `${role}@somllar.org`,
         role: role,
         areaId: 'IT'
       }, { merge: true });
     } catch (error) {
-      console.error("Error en el login anònim:", error);
+      console.error("Error en el login amb Microsoft:", error);
+      setLoading(false);
     }
   };
 
@@ -79,7 +82,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginAsMockUser, logout }}>
+    <AuthContext.Provider value={{ user, loading, loginWithMicrosoft, logout }}>
       {!loading && children}
     </AuthContext.Provider>
   );

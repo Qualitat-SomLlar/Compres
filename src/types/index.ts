@@ -178,6 +178,7 @@ export interface Supplier {
   status: 'candidat' | 'pendent_documentacio' | 'en_revisio' | 'homologat' | 'bloquejat' | 'baixa';
   rating: number;
   criticality: 'baixa' | 'mitjana' | 'alta';
+  documents?: {id: string, name: string, date: string, type: string}[];
 }
 
 export interface Quote {
