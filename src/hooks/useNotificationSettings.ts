@@ -36,5 +36,21 @@ export function useNotificationSettings() {
     });
   };
 
-  return { settings, loading, updateSetting };
+  const initializeSettings = async (events: {id: string, name: string}[]) => {
+    for (const event of events) {
+      const exists = settings.some(s => s.eventKey === event.id);
+      if (!exists) {
+        await addDoc(collection(db, 'notificationSettings'), {
+          eventKey: event.id,
+          enabled: false,
+          recipientRoles: [],
+          recipientEmails: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+      }
+    }
+  };
+
+  return { settings, loading, updateSetting, initializeSettings };
 }

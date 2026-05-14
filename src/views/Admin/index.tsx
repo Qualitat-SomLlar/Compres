@@ -15,7 +15,9 @@ import {
   X,
   Save,
   Database,
-  ShieldAlert
+  ShieldAlert,
+  BellPlus,
+  Loader2
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUsers } from '../../hooks/useUsers';
@@ -359,28 +361,38 @@ function FlowsManager() {
 }
 
 function NotificationsManager() {
-  const { settings, loading, updateSetting } = useNotificationSettings();
+  const { settings, loading, updateSetting, initializeSettings } = useNotificationSettings();
   const events = NOTIFICATION_EVENTS;
   const roles = Object.entries(ROLE_LABELS);
 
-  const toggleRole = (setting: NotificationSetting, role: string) => {
+  const missingEvents = events.filter(e => !settings.some(s => s.eventKey === e.id));
+
+  const toggleRole = (setting: any, role: string) => {
     const roles = setting.recipientRoles || [];
     const newRoles = roles.includes(role as any) 
-      ? roles.filter(r => r !== role)
+      ? roles.filter((r: any) => r !== role)
       : [...roles, role as any];
     updateSetting(setting.id, { recipientRoles: newRoles });
   };
 
-  const addEmail = (setting: NotificationSetting, email: string) => {
+  const addEmail = (setting: any, email: string) => {
     if (!email || !email.includes('@')) return;
     const emails = setting.recipientEmails || [];
     if (emails.includes(email)) return;
     updateSetting(setting.id, { recipientEmails: [...emails, email] });
   };
 
-  const removeEmail = (setting: NotificationSetting, email: string) => {
+  const removeEmail = (setting: any, email: string) => {
     const emails = setting.recipientEmails || [];
-    updateSetting(setting.id, { recipientEmails: emails.filter(e => e !== email) });
+    updateSetting(setting.id, { recipientEmails: emails.filter((e: any) => e !== email) });
+  };
+
+  const handleInitialize = async () => {
+    toast.promise(initializeSettings(events), {
+      loading: 'Inicialitzant notificacions...',
+      success: 'Configuració creada correctament!',
+      error: 'Error al crear la configuració'
+    });
   };
 
   if (loading) {
@@ -394,9 +406,17 @@ function NotificationsManager() {
 
   return (
     <div className="p-8 space-y-10">
-      <div>
-        <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Flux de Notificacions Automàtiques</h3>
-        <p className="text-xs text-slate-600 font-medium">Configura quins rols o correus rebran alertes per a cada esdeveniment.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Flux de Notificacions Automàtiques</h3>
+          <p className="text-xs text-slate-600 font-medium text-balance">Configura quins rols o correus rebran alertes per a cada esdeveniment.</p>
+        </div>
+        {missingEvents.length > 0 && (
+          <button onClick={handleInitialize} className="btn-primary text-[10px] py-2 px-4 flex items-center gap-2">
+            <BellPlus size={14} />
+            Inicialitzar {missingEvents.length} esdeveniments
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-8">
