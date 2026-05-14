@@ -189,7 +189,7 @@ export default function NewRequest({ user }: { user: User }) {
                 value={formData.projectId}
                 onChange={e => setFormData({...formData, projectId: e.target.value})}
               >
-                <option value="">selecciona projecte</option>
+                <option value="">Selecciona projecte</option>
                 <option value="SOC-01">Programes Socials Generals</option>
                 <option value="REHAB-BCN">Rehabilitació BCN</option>
                 <option value="EMERG-ACCES">Emergència Accés Habitatge</option>
@@ -206,7 +206,7 @@ export default function NewRequest({ user }: { user: User }) {
                 value={formData.analyticCode}
                 onChange={e => setFormData({...formData, analyticCode: e.target.value})}
               >
-                <option value="">selecciona codi</option>
+                <option value="">Selecciona codi</option>
                 {MOCK_ANALYTIC_CODES.map(ac => (
                   <option key={ac.id} value={ac.code}>{ac.code} - {ac.description}</option>
                 ))}
@@ -230,7 +230,7 @@ export default function NewRequest({ user }: { user: User }) {
                   });
                 }}
               >
-                <option value="">selecciona centre</option>
+                <option value="">Selecciona centre</option>
                 {MOCK_CENTERS.map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
@@ -256,7 +256,7 @@ export default function NewRequest({ user }: { user: User }) {
                   value={formData.category}
                   onChange={e => setFormData({...formData, category: e.target.value})}
                 >
-                  <option value="">selecciona categoria</option>
+                  <option value="">Selecciona categoria</option>
                   {CATEGORIES.map(cat => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
