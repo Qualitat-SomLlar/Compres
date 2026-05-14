@@ -18,7 +18,7 @@ import {
   BellPlus,
   Loader2,
   Settings,
-  ShieldAlert
+  ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUsers } from '../../hooks/useUsers';
@@ -99,7 +99,7 @@ export default function AdminPanel() {
             <TabButton 
               active={activeTab === 'super'} 
               onClick={() => setActiveTab('super')} 
-              icon={<ShieldAlert size={16} />}
+              icon={<ShieldCheck size={16} />}
               label="Super"
             />
           )}
@@ -647,7 +647,7 @@ function SuperManager() {
     <div className="p-8 space-y-12">
       <div className="flex items-center gap-4 p-6 bg-red-500/10 border border-red-500/20 rounded-3xl">
         <div className="p-3 bg-red-500 rounded-2xl text-white">
-          <ShieldAlert size={24} />
+          <ShieldCheck size={24} />
         </div>
         <div>
           <h3 className="text-lg font-black text-white uppercase tracking-tight">Zona de Superusuari</h3>
