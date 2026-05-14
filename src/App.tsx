@@ -120,7 +120,6 @@ const AppLayout = ({ children, user }: { children: React.ReactNode, user: User }
           <div className="flex items-center gap-4">
             <button onClick={() => toast('No hi ha notificacions noves', { icon: '🔔' })} className="relative p-2 text-slate-400 hover:text-brand-primary transition-colors">
               <Bell size={20} />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-[#151c2c]"></span>
             </button>
             
             <Link to="/compres/nova" className="btn-primary flex items-center gap-2 text-sm py-2">
