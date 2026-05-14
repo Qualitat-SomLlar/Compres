@@ -63,7 +63,6 @@ export function useRequests() {
       urgentCount: requests.filter(r => r.urgency === 'alta' || r.urgency === 'critica').length,
       totalRequests: requests.length,
       approvedCount: requests.filter(r => r.status === 'aprovada').length,
-      incidentsCount: requests.filter(r => r.status === 'incidencia').length,
     };
   }, [requests]);
 

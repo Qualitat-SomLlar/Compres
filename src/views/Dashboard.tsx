@@ -53,7 +53,6 @@ export default function Dashboard() {
   const statusData = React.useMemo(() => [
     { name: 'Pendent', value: stats.pendingApprovals },
     { name: 'Aprovades', value: stats.approvedCount },
-    { name: 'Incidències', value: stats.incidentsCount },
   ], [stats]);
 
   const categoryData = React.useMemo(() => {
@@ -169,41 +168,9 @@ export default function Dashboard() {
           trend="Objectiu: >85%"
           colorClass="bg-blue-500/10 text-blue-500"
         />
-        <KpiCard 
-          title="Incidències" 
-          value="0" 
-          icon={AlertCircle} 
-          trend="Aquest mes"
-          colorClass="bg-emerald-500/10 text-emerald-500"
-        />
       </div>
 
-      {/* Secció d'Alertes Crítiques */}
-      <div className="card border-red-500/20 bg-red-500/[0.02]">
-        <div className="px-6 py-4 border-b border-red-500/10 flex items-center gap-3 text-red-500 font-bold uppercase tracking-widest text-xs">
-          <ShieldAlert size={18} />
-          <span>Riscos i Incidències Crítiques</span>
-        </div>
-        <div className="p-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="bg-white/[0.03] p-6 rounded-2xl border border-red-500/10 hover:bg-white/[0.05] transition-all cursor-default">
-              <p className="text-[10px] font-black text-red-500 uppercase mb-2 tracking-tighter">Regla 3 Pressupostos</p>
-              <p className="text-2xl font-black text-white">1 expedient</p>
-              <p className="text-xs text-slate-500 mt-2 leading-relaxed">Servei {'>'} 5.000€ detectat sense la documentació comparativa requerida.</p>
-            </div>
-            <div className="bg-white/[0.02] p-6 rounded-2xl border border-white/5 opacity-50">
-              <p className="text-[10px] font-black text-orange-500 uppercase mb-2 tracking-tighter">Codi Analític Pendent</p>
-              <p className="text-2xl font-black text-white">0 expedients</p>
-              <p className="text-xs text-slate-500 mt-2 leading-relaxed">Totes les operacions d'aquest mes tenen assignació de projecte.</p>
-            </div>
-            <div className="bg-white/[0.02] p-6 rounded-2xl border border-white/5 opacity-50">
-              <p className="text-[10px] font-black text-indigo-500 uppercase mb-2 tracking-tighter">Proveïdors No Homologats</p>
-              <p className="text-2xl font-black text-white">0 expedients</p>
-              <p className="text-xs text-slate-500 mt-2 leading-relaxed">El 100% de les compres s'han realitzat amb proveïdors verificats.</p>
-            </div>
-          </div>
-        </div>
-      </div>
+
     </div>
   );
 }

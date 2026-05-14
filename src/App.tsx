@@ -22,7 +22,6 @@ import Dashboard from './views/Dashboard';
 import RequestsList from './views/RequestsList';
 import NewRequest from './views/NewRequest';
 import SupplierManager from './views/SupplierManager';
-import IncidentManager from './views/IncidentManager';
 import RequestDetail from './views/RequestDetail';
 import Reports from './views/Reports';
 import AdminPanel from './views/Admin';
@@ -76,7 +75,6 @@ const AppLayout = ({ children, user }: { children: React.ReactNode, user: User }
             <SidebarItem to="/" icon={LayoutDashboard} label="Dashboard" active={location.pathname === '/'} />
             <SidebarItem to="/compres" icon={ShoppingCart} label="Sol·licituds" active={location.pathname.startsWith('/compres')} />
             <SidebarItem to="/proveidors" icon={Users} label="Proveïdors" active={location.pathname.startsWith('/proveidors')} />
-            <SidebarItem to="/incidencies" icon={AlertTriangle} label="Incidències" active={location.pathname.startsWith('/incidencies')} />
             <SidebarItem to="/informes" icon={FileText} label="Informes" active={location.pathname === '/informes'} />
             
             {user.role === 'admin_compres' && (
@@ -187,7 +185,6 @@ function AppContent() {
           <Route path="/compres/nova" element={<NewRequest user={user} />} />
           <Route path="/compres/:id" element={<RequestDetail user={user} />} />
           <Route path="/proveidors" element={<SupplierManager />} />
-          <Route path="/incidencies" element={<IncidentManager />} />
           <Route path="/informes" element={<Reports />} />
           <Route path="/admin" element={<AdminPanel />} />
           <Route path="*" element={<NotFound />} />
