@@ -20,6 +20,8 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
+const ADMIN_EMAILS = ['secretariadq@somllar.cat', 'secretariadq@somllar.org'];
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,16 +32,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         try {
           // Llegeix les dades de l'usuari de Firestore
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          let userData: User;
+
           if (userDoc.exists()) {
-            setUser({ id: firebaseUser.uid, ...userDoc.data() } as User);
+            userData = { id: firebaseUser.uid, ...userDoc.data() } as User;
+            
+            // Forcem el rol d'admin si el correu coincideix
+            if (firebaseUser.email && ADMIN_EMAILS.includes(firebaseUser.email) && userData.role !== 'admin_compres') {
+              userData.role = 'admin_compres';
+              await setDoc(doc(db, 'users', firebaseUser.uid), { role: 'admin_compres' }, { merge: true });
+            }
+            
+            setUser(userData);
           } else {
-            // Si és el primer cop i es login anonim per proves, creem el document dummy
+            // Si és el primer cop, creem el document
+            const isAdmin = firebaseUser.email && ADMIN_EMAILS.includes(firebaseUser.email);
             const dummyUser: User = {
               id: firebaseUser.uid,
-              name: 'Usuari de Proves',
-              email: 'test@somllar.org',
-              role: 'tecnic',
-              areaId: 'IT'
+              name: firebaseUser.displayName || 'Usuari Som Llar',
+              email: firebaseUser.email || 'test@somllar.org',
+              role: isAdmin ? 'admin_compres' : 'tecnic',
+              areaId: 'admin'
             };
             await setDoc(doc(db, 'users', firebaseUser.uid), dummyUser);
             setUser(dummyUser);
@@ -67,12 +80,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
       const credential = await signInWithPopup(auth, provider);
       
+      const isAdmin = credential.user.email && ADMIN_EMAILS.includes(credential.user.email);
+      const finalRole = isAdmin ? 'admin_compres' : role;
+
       // Actualitzem les dades i el rol a Firestore
       await setDoc(doc(db, 'users', credential.user.uid), {
-        name: credential.user.displayName || `Usuari ${role}`,
-        email: credential.user.email || `${role}@somllar.org`,
-        role: role,
-        areaId: 'IT'
+        name: credential.user.displayName || `Usuari ${finalRole}`,
+        email: credential.user.email || `${finalRole}@somllar.org`,
+        role: finalRole,
+        areaId: 'admin'
       }, { merge: true });
     } catch (error) {
       console.error("Error en el login amb Microsoft:", error);

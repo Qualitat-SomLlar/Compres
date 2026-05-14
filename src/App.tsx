@@ -79,10 +79,12 @@ const AppLayout = ({ children, user }: { children: React.ReactNode, user: User }
             <SidebarItem to="/incidencies" icon={AlertTriangle} label="Incidències" active={location.pathname.startsWith('/incidencies')} />
             <SidebarItem to="/informes" icon={FileText} label="Informes" active={location.pathname === '/informes'} />
             
-            <div className="pt-6 pb-2">
-              <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest px-4 mb-2">SISTEMA</p>
-              <SidebarItem to="/admin" icon={Settings} label="Administració" active={location.pathname.startsWith('/admin')} />
-            </div>
+            {user.role === 'admin_compres' && (
+              <div className="pt-6 pb-2">
+                <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest px-4 mb-2">SISTEMA</p>
+                <SidebarItem to="/admin" icon={Settings} label="Administració" active={location.pathname.startsWith('/admin')} />
+              </div>
+            )}
           </nav>
 
           <div className="mt-auto space-y-4">
