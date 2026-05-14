@@ -576,7 +576,29 @@ function SuperManager() {
         </div>
       </section>
 
-      {/* Secció 3: Usuaris */}
+      {/* Secció 3: Codis Analítics */}
+      <section className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Codis Analítics</h4>
+          <button onClick={() => setEditingEntity({type: 'analyticCode', data: {name: '', code: '', active: true}})} className="btn-primary text-[9px] py-1.5 px-3">Nou Codi</button>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {analyticCodes.map(ac => (
+            <div key={ac.id} className="p-4 bg-white/[0.01] border border-white/5 rounded-2xl flex items-center justify-between group">
+              <div>
+                <p className="text-xs font-bold text-white">{ac.name}</p>
+                <p className="text-[10px] text-slate-500 uppercase font-black">{ac.code}</p>
+              </div>
+              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => setEditingEntity({type: 'analyticCode', id: ac.id, data: ac})} className="p-2 hover:bg-white/5 rounded-lg text-slate-400"><Edit2 size={12}/></button>
+                <button onClick={() => deleteAnalyticCode(ac.id)} className="p-2 hover:bg-white/5 rounded-lg text-red-500/50 hover:text-red-500"><Trash2 size={12}/></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Secció 4: Usuaris */}
       <section className="space-y-6">
         <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Control d'Usuaris de l'Aplicació</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
