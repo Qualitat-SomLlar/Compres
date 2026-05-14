@@ -48,6 +48,7 @@ const SidebarItem = ({ to, icon: Icon, label, active }: { to: string, icon: Reac
 
 const AppLayout = ({ children, user }: { children: React.ReactNode, user: User }) => {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
+  const [isProfileModalOpen, setProfileModalOpen] = useState(false);
   const location = useLocation();
   const { logout } = useAuth();
 
@@ -77,7 +78,7 @@ const AppLayout = ({ children, user }: { children: React.ReactNode, user: User }
             <SidebarItem to="/proveidors" icon={Users} label="Proveïdors" active={location.pathname.startsWith('/proveidors')} />
             <SidebarItem to="/informes" icon={FileText} label="Informes" active={location.pathname === '/informes'} />
             
-            {user.role === 'admin_compres' && (
+            {(user.role === 'admin_compres' || user.role === 'superadmin') && (
               <div className="pt-6 pb-2">
                 <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest px-4 mb-2">SISTEMA</p>
                 <SidebarItem to="/admin" icon={Settings} label="Administració" active={location.pathname.startsWith('/admin')} />
@@ -86,9 +87,12 @@ const AppLayout = ({ children, user }: { children: React.ReactNode, user: User }
           </nav>
 
           <div className="mt-auto space-y-4">
-            <div className="p-4 bg-white/[0.03] rounded-2xl border border-white/5">
+            <div 
+              onClick={() => setProfileModalOpen(true)}
+              className="p-4 bg-white/[0.03] rounded-2xl border border-white/5 cursor-pointer hover:bg-white/[0.05] transition-all group"
+            >
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-xs font-bold text-white uppercase shadow-lg shadow-blue-500/20">
+                <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-xs font-bold text-white uppercase shadow-lg shadow-blue-500/20 ring-2 ring-white/10 group-hover:ring-brand-primary/50 transition-all">
                   {user.name.charAt(0)}
                 </div>
                 <div className="overflow-hidden">
@@ -96,13 +100,62 @@ const AppLayout = ({ children, user }: { children: React.ReactNode, user: User }
                   <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">{user.role.replace('_', ' ')}</p>
                 </div>
               </div>
-              <button onClick={logout} className="w-full flex items-center gap-2 justify-center py-2 text-xs font-medium text-slate-500 hover:text-white transition-colors border-t border-white/5 mt-2">
+              <button onClick={(e) => { e.stopPropagation(); logout(); }} className="w-full flex items-center gap-2 justify-center py-2 text-xs font-medium text-slate-500 hover:text-white transition-colors border-t border-white/5 mt-2">
                 <LogOut size={14} /> Tancar sessió
               </button>
             </div>
           </div>
         </div>
       </aside>
+
+      {/* Modal de Perfil */}
+      {isProfileModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in zoom-in duration-300">
+          <div className="bg-[#151c2c] border border-white/10 rounded-[2.5rem] w-full max-w-md overflow-hidden shadow-2xl relative">
+            <div className="absolute top-6 right-6">
+              <button onClick={() => setProfileModalOpen(false)} className="p-2 hover:bg-white/5 rounded-full text-slate-400">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="h-32 bg-gradient-to-br from-brand-primary/20 to-brand-accent/20" />
+            
+            <div className="px-10 pb-10 -mt-16 space-y-8">
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="w-32 h-32 rounded-[2rem] bg-brand-primary flex items-center justify-center text-4xl font-black text-white shadow-2xl ring-4 ring-[#151c2c]">
+                  {user.name.charAt(0)}
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black text-white tracking-tight">{user.name}</h3>
+                  <p className="text-xs font-black text-brand-primary uppercase tracking-[0.2em]">{user.role.replace('_', ' ')}</p>
+                </div>
+              </div>
+
+              <div className="space-y-4 pt-4">
+                <div className="p-5 bg-white/[0.02] border border-white/5 rounded-3xl space-y-1">
+                  <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Correu Electrònic</p>
+                  <p className="text-sm font-medium text-slate-300">{user.email}</p>
+                </div>
+                <div className="p-5 bg-white/[0.02] border border-white/5 rounded-3xl space-y-1">
+                  <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest">ID d'Usuari</p>
+                  <p className="text-[10px] font-mono text-slate-500 break-all">{user.id}</p>
+                </div>
+                <div className="p-5 bg-brand-primary/5 border border-brand-primary/10 rounded-3xl space-y-1">
+                  <p className="text-[9px] font-black text-brand-primary uppercase tracking-widest">Àrea Assignada</p>
+                  <p className="text-sm font-medium text-white capitalize">{user.areaId}</p>
+                </div>
+              </div>
+
+              <button 
+                onClick={() => setProfileModalOpen(false)}
+                className="w-full btn-primary py-4 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-brand-primary/20"
+              >
+                Tancar Perfil
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className={cn(
