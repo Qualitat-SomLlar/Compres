@@ -28,7 +28,7 @@ export function useAnalyticCodes() {
     return () => unsubscribe();
   }, []);
 
-  const addCode = async (data: Omit<AnalyticCode, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const addAnalyticCode = async (data: Omit<AnalyticCode, 'id' | 'createdAt' | 'updatedAt'>) => {
     await addDoc(collection(db, 'analyticCodes'), {
       ...data,
       createdAt: new Date().toISOString(),
@@ -36,5 +36,18 @@ export function useAnalyticCodes() {
     });
   };
 
-  return { codes, loading, addCode };
+  const updateAnalyticCode = async (id: string, data: Partial<AnalyticCode>) => {
+    const docRef = doc(db, 'analyticCodes', id);
+    await updateDoc(docRef, {
+      ...data,
+      updatedAt: new Date().toISOString()
+    });
+  };
+
+  const deleteAnalyticCode = async (id: string) => {
+    const docRef = doc(db, 'analyticCodes', id);
+    await deleteDoc(docRef);
+  };
+
+  return { analyticCodes: codes, loading, addAnalyticCode, updateAnalyticCode, deleteAnalyticCode };
 }

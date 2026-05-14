@@ -1,12 +1,7 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, orderBy, addDoc, doc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-
-interface Project {
-  id: string;
-  code: string;
-  name: string;
-}
+import { Project } from '../types';
 
 export function useProjects() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -33,5 +28,19 @@ export function useProjects() {
     return () => unsubscribe();
   }, []);
 
-  return { projects, loading };
+  const addProject = async (data: Omit<Project, 'id'>) => {
+    await addDoc(collection(db, 'projects'), data);
+  };
+
+  const updateProject = async (id: string, data: Partial<Project>) => {
+    const docRef = doc(db, 'projects', id);
+    await updateDoc(docRef, data);
+  };
+
+  const deleteProject = async (id: string) => {
+    const docRef = doc(db, 'projects', id);
+    await deleteDoc(docRef);
+  };
+
+  return { projects, loading, addProject, updateProject, deleteProject };
 }

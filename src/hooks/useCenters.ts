@@ -36,5 +36,18 @@ export function useCenters() {
     });
   };
 
-  return { centers, loading, addCenter };
+  const updateCenter = async (id: string, data: Partial<DestinationCenter>) => {
+    const docRef = doc(db, 'centers', id);
+    await updateDoc(docRef, {
+      ...data,
+      updatedAt: new Date().toISOString()
+    });
+  };
+
+  const deleteCenter = async (id: string) => {
+    const docRef = doc(db, 'centers', id);
+    await deleteDoc(docRef);
+  };
+
+  return { centers, loading, addCenter, updateCenter, deleteCenter };
 }
