@@ -6,28 +6,34 @@ export const importExportService = {
    */
   downloadTemplate(entityType: string) {
     let headers: string[] = [];
+    let example: string[] = [];
+    let instruction: string[] = ['⚠️ IMPORTANT: ESBORRA AQUESTA FILA I LA FILA D\'EXEMPLE. DESA EL FITXER EN FORMAT CSV (Delimitat per comes o punt i coma) PER A UNA IMPORTACIÓ CORRECTA.'];
     let fileName = '';
 
     switch (entityType) {
       case 'supplier':
         headers = ['Nom', 'NIF', 'Email', 'Telèfon', 'Persona de Contacte', 'Categoria', 'Adreça', 'Ciutat', 'Estat', 'Homologat'];
+        example = ['Proveïdor d\'Exemple SL', 'B12345678', 'contacte@exemple.com', '930000000', 'Maria Garcia', 'Material d\'oficina', 'Carrer Fals 123', 'Barcelona', 'Actiu', 'Si'];
         fileName = 'plantilla_proveidors.xlsx';
         break;
       case 'user':
         headers = ['Nom', 'Cognoms', 'Email', 'Àrea', 'Rol Intern', 'Rol Flux', 'Actiu', 'Notificacions'];
+        example = ['Joan', 'Martínez', 'jmartinez@somllar.cat', 'social', 'Educador', 'tecnic', 'Si', 'Si'];
         fileName = 'plantilla_usuaris.xlsx';
         break;
       case 'center':
         headers = ['Nom', 'Codi', 'Tipus', 'Adreça', 'Ciutat', 'Àrea', 'Actiu'];
+        example = ['CRAE Exemple', 'CRAE-01', 'CRAE', 'Carrer Major 1', 'Tarragona', 'social', 'Si'];
         fileName = 'plantilla_centres.xlsx';
         break;
       case 'analyticCode':
         headers = ['Codi Analític', 'Descripció', 'Projecte', 'Àrea', 'Actiu'];
+        example = '60200001,Material Oficina General,PROJ-BASE,admin,Si'.split(',');
         fileName = 'plantilla_codis_analitics.xlsx';
         break;
     }
 
-    const ws = XLSX.utils.aoa_to_sheet([headers]);
+    const ws = XLSX.utils.aoa_to_sheet([headers, example, instruction]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Plantilla');
     XLSX.writeFile(wb, fileName);

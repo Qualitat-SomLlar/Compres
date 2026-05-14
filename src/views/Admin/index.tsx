@@ -545,7 +545,7 @@ function ImportsManager() {
         <div className="space-y-6">
           <div>
             <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Importació Massiva i Plantilles</h3>
-            <p className="text-xs text-slate-600 font-medium">Descarrega les plantilles oficials, omple-les amb dades reals i puja-les per actualitzar el sistema.</p>
+            <p className="text-xs text-slate-600 font-medium">Descarrega les plantilles, omple-les respectant la fila d'exemple, i <strong>guarda el fitxer resultant en format CSV (.csv)</strong> abans de pujar-lo per garantir una importació perfecta.</p>
           </div>
 
           <div className="space-y-3">
