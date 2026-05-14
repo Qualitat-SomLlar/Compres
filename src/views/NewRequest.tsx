@@ -319,7 +319,7 @@ export default function NewRequest({ user }: { user: User }) {
         </section>
 
         {/* Bloc 4: Pressupost i Terminis */}
-        <section className="card p-10 bg-brand-primary/[0.01] relative z-0 !overflow-visible">
+        <section className="card p-10 bg-brand-primary/[0.01] relative z-[2] !overflow-visible">
           <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-10 flex items-center gap-3">
             <div className="p-2 bg-white/5 rounded-lg text-slate-500">4</div>
             Validació Econòmica
@@ -376,7 +376,7 @@ export default function NewRequest({ user }: { user: User }) {
         </section>
       </form>
 
-      <div className="p-8 bg-brand-primary/[0.03] border border-brand-primary/10 rounded-3xl flex items-center gap-6 text-[11px] font-bold text-slate-500 uppercase tracking-[0.1em] relative overflow-hidden group">
+      <div className="p-8 bg-brand-primary/[0.03] border border-brand-primary/10 rounded-3xl flex items-center gap-6 text-[11px] font-bold text-slate-500 uppercase tracking-[0.1em] relative z-0 overflow-hidden group">
         <div className="absolute top-0 left-0 w-1 h-full bg-brand-primary"></div>
         <div className="p-3 bg-brand-primary/10 rounded-2xl text-brand-primary group-hover:scale-110 transition-transform duration-500">
           <Info size={20} />
