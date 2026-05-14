@@ -17,7 +17,8 @@ import {
   Database,
   BellPlus,
   Loader2,
-  Settings
+  Settings,
+  ShieldAlert
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUsers } from '../../hooks/useUsers';
