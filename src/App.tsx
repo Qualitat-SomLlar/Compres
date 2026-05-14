@@ -119,7 +119,7 @@ const AppLayout = ({ children, user }: { children: React.ReactNode, user: User }
           </button>
 
           <div className="flex items-center gap-4">
-            <NotificationBell user={user} />
+            {/* <NotificationBell user={user} /> */}
             
             <Link to="/compres/nova" className="btn-primary flex items-center gap-2 text-sm py-2">
               <PlusCircle size={18} />
