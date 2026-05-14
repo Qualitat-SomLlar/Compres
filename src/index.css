@@ -37,7 +37,7 @@
 }
 
 .input-field {
-  @apply w-full px-4 py-2.5 rounded-xl border border-dashboard-border bg-slate-900/50 text-white focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary outline-none transition-all placeholder:text-slate-600;
+  @apply w-full px-4 py-3 rounded-xl border border-dashboard-border bg-slate-900/50 text-white text-xs font-bold focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary outline-none transition-all placeholder:text-slate-600 placeholder:font-medium placeholder:italic;
 }
 
 .btn-primary {

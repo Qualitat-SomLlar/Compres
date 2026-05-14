@@ -38,7 +38,7 @@ export default function CustomSelect({ options, value, onChange, placeholder = "
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "w-full flex items-center justify-between input-field py-3 px-4 text-left transition-all",
+          "w-full flex items-center justify-between input-field text-left transition-all",
           isOpen && "border-brand-primary shadow-sm shadow-brand-primary/10",
           error && "border-red-500"
         )}
