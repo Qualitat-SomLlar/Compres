@@ -17,6 +17,7 @@ import { CATEGORIES, AREAS } from '../constants';
 import { MOCK_ANALYTIC_CODES, MOCK_CENTERS } from '../lib/mockData';
 import WorkerSelector from '../components/WorkerSelector';
 import CustomSelect from '../components/CustomSelect';
+import CustomDatePicker from '../components/CustomDatePicker';
 import FileUploader from '../components/FileUploader';
 import AttachmentList from '../components/AttachmentList';
 import { useRequests } from '../hooks/useRequests';
@@ -350,11 +351,10 @@ export default function NewRequest({ user }: { user: User }) {
             </div>
             <div className="space-y-3">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Termini desitjat</label>
-              <input 
-                type="date" 
-                className="input-field [color-scheme:dark]" 
+              <CustomDatePicker 
                 value={formData.deadline}
-                onChange={e => setFormData({...formData, deadline: e.target.value})}
+                onChange={v => setFormData({...formData, deadline: v})}
+                placeholder="dd/mm/aaaa"
               />
             </div>
           </div>
