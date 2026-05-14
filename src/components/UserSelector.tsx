@@ -24,8 +24,10 @@ export default function UserSelector({ onSelect, selectedId, label, error, requi
   const selectedWorker = workers.find(w => w.id === selectedId);
 
   const filteredWorkers = workers.filter(w => 
-    (w.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (w.email || '').toLowerCase().includes(searchTerm.toLowerCase())
+    w.active !== false && (
+      (w.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (w.email || '').toLowerCase().includes(searchTerm.toLowerCase())
+    )
   );
 
   useEffect(() => {

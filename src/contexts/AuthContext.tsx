@@ -3,6 +3,7 @@ import { auth, db } from '../lib/firebase';
 import { onAuthStateChanged, User as FirebaseUser, signInWithPopup, OAuthProvider } from 'firebase/auth';
 import { doc, getDoc, setDoc, query, where, collection, getDocs, deleteDoc } from 'firebase/firestore';
 import { User, UserRole } from '../types';
+import toast from 'react-hot-toast';
 
 interface AuthContextType {
   user: User | null;
@@ -57,6 +58,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (userDoc.exists()) {
             userData = { id: firebaseUser.uid, ...userDoc.data() } as User;
             
+            // Bloquejar accés si l'usuari està marcat com a inactiu
+            if (userData.active === false) {
+              await auth.signOut();
+              setUser(null);
+              toast.error("El teu compte ha estat desactivat. Contacta amb l'administració.");
+              setLoading(false);
+              return;
+            }
+
             // Forcem el rol d'admin si el correu coincideix
             if (firebaseUser.email && SUPERADMIN_EMAILS.includes(firebaseUser.email) && userData.role !== 'superadmin') {
               userData.role = 'superadmin';

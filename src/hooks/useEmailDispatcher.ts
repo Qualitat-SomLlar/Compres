@@ -22,17 +22,18 @@ export function useEmailDispatcher() {
       setting.recipientRoles.forEach(role => {
         if (role === 'tecnic') {
           // El tècnic que ha creat la sol·licitud
-          if (request.createdByUserEmail) recipients.add(request.createdByUserEmail);
-          // I el tècnic sol·licitant si és diferent i està informat
+          const creator = users.find(u => u.email === request.createdByUserEmail);
+          if (creator && creator.active !== false) recipients.add(creator.email);
+          // I el tècnic sol·licitant si és diferent i està actiu
           const techUser = users.find(u => u.id === request.requestingTechnicianId);
-          if (techUser?.email) recipients.add(techUser.email);
+          if (techUser?.email && techUser.active !== false) recipients.add(techUser.email);
         } else if (role === 'coordinacio' || role === 'direccio_area') {
-          // Aquests rols s'han de filtrar per l'ÀREA de la sol·licitud
-          const areaUsers = users.filter(u => u.role === role && u.areaId === request.areaId);
+          // Aquests rols s'han de filtrar per l'ÀREA de la sol·licitud i estar actius
+          const areaUsers = users.filter(u => u.role === role && u.areaId === request.areaId && u.active !== false);
           areaUsers.forEach(u => recipients.add(u.email));
         } else {
-          // Rols globals (finances, admin_compres, etc.) que reben de totes les àrees
-          const globalUsers = users.filter(u => u.role === role);
+          // Rols globals (finances, admin_compres, etc.) que reben de totes les àrees i estan actius
+          const globalUsers = users.filter(u => u.role === role && u.active !== false);
           globalUsers.forEach(u => recipients.add(u.email));
         }
       });
