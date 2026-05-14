@@ -2,7 +2,7 @@ import { PurchaseRequest, RequestStatus } from '../types';
 import { STATUS_LABELS } from '../constants';
 
 // Aquesta URL hauria de ser la de la Google Apps Script de l'usuari
-const GOOGLE_SCRIPT_WEBHOOK_URL = ''; 
+const GOOGLE_SCRIPT_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbzJ3nWzomD-LWGr-uLjlFkuLVIP8SO3WnaDcimVFCgehTAFsWCLSujS2PbXsQlJ3XUzbg/exec'; 
 
 export const emailService = {
   /**
