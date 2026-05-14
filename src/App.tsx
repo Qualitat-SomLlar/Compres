@@ -26,6 +26,7 @@ import IncidentManager from './views/IncidentManager';
 import RequestDetail from './views/RequestDetail';
 import Reports from './views/Reports';
 import AdminPanel from './views/Admin';
+import NotFound from './views/NotFound';
 
 // Auth and Types
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -189,7 +190,7 @@ function AppContent() {
           <Route path="/incidencies" element={<IncidentManager />} />
           <Route path="/informes" element={<Reports />} />
           <Route path="/admin" element={<AdminPanel />} />
-          <Route path="*" element={<Navigate to="/" />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </AppLayout>
     </Router>
