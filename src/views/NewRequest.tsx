@@ -202,7 +202,7 @@ export default function NewRequest({ user }: { user: User }) {
               </label>
               <select 
                 required
-                className="input-field font-black tracking-widest text-brand-primary"
+                className="input-field"
                 value={formData.analyticCode}
                 onChange={e => setFormData({...formData, analyticCode: e.target.value})}
               >
@@ -252,7 +252,7 @@ export default function NewRequest({ user }: { user: User }) {
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Categoria</label>
                 <select 
                   required
-                  className="input-field font-bold"
+                  className="input-field"
                   value={formData.category}
                   onChange={e => setFormData({...formData, category: e.target.value})}
                 >
@@ -343,7 +343,7 @@ export default function NewRequest({ user }: { user: User }) {
             <div className="space-y-3">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Prioritat de compra</label>
               <select 
-                className="input-field font-bold"
+                className="input-field"
                 value={formData.urgency}
                 onChange={e => setFormData({...formData, urgency: e.target.value as 'baixa' | 'mitjana' | 'alta' | 'critica'})}
               >
