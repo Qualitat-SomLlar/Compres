@@ -40,6 +40,10 @@
   @apply w-full px-4 py-3 rounded-xl border border-dashboard-border bg-slate-900/50 text-white text-xs font-bold focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary outline-none transition-all placeholder:text-slate-600 placeholder:font-medium placeholder:italic;
 }
 
+.input-search {
+  padding-left: 3.5rem !important;
+}
+
 .btn-primary {
   @apply bg-brand-primary text-white px-5 py-2.5 rounded-xl font-bold hover:brightness-110 active:scale-[0.98] transition-all shadow-[0_4px_20px_rgba(16,185,129,0.3)];
 }

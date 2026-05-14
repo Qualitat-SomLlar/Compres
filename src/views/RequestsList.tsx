@@ -48,7 +48,7 @@ export default function RequestsList() {
             <input 
               type="text" 
               placeholder="Cerca per ID, tècnic, projecte..." 
-              className="input-field !pl-12 w-full sm:w-80 text-xs py-3 border-white/[0.05] focus:border-brand-primary transition-all bg-white/[0.02]"
+              className="input-field input-search w-full sm:w-80 text-xs py-3 border-white/[0.05] focus:border-brand-primary transition-all bg-white/[0.02]"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
