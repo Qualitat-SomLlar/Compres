@@ -350,10 +350,9 @@ export default function NewRequest({ user }: { user: User }) {
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
             <div className="space-y-3">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Import Estimat (€) <span className="text-red-500">*</span></label>
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Import Estimat (€)</label>
               <input 
                 type="number" 
-                required
                 placeholder="0.00" 
                 className="input-field font-black text-4xl text-white py-6 bg-white/[0.02] border-brand-primary/20" 
                 onChange={handleAmountChange}
