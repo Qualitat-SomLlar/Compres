@@ -21,10 +21,15 @@ import CustomDatePicker from '../components/CustomDatePicker';
 import FileUploader from '../components/FileUploader';
 import AttachmentList from '../components/AttachmentList';
 import { useRequests } from '../hooks/useRequests';
+import { useNotifications } from '../hooks/useNotifications';
+import { useUsers } from '../hooks/useUsers';
+import { emailService } from '../services/emailService';
 
 export default function NewRequest({ user }: { user: User }) {
   const navigate = useNavigate();
   const { addRequest } = useRequests();
+  const { addNotification } = useNotifications();
+  const { getUsersByRole } = useUsers();
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [formData, setFormData] = useState({
     requestingTechnicianId: '',
@@ -119,7 +124,20 @@ export default function NewRequest({ user }: { user: User }) {
         success: 'Sol·licitud enviada correctament!',
         error: 'Error al enviar la sol·licitud',
       }
-    ).then(() => {
+    ).then(async (newRequest) => {
+      // Notificar als coordinadors de l'àrea
+      const targetUsers = getUsersByRole('coordinacio', user.areaId);
+      for (const targetUser of targetUsers) {
+        await addNotification({
+          userId: targetUser.id,
+          title: `Nova sol·licitud: ${newRequest.code || newRequest.id}`,
+          message: `${user.name} ha creat una nova sol·licitud de ${newRequest.estimatedAmount}€.`,
+          type: 'info',
+          requestId: newRequest.id
+        });
+        
+        await emailService.sendApprovalNotification(newRequest, targetUser.email, 'pendent_coordinacio');
+      }
       navigate('/compres');
     });
   };

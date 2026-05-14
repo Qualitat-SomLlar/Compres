@@ -258,3 +258,14 @@ export interface QuoteComparison {
   selectedSupplierId: string;
   createdAt: string;
 }
+
+export interface AppNotification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  requestId?: string;
+  read: boolean;
+  createdAt: string;
+}

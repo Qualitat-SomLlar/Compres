@@ -14,7 +14,8 @@ import {
   MessageSquare,
   Info,
   User as UserIcon,
-  ShieldCheck
+  ShieldCheck,
+  Loader2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { STATUS_LABELS } from '../constants';
@@ -23,30 +24,87 @@ import { cn } from '../lib/utils';
 import AttachmentList from '../components/AttachmentList';
 import StatusBadge from '../components/StatusBadge';
 import { useRequests } from '../hooks/useRequests';
-
+import { useNotifications } from '../hooks/useNotifications';
+import { useUsers } from '../hooks/useUsers';
+import { workflowService } from '../services/workflowService';
+import { emailService } from '../services/emailService';
 export default function RequestDetail({ user }: { user: User }) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getRequestById, updateRequestStatus } = useRequests();
+  const { getRequestById, updateRequest } = useRequests();
+  const { addNotification } = useNotifications();
+  const { getUsersByRole } = useUsers();
   
   const request = id ? getRequestById(id) : undefined;
   const [comment, setComment] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   if (!request) return <div className="p-20 text-center font-black text-slate-500 uppercase tracking-widest bg-brand-secondary rounded-3xl border border-white/5">No s'ha trobat la sol·licitud</div>;
 
-  const handleAction = async (newStatus: RequestStatus) => {
+  const handleAction = async (action: 'approve' | 'return' | 'reject') => {
+    if (!request) return;
+    setIsProcessing(true);
+    
     try {
-      await updateRequestStatus(request.id, newStatus);
-      toast.success(`Estat canviat a: ${STATUS_LABELS[newStatus]?.label || newStatus}`);
+      const newStatus = workflowService.getNextStatus(request.status, action);
+      
+      const updateData: Partial<PurchaseRequest> = {
+        status: newStatus,
+        observations: comment || request.observations
+      };
+
+      // Afegir timestamps d'aprovació
+      if (action === 'approve') {
+        if (request.status === 'pendent_coordinacio') updateData.coordinationApprovedAt = new Date().toISOString();
+        if (request.status === 'pendent_direccio') updateData.areaDirectionApprovedAt = new Date().toISOString();
+        if (request.status === 'pendent_finances') updateData.financeApprovedAt = new Date().toISOString();
+      }
+
+      await updateRequest(request.id, updateData);
+
+      // Gestió de Notificacions
+      const targetRoleOrCreator = workflowService.getTargetRoleForStatus(newStatus);
+      
+      if (targetRoleOrCreator === 'creator') {
+        // Notificar al creador
+        await addNotification({
+          userId: request.createdByUserId,
+          title: `Actualització: ${STATUS_LABELS[newStatus]?.label}`,
+          message: `L'expedient ${request.code || request.id} ha passat a l'estat ${STATUS_LABELS[newStatus]?.label}.`,
+          type: action === 'reject' ? 'error' : 'success',
+          requestId: request.id
+        });
+        
+        await emailService.sendApprovalNotification(request, request.createdByUserEmail, newStatus);
+      } else if (targetRoleOrCreator) {
+        // Notificar als usuaris amb el rol objectiu (filtrant per àrea si cal)
+        const needsAreaFilter = ['coordinacio', 'direccio_area'].includes(targetRoleOrCreator);
+        const targetUsers = getUsersByRole(targetRoleOrCreator as any, needsAreaFilter ? request.areaId : undefined);
+        
+        for (const targetUser of targetUsers) {
+          await addNotification({
+            userId: targetUser.id,
+            title: `Pendent d'aprovació: ${request.code || request.id}`,
+            message: `Tens una nova sol·licitud pendent de validar de l'àrea ${request.areaId}.`,
+            type: 'warning',
+            requestId: request.id
+          });
+          
+          await emailService.sendApprovalNotification(request, targetUser.email, newStatus);
+        }
+      }
+
+      toast.success(`Acció realitzada: ${STATUS_LABELS[newStatus]?.label}`);
       navigate('/compres');
     } catch (error) {
-      toast.error("Error al canviar l'estat");
+      console.error(error);
+      toast.error("Error al processar l'acció");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  const isCoordinator = user.role === 'coordinacio';
-  const isDirector = user.role === 'direccio_area';
-  const isFinance = user.role === 'finances';
+  const canApprove = workflowService.canUserApprove(user, request);
 
   // Mock de documents
   const mockAttachments = [
@@ -257,20 +315,57 @@ export default function RequestDetail({ user }: { user: User }) {
                 value={comment}
                 onChange={e => setComment(e.target.value)}
               />
-              {request.status === 'comanda_emesa' ? (
-                <div className="flex gap-3 mt-4">
-                   <button onClick={() => handleAction('rebuda')} className="btn-primary flex-1 py-3 text-[10px] font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500">Confirmar Recepció</button>
-                </div>
-              ) : request.status === 'rebuda' ? (
-                <div className="flex gap-3 mt-4">
-                   <button onClick={() => handleAction('tancada')} className="btn-primary flex-1 py-3 text-[10px] font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500">Validar Factura i Tancar</button>
+              {canApprove ? (
+                <div className="space-y-4">
+                  <div className="flex gap-3 mt-4">
+                    {request.status !== 'tancada' && request.status !== 'rebutjada' && (
+                      <>
+                        <button 
+                          disabled={isProcessing}
+                          onClick={() => handleAction('return')} 
+                          className="btn-secondary flex-1 py-3 text-[10px] font-black uppercase tracking-widest border-red-500/20 text-red-500 hover:bg-red-500/10 disabled:opacity-50"
+                        >
+                          Retornar
+                        </button>
+                        <button 
+                          disabled={isProcessing}
+                          onClick={() => handleAction('approve')} 
+                          className="btn-primary flex-1 py-3 text-[10px] font-black uppercase tracking-widest disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                          {isProcessing && <Loader2 size={14} className="animate-spin" />}
+                          {request.status === 'comanda_emesa' ? 'Confirmar Recepció' : 
+                           request.status === 'rebuda' ? 'Validar i Tancar' : 'Validar'}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  <button 
+                    disabled={isProcessing}
+                    onClick={() => handleAction('reject')} 
+                    className="w-full py-2 text-[9px] font-black text-slate-600 hover:text-red-500 uppercase tracking-widest transition-colors"
+                  >
+                    Rebutjar definitivament
+                  </button>
                 </div>
               ) : request.status !== 'tancada' && request.status !== 'rebutjada' ? (
-                <div className="flex gap-3 mt-4">
-                   <button onClick={() => handleAction('retornada')} className="btn-secondary flex-1 py-3 text-[10px] font-black uppercase tracking-widest border-red-500/20 text-red-500 hover:bg-red-500/10">Retornar</button>
-                   <button onClick={() => handleAction('aprovada')} className="btn-primary flex-1 py-3 text-[10px] font-black uppercase tracking-widest">Validar</button>
+                <div className="p-6 bg-white/[0.01] border border-white/5 rounded-2xl flex items-center gap-4">
+                  <div className="p-2 bg-white/5 rounded-lg text-slate-600">
+                    <Clock size={16} />
+                  </div>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-relaxed">
+                    Esperant validació de: <span className="text-brand-primary">{STATUS_LABELS[request.status]?.label}</span>
+                  </p>
                 </div>
-              ) : null}
+              ) : (
+                <div className="p-6 bg-white/[0.01] border border-white/5 rounded-2xl flex items-center gap-4">
+                  <div className="p-2 bg-white/5 rounded-lg text-slate-600">
+                    <CheckCircle size={16} />
+                  </div>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                    Expedient finalitzat
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>

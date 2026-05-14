@@ -27,6 +27,7 @@ import RequestDetail from './views/RequestDetail';
 import Reports from './views/Reports';
 import AdminPanel from './views/Admin';
 import NotFound from './views/NotFound';
+import NotificationBell from './components/NotificationBell';
 
 // Auth and Types
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -118,9 +119,7 @@ const AppLayout = ({ children, user }: { children: React.ReactNode, user: User }
           </button>
 
           <div className="flex items-center gap-4">
-            <button onClick={() => toast('No hi ha notificacions noves', { icon: '🔔' })} className="relative p-2 text-slate-400 hover:text-brand-primary transition-colors">
-              <Bell size={20} />
-            </button>
+            <NotificationBell user={user} />
             
             <Link to="/compres/nova" className="btn-primary flex items-center gap-2 text-sm py-2">
               <PlusCircle size={18} />

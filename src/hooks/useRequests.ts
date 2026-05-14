@@ -47,10 +47,10 @@ export function useRequests() {
     return { id: docRef.id, ...requestData } as PurchaseRequest;
   };
 
-  const updateRequestStatus = async (id: string, newStatus: RequestStatus) => {
+  const updateRequest = async (id: string, data: Partial<PurchaseRequest>) => {
     const docRef = doc(db, 'purchaseRequests', id);
     await updateDoc(docRef, {
-      status: newStatus,
+      ...data,
       updatedAt: new Date().toISOString()
     });
   };
