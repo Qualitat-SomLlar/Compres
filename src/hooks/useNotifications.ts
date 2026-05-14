@@ -16,14 +16,19 @@ export function useNotifications(userId?: string) {
       orderBy('createdAt', 'desc')
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const notifs = snapshot.docs.map(doc => ({
-        ...doc.data(),
-        id: doc.id
-      } as AppNotification));
-      setNotifications(notifs);
-      setUnreadCount(notifs.filter(n => !n.read).length);
-    });
+    const unsubscribe = onSnapshot(q, 
+      (snapshot) => {
+        const notifs = snapshot.docs.map(doc => ({
+          ...doc.data(),
+          id: doc.id
+        } as AppNotification));
+        setNotifications(notifs);
+        setUnreadCount(notifs.filter(n => !n.read).length);
+      },
+      (error) => {
+        console.error("Error a useNotifications:", error);
+      }
+    );
 
     return () => unsubscribe();
   }, [userId]);

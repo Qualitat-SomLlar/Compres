@@ -74,6 +74,6 @@ export function useRequests() {
     stats,
     getRequestById,
     addRequest,
-    updateRequestStatus
+    updateRequest
   };
 }
