@@ -29,6 +29,7 @@ import { importExportService } from '../../services/importExportService';
 import { useNotificationSettings } from '../../hooks/useNotificationSettings';
 import { useCenters } from '../../hooks/useCenters';
 import { useAnalyticCodes } from '../../hooks/useAnalyticCodes';
+import { useSuppliers } from '../../hooks/useSuppliers';
 
 type AdminTab = 'users' | 'flows' | 'notifications' | 'imports' | 'super';
 
@@ -607,6 +608,7 @@ function SuperManager() {
   const { projects, addProject, updateProject, deleteProject } = useProjects();
   const { centers, addCenter, updateCenter, deleteCenter } = useCenters();
   const { analyticCodes, addAnalyticCode, updateAnalyticCode, deleteAnalyticCode } = useAnalyticCodes();
+  const { suppliers, addSupplier, updateSupplier, deleteSupplier } = useSuppliers();
 
   const [editingEntity, setEditingEntity] = useState<{type: string, id?: string, data: any} | null>(null);
 
@@ -615,7 +617,7 @@ function SuperManager() {
       await updateUser(userId, { role: newRole });
       toast.success("Rol d'usuari actualitzat");
     } catch (err) {
-      toast.error("Error al canviar el rol");
+      toast.error("Error al carviar el rol");
     }
   };
 
@@ -626,6 +628,7 @@ function SuperManager() {
       if (type === 'project') id ? await updateProject(id, data) : await addProject(data);
       if (type === 'center') id ? await updateCenter(id, data) : await addCenter(data);
       if (type === 'analyticCode') id ? await updateAnalyticCode(id, data) : await addAnalyticCode(data);
+      if (type === 'supplier') id ? await updateSupplier(id, data) : await addSupplier(data);
       
       toast.success(`${type} desat correctament`);
       setEditingEntity(null);
@@ -712,7 +715,29 @@ function SuperManager() {
         </div>
       </section>
 
-      {/* Secció 4: Usuaris */}
+      {/* Secció 4: Proveïdors */}
+      <section className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Proveïdors Registrats</h4>
+          <button onClick={() => setEditingEntity({type: 'supplier', data: {name: '', cif: '', email: '', active: true}})} className="btn-primary text-[9px] py-1.5 px-3">Nou Proveïdor</button>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {suppliers.map(s => (
+            <div key={s.id} className="p-4 bg-white/[0.01] border border-white/5 rounded-2xl flex items-center justify-between group">
+              <div>
+                <p className="text-xs font-bold text-white">{s.name}</p>
+                <p className="text-[10px] text-slate-500 uppercase font-black">{s.cif}</p>
+              </div>
+              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => setEditingEntity({type: 'supplier', id: s.id, data: s})} className="p-2 hover:bg-white/5 rounded-lg text-slate-400"><Edit2 size={12}/></button>
+                <button onClick={() => deleteSupplier(s.id)} className="p-2 hover:bg-white/5 rounded-lg text-red-500/50 hover:text-red-500"><Trash2 size={12}/></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Secció 5: Usuaris */}
       <section className="space-y-6">
         <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Control d'Usuaris de l'Aplicació</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -770,6 +795,22 @@ function SuperManager() {
                   value={editingEntity.data.area} 
                   onChange={e => setEditingEntity({...editingEntity, data: {...editingEntity.data, area: e.target.value}})}
                 />
+              )}
+              {editingEntity.type === 'supplier' && (
+                <>
+                  <input 
+                    className="input-field w-full" 
+                    placeholder="CIF" 
+                    value={editingEntity.data.cif} 
+                    onChange={e => setEditingEntity({...editingEntity, data: {...editingEntity.data, cif: e.target.value}})}
+                  />
+                  <input 
+                    className="input-field w-full" 
+                    placeholder="Correu Electrònic" 
+                    value={editingEntity.data.email} 
+                    onChange={e => setEditingEntity({...editingEntity, data: {...editingEntity.data, email: e.target.value}})}
+                  />
+                </>
               )}
             </div>
             <div className="flex justify-end gap-3 pt-4 border-t border-white/5">

@@ -9,14 +9,15 @@ export function useSuppliers() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const q = query(collection(db, 'suppliers'), orderBy('name', 'asc'));
+    // Ordenem en memòria per evitar errors si no hi ha índexs a Firestore
+    const q = query(collection(db, 'suppliers'));
     
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
         const data = snapshot.docs.map(doc => ({
           ...doc.data(),
           id: doc.id,
-        } as Supplier));
+        } as Supplier)).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         setSuppliers(data);
         setLoading(false);
       },
