@@ -28,7 +28,8 @@ import { useWorkers } from '../../hooks/useWorkers';
 import { useNotificationSettings } from '../../hooks/useNotificationSettings';
 import { useCenters } from '../../hooks/useCenters';
 import { useAnalyticCodes } from '../../hooks/useAnalyticCodes';
-import { Loader2 } from 'lucide-react';
+import { useCenters } from '../../hooks/useCenters';
+import { Loader2, Plus, Edit2, Trash2, Save, X, Database, ShieldAlert, Users } from 'lucide-react';
 
 type AdminTab = 'workers' | 'flows' | 'notifications' | 'imports' | 'super';
 
@@ -489,9 +490,11 @@ function ImportsManager() {
 
 function SuperManager() {
   const { users, updateUser } = useUsers();
-  const { projects } = useProjects();
-  const { centers } = useCenters();
-  const { analyticCodes } = useAnalyticCodes();
+  const { projects, addProject, updateProject, deleteProject } = useProjects();
+  const { centers, addCenter, updateCenter, deleteCenter } = useCenters();
+  const { analyticCodes, addAnalyticCode, updateAnalyticCode, deleteAnalyticCode } = useAnalyticCodes();
+
+  const [editingEntity, setEditingEntity] = useState<{type: string, id?: string, data: any} | null>(null);
 
   const handleRoleChange = async (userId: string, newRole: any) => {
     try {
@@ -499,6 +502,21 @@ function SuperManager() {
       toast.success("Rol d'usuari actualitzat");
     } catch (err) {
       toast.error("Error al canviar el rol");
+    }
+  };
+
+  const saveEntity = async () => {
+    if (!editingEntity) return;
+    try {
+      const { type, id, data } = editingEntity;
+      if (type === 'project') id ? await updateProject(id, data) : await addProject(data);
+      if (type === 'center') id ? await updateCenter(id, data) : await addCenter(data);
+      if (type === 'analyticCode') id ? await updateAnalyticCode(id, data) : await addAnalyticCode(data);
+      
+      toast.success(`${type} desat correctament`);
+      setEditingEntity(null);
+    } catch (err) {
+      toast.error("Error al desar");
     }
   };
 
@@ -514,10 +532,53 @@ function SuperManager() {
         </div>
       </div>
 
+      {/* Secció 1: Projectes */}
       <section className="space-y-6">
         <div className="flex items-center justify-between">
-          <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Gestió de Rols d'Usuaris (Accés App)</h4>
+          <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Projectes Actius</h4>
+          <button onClick={() => setEditingEntity({type: 'project', data: {name: '', code: '', active: true}})} className="btn-primary text-[9px] py-1.5 px-3">Nou Projecte</button>
         </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {projects.map(p => (
+            <div key={p.id} className="p-4 bg-white/[0.01] border border-white/5 rounded-2xl flex items-center justify-between group">
+              <div>
+                <p className="text-xs font-bold text-white">{p.name}</p>
+                <p className="text-[10px] text-slate-500 uppercase font-black">{p.code}</p>
+              </div>
+              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => setEditingEntity({type: 'project', id: p.id, data: p})} className="p-2 hover:bg-white/5 rounded-lg text-slate-400"><Edit2 size={12}/></button>
+                <button onClick={() => deleteProject(p.id)} className="p-2 hover:bg-white/5 rounded-lg text-red-500/50 hover:text-red-500"><Trash2 size={12}/></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Secció 2: Centres */}
+      <section className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Centres de Destí</h4>
+          <button onClick={() => setEditingEntity({type: 'center', data: {name: '', code: '', active: true, area: ''}})} className="btn-primary text-[9px] py-1.5 px-3">Nou Centre</button>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {centers.map(c => (
+            <div key={c.id} className="p-4 bg-white/[0.01] border border-white/5 rounded-2xl flex items-center justify-between group">
+              <div>
+                <p className="text-xs font-bold text-white">{c.name}</p>
+                <p className="text-[10px] text-slate-500">{c.code} · {c.area}</p>
+              </div>
+              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => setEditingEntity({type: 'center', id: c.id, data: c})} className="p-2 hover:bg-white/5 rounded-lg text-slate-400"><Edit2 size={12}/></button>
+                <button onClick={() => deleteCenter(c.id)} className="p-2 hover:bg-white/5 rounded-lg text-red-500/50 hover:text-red-500"><Trash2 size={12}/></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Secció 3: Usuaris */}
+      <section className="space-y-6">
+        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Control d'Usuaris de l'Aplicació</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {users.map(u => (
             <div key={u.id} className="p-5 bg-white/[0.01] border border-white/5 rounded-2xl space-y-4">
@@ -548,25 +609,40 @@ function SuperManager() {
         </div>
       </section>
 
-      <section className="space-y-6">
-        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Estat de les Col·leccions de Dades</h4>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: 'Projectes', count: projects.length, icon: <Database size={16} /> },
-            { label: 'Centres', count: centers.length, icon: <Database size={16} /> },
-            { label: 'Codis Analítics', count: analyticCodes.length, icon: <Database size={16} /> },
-            { label: 'Usuaris Registrats', count: users.length, icon: <Users size={16} /> }
-          ].map((stat, i) => (
-            <div key={i} className="p-4 bg-white/[0.01] border border-white/5 rounded-2xl flex items-center gap-4">
-              <div className="p-2 bg-white/5 rounded-lg text-slate-500">{stat.icon}</div>
-              <div>
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">{stat.label}</p>
-                <p className="text-lg font-black text-white">{stat.count}</p>
-              </div>
+      {/* Modal d'edició ràpida */}
+      {editingEntity && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#151c2c] border border-white/10 rounded-2xl w-full max-w-md p-6 space-y-6">
+            <h3 className="text-sm font-black text-white uppercase tracking-widest">Gestionar {editingEntity.type}</h3>
+            <div className="space-y-4">
+              <input 
+                className="input-field w-full" 
+                placeholder="Nom / Descripció" 
+                value={editingEntity.data.name} 
+                onChange={e => setEditingEntity({...editingEntity, data: {...editingEntity.data, name: e.target.value}})}
+              />
+              <input 
+                className="input-field w-full" 
+                placeholder="Codi" 
+                value={editingEntity.data.code} 
+                onChange={e => setEditingEntity({...editingEntity, data: {...editingEntity.data, code: e.target.value}})}
+              />
+              {editingEntity.type === 'center' && (
+                <input 
+                  className="input-field w-full" 
+                  placeholder="Àrea" 
+                  value={editingEntity.data.area} 
+                  onChange={e => setEditingEntity({...editingEntity, data: {...editingEntity.data, area: e.target.value}})}
+                />
+              )}
             </div>
-          ))}
+            <div className="flex justify-end gap-3 pt-4 border-t border-white/5">
+              <button onClick={() => setEditingEntity(null)} className="btn-secondary px-4 py-2 text-[10px] font-black uppercase">Cancel·lar</button>
+              <button onClick={saveEntity} className="btn-primary px-4 py-2 text-[10px] font-black uppercase">Desar Canvis</button>
+            </div>
+          </div>
         </div>
-      </section>
+      )}
     </div>
   );
 }
