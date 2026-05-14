@@ -262,48 +262,65 @@ function UsersManager() {
         </table>
       </div>
 
-      {isWorkerModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-[#151c2c] border border-white/10 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center p-6 border-b border-white/5">
-              <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                {selectedWorker ? <Edit2 size={24} className="text-brand-primary"/> : <Plus size={24} className="text-brand-primary"/>}
-                {selectedWorker ? "Edita Treballador/a" : "Nou Treballador/a"}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-[#0f172a] border border-white/10 rounded-3xl w-full max-w-md overflow-hidden animate-in zoom-in duration-300 shadow-2xl">
+            <div className="p-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+              <h3 className="text-xs font-black text-white uppercase tracking-widest">
+                {selectedUser ? 'Editar Usuari/a' : 'Nou Usuari/a'}
               </h3>
-              <button onClick={() => setIsWorkerModalOpen(false)} className="p-2 hover:bg-white/5 rounded-lg text-slate-400">
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-500 hover:text-white transition-colors">
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-6">
-              <div className="grid grid-cols-2 gap-6">
+            <form onSubmit={handleSubmit} className="p-8 space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Nom Complet</label>
+                <input 
+                  name="name" 
+                  defaultValue={selectedUser?.name} 
+                  required 
+                  className="input-field text-xs" 
+                  placeholder="Ex: Joan Pere" 
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Correu Electrònic</label>
+                <input 
+                  name="email" 
+                  type="email" 
+                  defaultValue={selectedUser?.email} 
+                  required 
+                  className="input-field text-xs" 
+                  placeholder="nom@somllar.cat" 
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Nom complet <span className="text-red-500">*</span></label>
-                  <input name="fullName" type="text" required className="input-field w-full" defaultValue={selectedWorker?.fullName || ''} placeholder="Ex: Maria Garcia" />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Correu electrònic <span className="text-red-500">*</span></label>
-                  <input name="email" type="email" required className="input-field w-full" defaultValue={selectedWorker?.email || ''} placeholder="Ex: mgarcia@somllar.org" />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Àrea</label>
-                  <select name="area" className="input-field w-full" defaultValue={selectedWorker?.area || ''}>
-                    {AREAS.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Àrea</label>
+                  <select name="areaId" defaultValue={selectedUser?.areaId} className="input-field text-xs">
+                    {AREAS.map(area => (
+                      <option key={area.id} value={area.id}>{area.name}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Rol</label>
-                  <select name="role" className="input-field w-full" defaultValue={selectedWorker?.role || 'tecnic'}>
-                    {Object.entries(ROLE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Rol</label>
+                  <select name="role" defaultValue={selectedUser?.role || 'tecnic'} className="input-field text-xs">
+                    {Object.entries(ROLE_LABELS).map(([key, label]) => (
+                      <option key={key} value={key}>{label}</option>
+                    ))}
                   </select>
                 </div>
               </div>
-              <div className="pt-6 border-t border-white/5 flex justify-end gap-3">
-                <button type="button" onClick={() => setIsWorkerModalOpen(false)} className="btn-secondary px-6 py-2.5 text-xs font-bold uppercase tracking-widest" disabled={isSaving}>Cancel·lar</button>
-                <button type="submit" className="btn-primary flex items-center gap-2 px-6 py-2.5 text-xs font-bold uppercase tracking-widest" disabled={isSaving}>
-                  {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16}/>} 
-                  Desar Dades
-                </button>
-              </div>
+              <button 
+                type="submit" 
+                disabled={isSaving}
+                className="w-full btn-primary py-4 text-xs font-black uppercase tracking-[0.2em] mt-4 flex items-center justify-center gap-3 shadow-lg shadow-brand-primary/20"
+              >
+                {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                <span>{selectedUser ? 'Guardar Canvis' : 'Crear Usuari/a'}</span>
+              </button>
             </form>
           </div>
         </div>
