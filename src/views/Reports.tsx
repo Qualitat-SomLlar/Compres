@@ -17,15 +17,18 @@ import { MOCK_REQUESTS } from '../lib/mockData';
 import { STATUS_LABELS, CATEGORIES, AREAS } from '../constants';
 import { cn } from '../lib/utils';
 import { importExportService } from '../services/importExportService';
+import { useRequests } from '../hooks/useRequests';
+import { Loader2 } from 'lucide-react';
 
 export default function Reports() {
+  const { requests, loading } = useRequests();
   const [dateRange, setDateRange] = useState('all');
   const [selectedArea, setSelectedArea] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredData = useMemo(() => {
-    return MOCK_REQUESTS.filter(r => {
+    return requests.filter(r => {
       const matchesSearch = r.itemDescription.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           r.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           r.requestingTechnicianName.toLowerCase().includes(searchTerm.toLowerCase());
@@ -33,7 +36,7 @@ export default function Reports() {
       const matchesStatus = selectedStatus === 'all' || r.status === selectedStatus;
       return matchesSearch && matchesArea && matchesStatus;
     });
-  }, [searchTerm, selectedArea, selectedStatus]);
+  }, [requests, searchTerm, selectedArea, selectedStatus]);
 
   const stats = useMemo(() => {
     const total = filteredData.length;
@@ -79,6 +82,15 @@ export default function Reports() {
     }));
     importExportService.exportToExcel(exportData, 'informe_compres_somllar.xlsx');
   };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-20 gap-4">
+        <Loader2 className="animate-spin text-brand-primary" size={40} />
+        <p className="text-slate-500 font-bold text-xs uppercase tracking-widest">Carregant dades...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-10 animate-in fade-in duration-700">

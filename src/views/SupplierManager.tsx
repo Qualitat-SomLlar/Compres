@@ -14,7 +14,8 @@ import {
   X,
   Save
 } from 'lucide-react';
-import { MOCK_SUPPLIERS } from '../lib/mockData';
+import { useSuppliers } from '../hooks/useSuppliers';
+import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const StatusBadge = ({ status }: { status: string }) => {
@@ -36,12 +37,13 @@ const StatusBadge = ({ status }: { status: string }) => {
 };
 
 export default function SupplierManager() {
-  const [suppliers, setSuppliers] = useState<Supplier[]>(MOCK_SUPPLIERS as any);
+  const { suppliers, loading, addSupplier, updateSupplier, deleteSupplier } = useSuppliers();
   const [searchTerm, setSearchTerm] = useState('');
   const [isNewSupplierModalOpen, setIsNewSupplierModalOpen] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -60,36 +62,70 @@ export default function SupplierManager() {
     }, 1000);
   };
 
-  const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleStatusChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     if (!selectedSupplier) return;
     const newStatus = e.target.value as any;
-    const updatedSupplier = { ...selectedSupplier, status: newStatus };
-    setSuppliers(prev => prev.map(s => s.id === updatedSupplier.id ? updatedSupplier : s));
-    setSelectedSupplier(updatedSupplier);
-    toast.success('Estat actualitzat correctament');
+    try {
+      await updateSupplier(selectedSupplier.id, { status: newStatus });
+      setSelectedSupplier({ ...selectedSupplier, status: newStatus });
+      toast.success('Estat actualitzat correctament');
+    } catch (err) {
+      toast.error('Error al canviar l\'estat');
+    }
   };
 
-  const handleRatingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleRatingChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!selectedSupplier) return;
     const newRating = parseInt(e.target.value) || 0;
-    const updatedSupplier = { ...selectedSupplier, rating: newRating };
-    setSuppliers(prev => prev.map(s => s.id === updatedSupplier.id ? updatedSupplier : s));
-    setSelectedSupplier(updatedSupplier);
+    try {
+      await updateSupplier(selectedSupplier.id, { rating: newRating });
+      setSelectedSupplier({ ...selectedSupplier, rating: newRating });
+    } catch (err) {}
   };
   
-  const handleCriticalityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleCriticalityChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     if (!selectedSupplier) return;
     const newCrit = e.target.value as any;
-    const updatedSupplier = { ...selectedSupplier, criticality: newCrit };
-    setSuppliers(prev => prev.map(s => s.id === updatedSupplier.id ? updatedSupplier : s));
-    setSelectedSupplier(updatedSupplier);
+    try {
+      await updateSupplier(selectedSupplier.id, { criticality: newCrit });
+      setSelectedSupplier({ ...selectedSupplier, criticality: newCrit });
+    } catch (err) {}
   };
 
-  const handleSaveSupplier = (e: React.FormEvent) => {
+  const handleSaveSupplier = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    toast.success("Proveïdor desat correctament");
-    setIsNewSupplierModalOpen(false);
+    setIsSaving(true);
+    const formData = new FormData(e.currentTarget);
+    const data = {
+      name: formData.get('name') as string,
+      nif: formData.get('nif') as string,
+      category: formData.get('category') as string,
+      email: formData.get('email') as string,
+      status: 'candidat' as const,
+      rating: 0,
+      criticality: 'mitjana' as const,
+      documents: []
+    };
+
+    try {
+      await addSupplier(data);
+      toast.success("Proveïdor desat correctament");
+      setIsNewSupplierModalOpen(false);
+    } catch (err) {
+      toast.error("Error al desar el proveïdor");
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-20 gap-4">
+        <Loader2 className="animate-spin text-brand-primary" size={40} />
+        <p className="text-slate-500 font-bold text-xs uppercase tracking-widest">Carregant proveïdors...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -172,29 +208,32 @@ export default function SupplierManager() {
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Nom o Raó Social <span className="text-red-500">*</span></label>
-                  <input type="text" required className="input-field w-full" placeholder="Ex: Informàtica SL" />
+                  <input name="name" type="text" required className="input-field w-full" placeholder="Ex: Informàtica SL" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">NIF/CIF <span className="text-red-500">*</span></label>
-                  <input type="text" required className="input-field w-full" placeholder="Ex: B12345678" />
+                  <input name="nif" type="text" required className="input-field w-full" placeholder="Ex: B12345678" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Categoria</label>
-                  <select className="input-field w-full">
-                    <option>Material d'oficina</option>
-                    <option>Serveis Generals</option>
-                    <option>Tecnologia</option>
-                    <option>Alimentació</option>
+                  <select name="category" className="input-field w-full">
+                    <option value="Material d'oficina">Material d'oficina</option>
+                    <option value="Serveis Generals">Serveis Generals</option>
+                    <option value="Tecnologia">Tecnologia</option>
+                    <option value="Alimentació">Alimentació</option>
                   </select>
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Email de contacte</label>
-                  <input type="email" className="input-field w-full" placeholder="Ex: contacte@empresa.com" />
+                  <input name="email" type="email" className="input-field w-full" placeholder="Ex: contacte@empresa.com" />
                 </div>
               </div>
               <div className="pt-6 border-t border-white/5 flex justify-end gap-3">
-                <button type="button" onClick={() => setIsNewSupplierModalOpen(false)} className="btn-secondary px-6 py-2.5 text-xs font-bold uppercase tracking-widest">Cancel·lar</button>
-                <button type="submit" className="btn-primary flex items-center gap-2 px-6 py-2.5 text-xs font-bold uppercase tracking-widest"><Save size={16}/> Desar Proveïdor</button>
+                <button type="button" onClick={() => setIsNewSupplierModalOpen(false)} className="btn-secondary px-6 py-2.5 text-xs font-bold uppercase tracking-widest" disabled={isSaving}>Cancel·lar</button>
+                <button type="submit" className="btn-primary flex items-center gap-2 px-6 py-2.5 text-xs font-bold uppercase tracking-widest" disabled={isSaving}>
+                  {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16}/>} 
+                  Desar Proveïdor
+                </button>
               </div>
             </form>
           </div>

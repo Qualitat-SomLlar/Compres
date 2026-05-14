@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Search, Check, ChevronDown, UserPlus } from 'lucide-react';
-import { MOCK_WORKERS } from '../lib/mockData';
+import { useWorkers } from '../hooks/useWorkers';
 import { Worker } from '../types';
 import { cn } from '../lib/utils';
+import { Loader2 } from 'lucide-react';
 
 interface WorkerSelectorProps {
   onSelect: (worker: Worker) => void;
@@ -14,14 +15,15 @@ interface WorkerSelectorProps {
 }
 
 export default function WorkerSelector({ onSelect, selectedId, label, error, required }: WorkerSelectorProps) {
+  const { workers, loading } = useWorkers();
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const wrapperRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
-  const selectedWorker = MOCK_WORKERS.find(w => w.id === selectedId);
+  const selectedWorker = workers.find(w => w.id === selectedId);
 
-  const filteredWorkers = MOCK_WORKERS.filter(w => 
+  const filteredWorkers = workers.filter(w => 
     w.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     w.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -86,7 +88,12 @@ export default function WorkerSelector({ onSelect, selectedId, label, error, req
           </div>
 
           <div className="max-h-60 overflow-y-auto">
-            {filteredWorkers.length === 0 ? (
+            {loading ? (
+              <div className="p-8 text-center flex flex-col items-center gap-2">
+                <Loader2 size={20} className="animate-spin text-brand-primary" />
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Carregant...</p>
+              </div>
+            ) : filteredWorkers.length === 0 ? (
               <div className="p-8 text-center">
                 <p className="text-xs text-slate-600 font-medium">No s'han trobat treballadors/es</p>
               </div>

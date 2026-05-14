@@ -14,7 +14,6 @@ import {
 import toast from 'react-hot-toast';
 import { User, Worker, Attachment, AttachmentCategory, RequestStatus, PurchaseRequest } from '../types';
 import { CATEGORIES, AREAS } from '../constants';
-import { MOCK_ANALYTIC_CODES, MOCK_CENTERS } from '../lib/mockData';
 import WorkerSelector from '../components/WorkerSelector';
 import CustomSelect from '../components/CustomSelect';
 import CustomDatePicker from '../components/CustomDatePicker';
@@ -23,6 +22,9 @@ import AttachmentList from '../components/AttachmentList';
 import { useRequests } from '../hooks/useRequests';
 import { useNotifications } from '../hooks/useNotifications';
 import { useUsers } from '../hooks/useUsers';
+import { useAnalyticCodes } from '../hooks/useAnalyticCodes';
+import { useCenters } from '../hooks/useCenters';
+import { useProjects } from '../hooks/useProjects';
 import { emailService } from '../services/emailService';
 
 export default function NewRequest({ user }: { user: User }) {
@@ -30,6 +32,9 @@ export default function NewRequest({ user }: { user: User }) {
   const { addRequest } = useRequests();
   const { addNotification } = useNotifications();
   const { getUsersByRole } = useUsers();
+  const { codes } = useAnalyticCodes();
+  const { centers } = useCenters();
+  const { projects } = useProjects();
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [formData, setFormData] = useState({
     requestingTechnicianId: '',
@@ -207,11 +212,11 @@ export default function NewRequest({ user }: { user: User }) {
                 placeholder="Selecciona projecte"
                 value={formData.projectId}
                 onChange={v => setFormData({...formData, projectId: v})}
-                options={[
-                  { value: 'SOC-01', label: 'Programes Socials Generals' },
-                  { value: 'REHAB-BCN', label: 'Rehabilitació BCN' },
-                  { value: 'EMERG-ACCES', label: 'Emergència Accés Habitatge' }
-                ]}
+                options={projects.map(p => ({
+                  value: p.code,
+                  label: p.code,
+                  description: p.name
+                }))}
               />
             </div>
 
@@ -223,7 +228,7 @@ export default function NewRequest({ user }: { user: User }) {
                 placeholder="Selecciona codi"
                 value={formData.analyticCode}
                 onChange={v => setFormData({...formData, analyticCode: v})}
-                options={MOCK_ANALYTIC_CODES.map(ac => ({
+                options={codes.map(ac => ({
                   value: ac.code,
                   label: ac.code,
                   description: ac.description
@@ -239,14 +244,14 @@ export default function NewRequest({ user }: { user: User }) {
                 placeholder="Selecciona centre"
                 value={formData.destinationCenterId}
                 onChange={v => {
-                  const center = MOCK_CENTERS.find(c => c.id === v);
+                  const center = centers.find(c => c.id === v);
                   setFormData({
                     ...formData, 
                     destinationCenterId: v,
                     destinationCenterName: center?.name || ''
                   });
                 }}
-                options={MOCK_CENTERS.map(c => ({
+                options={centers.map(c => ({
                   value: c.id,
                   label: c.name
                 }))}

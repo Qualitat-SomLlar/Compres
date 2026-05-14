@@ -20,6 +20,9 @@ import { cn } from '../../lib/utils';
 import { ROLE_LABELS, ATTACHMENT_CATEGORIES, NOTIFICATION_EVENTS, AREAS } from '../../constants';
 import { importExportService } from '../../services/importExportService';
 import { useWorkers } from '../../hooks/useWorkers';
+import { useNotificationSettings } from '../../hooks/useNotificationSettings';
+import { useCenters } from '../../hooks/useCenters';
+import { useAnalyticCodes } from '../../hooks/useAnalyticCodes';
 import { Loader2 } from 'lucide-react';
 
 type AdminTab = 'workers' | 'flows' | 'notifications' | 'imports';
@@ -343,7 +346,17 @@ function FlowsManager() {
 }
 
 function NotificationsManager() {
+  const { settings, loading, updateSetting } = useNotificationSettings();
   const events = NOTIFICATION_EVENTS;
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-20 gap-4">
+        <Loader2 className="animate-spin text-brand-primary" size={32} />
+        <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">Carregant configuració...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 space-y-8">
@@ -353,23 +366,34 @@ function NotificationsManager() {
       </div>
 
       <div className="space-y-4 max-w-2xl">
-        {events.map(event => (
-          <div key={event.id} className="flex items-center justify-between p-4 bg-white/[0.01] border border-white/5 rounded-2xl hover:bg-white/[0.02] transition-all group">
-            <div className="flex items-center gap-4">
-              <div className="p-2 bg-white/5 rounded-xl text-slate-500 group-hover:text-brand-primary transition-colors">
-                <Bell size={16} />
+        {events.map(event => {
+          const setting = settings.find(s => s.eventKey === event.id);
+          return (
+            <div key={event.id} className="flex items-center justify-between p-4 bg-white/[0.01] border border-white/5 rounded-2xl hover:bg-white/[0.02] transition-all group">
+              <div className="flex items-center gap-4">
+                <div className="p-2 bg-white/5 rounded-xl text-slate-500 group-hover:text-brand-primary transition-colors">
+                  <Bell size={16} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-300">{event.name}</p>
+                  <p className="text-[10px] text-slate-600 uppercase tracking-widest mt-1">Grup: Flux de Compres</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-bold text-slate-300">{event.name}</p>
-                <p className="text-[10px] text-slate-600 uppercase tracking-widest mt-1">Grup: Flux de Compres</p>
-              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  className="sr-only peer" 
+                  checked={setting?.enabled ?? false} 
+                  onChange={(e) => {
+                    if (setting) updateSetting(setting.id, e.target.checked);
+                    else toast.error("Cal configurar l'esdeveniment a la base de dades");
+                  }}
+                />
+                <div className="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-primary peer-checked:after:bg-white"></div>
+              </label>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" className="sr-only peer" defaultChecked />
-              <div className="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-primary peer-checked:after:bg-white"></div>
-            </label>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
