@@ -8,14 +8,15 @@ export function useCenters() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const q = query(collection(db, 'centers'), orderBy('name', 'asc'));
+    // Ordenem en memòria per evitar errors si no hi ha índexs a Firestore
+    const q = query(collection(db, 'centers'));
     
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
         const data = snapshot.docs.map(doc => ({
           ...doc.data(),
           id: doc.id,
-        } as DestinationCenter));
+        } as DestinationCenter)).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         setCenters(data);
         setLoading(false);
       },

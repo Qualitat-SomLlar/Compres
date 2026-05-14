@@ -29,7 +29,6 @@ import { importExportService } from '../../services/importExportService';
 import { useNotificationSettings } from '../../hooks/useNotificationSettings';
 import { useCenters } from '../../hooks/useCenters';
 import { useAnalyticCodes } from '../../hooks/useAnalyticCodes';
-import { useAnalyticCodes } from '../../hooks/useAnalyticCodes';
 
 type AdminTab = 'users' | 'flows' | 'notifications' | 'imports' | 'super';
 
@@ -48,6 +47,8 @@ export default function AdminPanel() {
         return <ImportsManager />;
       case 'super':
         return <SuperManager />;
+      default:
+        return <UsersManager />;
     }
   };
 

@@ -8,14 +8,15 @@ export function useProjects() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const q = query(collection(db, 'projects'), orderBy('code', 'asc'));
+    // Ordenem en memòria per evitar errors si no hi ha índexs a Firestore
+    const q = query(collection(db, 'projects'));
     
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
         const data = snapshot.docs.map(doc => ({
           ...doc.data(),
           id: doc.id,
-        } as Project));
+        } as any)).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         setProjects(data);
         setLoading(false);
       },

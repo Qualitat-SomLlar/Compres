@@ -8,14 +8,15 @@ export function useAnalyticCodes() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const q = query(collection(db, 'analyticCodes'), orderBy('code', 'asc'));
+    // Ordenem en memòria per evitar errors si no hi ha índexs a Firestore
+    const q = query(collection(db, 'analyticCodes'));
     
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
         const data = snapshot.docs.map(doc => ({
           ...doc.data(),
           id: doc.id,
-        } as AnalyticCode));
+        } as AnalyticCode)).sort((a, b) => (a.code || '').localeCompare(b.code || ''));
         setCodes(data);
         setLoading(false);
       },
