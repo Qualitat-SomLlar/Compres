@@ -105,7 +105,7 @@ export default function SupplierManager() {
             <input 
               type="text" 
               placeholder="Cerca per nom o NIF..." 
-              className="input-field pl-10 w-64 text-sm"
+              className="input-field !pl-12 w-64 text-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />

@@ -122,7 +122,7 @@ function WorkersManager({ searchTerm }: { searchTerm: string }) {
           <input 
             type="text" 
             placeholder="Cerca treballador..." 
-            className="input-field pl-10 w-64 text-xs"
+            className="input-field !pl-12 w-64 text-xs"
           />
         </div>
         <button 
