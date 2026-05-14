@@ -64,9 +64,14 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
-      <div>
-        <h2 className="text-3xl font-black text-white mb-2">Tauler de Control de Compres</h2>
-        <p className="text-slate-400 text-sm">Monitoratge de fluxos d'aprovació i gestió de pressupostos</p>
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-brand-primary/10 rounded-xl text-brand-primary">
+            <TrendingUp size={20} />
+          </div>
+          <h2 className="text-3xl font-black text-white tracking-tighter">Tauler de Control de Compres</h2>
+        </div>
+        <p className="text-sm text-slate-500 font-medium max-w-xl">Monitoratge de fluxos d'aprovació i gestió de pressupostos en temps real.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

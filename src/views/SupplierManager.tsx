@@ -130,9 +130,14 @@ export default function SupplierManager() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900">Registre de Proveïdors</h2>
-          <p className="text-sm text-slate-500">Consulta i gestiona l'homologació de col·laboradors i proveïdors.</p>
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+             <div className="p-2.5 bg-brand-primary/10 rounded-xl text-brand-primary">
+              <Building size={20} />
+            </div>
+            <h2 className="text-3xl font-black text-white tracking-tighter">Registre de Proveïdors</h2>
+          </div>
+          <p className="text-sm text-slate-500 font-medium max-w-xl">Consulta i gestiona l'homologació de col·laboradors i proveïdors actius.</p>
         </div>
         
         <div className="flex items-center gap-3">

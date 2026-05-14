@@ -164,8 +164,13 @@ export default function NewRequest({ user }: { user: User }) {
       </div>
 
       <div className="space-y-4">
-        <h2 className="text-4xl font-black text-white tracking-tighter">Nova Sol·licitud de Compra</h2>
-        <p className="text-slate-500 font-bold text-sm tracking-tight leading-relaxed">Inicia un nou expedient per al subministrament de béns o contractació de serveis.</p>
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-brand-primary/10 rounded-xl text-brand-primary">
+            <Plus size={20} />
+          </div>
+          <h2 className="text-3xl font-black text-white tracking-tighter">Nova Sol·licitud de Compra</h2>
+        </div>
+        <p className="text-sm text-slate-500 font-medium max-w-xl">Inicia un nou expedient per al subministrament de béns o contractació de serveis.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-10">

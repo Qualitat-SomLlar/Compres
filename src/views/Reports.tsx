@@ -95,9 +95,14 @@ export default function Reports() {
   return (
     <div className="space-y-10 animate-in fade-in duration-700">
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
-        <div>
-          <h2 className="text-4xl font-black text-white tracking-tighter">Informes i Analítica</h2>
-          <p className="text-slate-500 font-medium mt-2">Explora, filtra i exporta les dades de gestió de compres.</p>
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+             <div className="p-2.5 bg-brand-primary/10 rounded-xl text-brand-primary">
+              <BarChart3 size={20} />
+            </div>
+            <h2 className="text-3xl font-black text-white tracking-tighter">Informes i Analítica</h2>
+          </div>
+          <p className="text-sm text-slate-500 font-medium max-w-xl">Explora, filtra i exporta les dades de gestió de compres.</p>
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
