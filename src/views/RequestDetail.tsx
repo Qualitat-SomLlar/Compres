@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { STATUS_LABELS } from '../constants';
-import { User, RequestStatus, AttachmentCategory } from '../types';
+import { User, RequestStatus, AttachmentCategory, PurchaseRequest } from '../types';
 import { cn } from '../lib/utils';
 import AttachmentList from '../components/AttachmentList';
 import StatusBadge from '../components/StatusBadge';

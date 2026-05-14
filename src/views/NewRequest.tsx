@@ -12,7 +12,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { User, Worker, Attachment, AttachmentCategory, RequestStatus } from '../types';
+import { User, Worker, Attachment, AttachmentCategory, RequestStatus, PurchaseRequest } from '../types';
 import { CATEGORIES, AREAS } from '../constants';
 import { MOCK_ANALYTIC_CODES, MOCK_CENTERS } from '../lib/mockData';
 import WorkerSelector from '../components/WorkerSelector';
