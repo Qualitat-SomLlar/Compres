@@ -142,7 +142,7 @@ export default function NewRequest({ user }: { user: User }) {
       <form onSubmit={handleSubmit} className="space-y-10">
         
         {/* Bloc 0: Autoria i Responsabilitat */}
-        <section className="card p-10 bg-brand-primary/[0.02] border-brand-primary/20 relative z-20">
+        <section className="card p-10 bg-brand-primary/[0.02] border-brand-primary/20 relative z-50 !overflow-visible">
           <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-10 flex items-center gap-3">
             <div className="p-2 bg-brand-primary/10 rounded-lg text-brand-primary"><ShieldCheck size={18} /></div>
             Identificació de l'Expedient
@@ -202,7 +202,7 @@ export default function NewRequest({ user }: { user: User }) {
               </label>
               <select 
                 required
-                className="input-field uppercase font-black tracking-widest text-brand-primary"
+                className="input-field font-black tracking-widest text-brand-primary"
                 value={formData.analyticCode}
                 onChange={e => setFormData({...formData, analyticCode: e.target.value})}
               >

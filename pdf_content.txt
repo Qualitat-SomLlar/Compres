@@ -1,0 +1,372 @@
+MACROPROCÉS: GESTIÓ DE COMPRES I PROVEÏDORS 
+SP1. Gestió de Compres. Defineix la operació de compres, el circuit i els elements centrals de 
+aquesta gestió logística per a tota l’entitat. 
+ SP2. Gestió de Proveïdors: defineix la governança, relació, homologació i avaluació amb aquest 
+grup d’interès.  
+Segons la matriu de Grups d’interès de Som Llar (f08_PE01) dins del grup “Proveïdors i 
+col·laboradors” els fonamentals són: 
+Compres.... 
+• TIC’s (dades, telefonia, domòtica, equips, aplicacions) 
+• Subministraments 
+• Alimentació, higiene, salut, vestuari  
+• Transport (targetes, combustible, vehicles) 
+• Material d’oficina 
+• Gestió i assessoria laboral 
+• Assessoria legal, comptable, fiscal i auditoria.  
+• Assegurances  
+• Manteniment 
+• Mobiliari, electrodomèstics i parament 
+• Seguretat 
+• Formació 
+• Assessories específiques (consultories, tècniques)  
+Aquest llistat de  proveïdors son de tota l’entitat independentment de l’àrea amb la que es 
+relacionin directament. 
+OBJECTIU GENERAL DEL PROCÉS 
+Aquest procés té per objecte establir el sistema de gestió de compres i de relació amb proveïdors 
+de Som Llar, garantint que l’adquisició de béns i serveis es realitza de manera planificada, 
+transparent i alineada amb el pressupost aprovat i amb les necessitats operatives de l’entitat. 
+El procés defineix el circuit de sol·licitud, autorització, selecció i formalització de compres, així 
+com els criteris d’homologació, seguiment i avaluació dels proveïdors. 
+La seva aplicació contribueix a assegurar la correcta utilització dels recursos econòmics de 
+l’entitat, la traçabilitat documental de les operacions i la disponibilitat de proveïdors fiables que 
+donin suport al funcionament dels projectes, serveis i infraestructures. 
+Aquest procés manté una relació directa amb el Procés de Gestió Logística i de Manteniment, 
+que pot generar sol·licituds de compra derivades d’actuacions preventives o correctives sobre 
+infraestructures i equipaments. 
+OBJECTIUS ESPECÍFICS 
+• Assegurar que totes les compres de béns i serveis es realitzen amb autorització prèvia i 
+dins del marc pressupostari aprovat. 
+• Garantir la traçabilitat documental de totes les operacions de compra i contractació de 
+serveis. 
+• Disposar d’un sistema estructurat d’homologació i registre dels proveïdors de l’entitat. 
+• Assegurar que els proveïdors seleccionats compleixen criteris de qualitat, fiabilitat i 
+adequació als valors institucionals. 
+• Establir un sistema de seguiment i avaluació periòdica del rendiment dels proveïdors. 
+• Garantir el compliment dels requisits econòmics i administratius exigits pels finançadors 
+públics o privats. 
+• Reduir riscos operatius associats a dependència de proveïdors crítics o a compres no 
+planificades. 
+GRUPS D’INTERÈS, EXPECTATIVES I NECESSITATS 
+Grup d’interès Expectatives i necessitats 
+Direcció Control pressupostari, transparència en la contractació, 
+reducció de riscos econòmics 
+Àrees operatives Rapidesa en la gestió de compres, disponibilitat de 
+materials o serveis necessaris 
+Administració i finances Documentació completa, traçabilitat econòmica i correcta 
+imputació de factures 
+Administracions públiques i 
+finançadors 
+Compliment dels requisits de justificació econòmica i 
+normativa 
+Proveïdors Claredat en les comandes, comunicació fluida i pagaments 
+en termini 
+Assemblea i òrgans de govern Transparència en la gestió de recursos i rendició de comptes 
+(La satisfacció del grup d’interès proveïdors es recull dins del Procés de Gestió de Grups d’Interès.) 
+PUNTS CRÍTICS DEL PROCÉS 
+• Compres realitzades fora del pressupost aprovat. 
+• Fraccionament de compres per evitar nivells d’autorització. 
+• Absència de traçabilitat documental de les operacions. 
+• Selecció de proveïdors no validats o no homologats. 
+• Retards en el circuit d’autorització de compres. 
+• Dependència excessiva d’un únic proveïdor crític. 
+• Compres urgents derivades d’incidències operatives sense registre formal. 
+ENTRADES 
+• Pressupost anual aprovat. 
+• Pla anual de compres. 
+• Sol·licituds de compra dels equips o àrees operatives. 
+• Sol·licituds de compra derivades del Procés de Gestió Logística i de Manteniment. 
+• Necessitats detectades en projectes o serveis. 
+• Propostes o pressupostos de proveïdors. 
+• Llistat de proveïdors homologats. 
+• Requisits dels plecs de subvencions o contractes públics. 
+SORTIDES 
+• Comanda formalitzada amb proveïdor. 
+• Contracte o acord de servei (si escau). 
+• Factura validada i imputada a partida pressupostària. 
+• Registre de despesa. 
+• Registre actualitzat de proveïdors homologats. 
+• Informe anual d’avaluació de proveïdors. 
+• Arxiu documental per a auditories internes o externes. 
+ACTIVITATS DEL PROCÉS 
+Comitè de compres i proveïdors: 
+- Direccions operatives (3) 
+- Direcció ADM (1) 
+- Tec. D’àrees encarregades de compres, proveïdors, infraestructures (3) 
+Crear carpeta de sharepoint para documentació normativa de proveïdors (registre/documents 
+normatius/fitxes) 
+SP1. Gestió de compres 
+Activitat Descripció 
+1. Planificació 
+anual de compres 
+Aquesta activitat consisteix en la identificació i previsió de les principals 
+necessitats de compra de l’entitat per a l’exercici, en coherència amb el 
+pressupost anual aprovat i els pressupostos interns.  
+La Direcció d’Administració i Finances revisa l’històric de compres, 
+analitza els serveis i subministraments recurrents necessaris per al 
+funcionament ordinari de l’entitat i identifica possibles necessitats 
+extraordinàries associades a projectes, serveis o infraestructures.  
+Aquesta planificació permet anticipar contractacions recurrents, 
+facilitar el control pressupostari i reduir el risc de compres urgents o no 
+planificades. 
+2. Sol·licitud de 
+compra 
+Quan una àrea  detecta la necessitat d’adquirir un bé o contractar un 
+servei, es formalitza una sol·licitud de compra que ha de ser aprovada 
+per la direcció de l’àrea corresponent a partir del pressupost aprovat. 
+Sempre cal indicar a la fitxa de compres el codi analític del projecte 
+d’acord amb el directori de projectes (F05_PO01).   
+Aquesta activitat pot incloure també sol·licituds derivades d’altres 
+processos de l’entitat, com el Procés de Gestió Logística i de 
+Manteniment, quan una incidència requereix una intervenció externa o 
+l’adquisició de materials o serveis tècnics. 
+3. Selecció del 
+proveïdor 
+Una vegada validada la necessitat de compra, es procedeix a la selecció 
+del proveïdor que subministrarà el bé o servei requerit.  
+La selecció es realitza preferentment entre els proveïdors homologats 
+de l’entitat. En el cas de compres de les àrees operatives els proveïdors 
+els selecciona la persona que envia la sol·licitud de compra aprovada a 
+ADM. 
+En cas que no existeixi un proveïdor adequat dins del registre existent, 
+es poden sol·licitar pressupostos a nous proveïdors potencials per 
+valorar la seva incorporació al sistema de proveïdors  (SP2 gestió de 
+proveïdors).  
+La selecció es basa en criteris de qualitat del servei, adequació tècnica, 
+fiabilitat i condicions econòmiques .(F01_PS01_Criteris de selecció de 
+proveïdors) 
+4. Autorització i 
+formalització de la 
+compra 
+Una vegada seleccionat el proveïdor, la compra es formalitza mitjançant 
+l’emissió de la comanda o, si escau, mitjançant la formalització d’un 
+contracte o acord de servei.  
+La àrea d’ADM amb tota la documentació requerida i la aprovació del 
+responsable operatiu executa la compra.  
+Al procediment de compres es detallen els circuits d’aprovació  i 
+formalització per cada tipus de compra. (P01_PS01). 
+La documentació associada a la compra queda registrada dins del 
+sistema administratiu de cada àrea implicada en el procés de compra, 
+per garantir la traçabilitat de la decisió.  
+La documentació a arxivar per cada tipus de compra es defineix al 
+procediment de compres (P01_PS01) 
+5. Recepció i 
+verificació del 
+servei o material.  
+Quan el proveïdor lliura el material o executa el servei contractat, la 
+persona responsable de rebre la comanda (es defineix al procediment 
+de compres)  verifica que la prestació realitzada correspon amb les 
+condicions acordades.  
+En cas de conformitat, es valida la factura /comanda/pressupost i es 
+deriva al circuit administratiu de comptabilitat p el seu registre  
+comptable.  
+Si es detecten incidències, aquestes es registren per al seu seguiment 
+dins del procés de gestió de proveïdors. 
+SP2. Gestió de proveïdors 
+Activitat Descripció 
+6. Identificació i 
+registre de 
+proveïdors 
+Aquesta activitat consisteix en la identificació i registre dels proveïdors 
+que mantenen una relació amb l’entitat per al subministrament de béns 
+o serveis.  
+Es manté actualitzat un registre de proveïdors que inclou informació 
+bàsica sobre la seva activitat, àmbit de servei i relació amb els diferents 
+processos de l’entitat.  
+Per fer el registre general de proveïdors la tècnica designada de cada 
+àrea ha de recopilar la documentació legal acreditativa bàsica de 
+cadascun dels proveïdors  freqüents (F02_PS01 criteris normatius de 
+proveïdors) i p er a c ada proveïdor s’omplirà una fitxa de proveïdor  
+(F04_PS01).  
+Aquest registre  (F05_PS01_ registre general de proveïdors)  facilita la 
+selecció de proveïdors adequats en futurs processos de compra. 
+7. Homologació de 
+proveïdors 
+Els proveïdors amb relació recurrent amb l’entitat poden ser 
+incorporats al registre de proveïdors homologats.  
+Aquest procés implica la verificació de la documentació legal del 
+proveïdor, la valoració de la seva capacitat tècnica i l’anàlisi de les 
+condicions econòmiques del servei ofert.  
+També considerarà l’alineació del proveïdor amb els valors 
+institucionals de l’entitat. Un cop validat, el proveïdor passa a formar 
+part del registre de proveïdors homologats. 
+La decisió final de homologació es farà a la comissió de proveïdors de 
+l’entitat on participaran les àrees operatives i de ADM, amb el vist i plau 
+final de la gerència.  
+8. Seguiment del 
+rendiment dels 
+proveïdors. 
+Durant l’execució dels serveis o subministraments contractats, la 
+tècnica designada de cada àrea  realitza un seguiment del rendiment 
+dels proveïdors, especialment en aquells casos en què mantenen una 
+relació continuada amb l’entitat o desenvolupen serveis crítics per al 
+funcionament dels projectes o infraestructures.  
+El seguiment permet detectar incidències, valorar el grau de 
+compliment dels compromisos adquirits i identificar oportunitats de 
+millora en la relació amb el proveïdor. 
+9. Avaluació i 
+millora del procés 
+ 
+Aquesta activitat consisteix en la revisió periòdica del funcionament 
+global del procés de gestió de compres i proveïdors, amb l’objectiu 
+d’analitzar el grau de compliment dels indicadors establerts, identificar 
+incidències recurrents i detectar oportunitats de millora.  
+El comitè de compres i proveïdors analitza els resultats dels indicadors 
+del procés, el comportament dels proveïdors i les possibles desviacions 
+respecte al pressupost o als procediments establerts.  
+Els resultats d’aquesta revisió permeten determinar la continuïtat del 
+proveïdor dins del registre homologat, la definició d’accions de millora 
+o, si escau, la seva baixa del sistema de proveïdors de l’entitat. 
+Aquest seguiment es realitza amb periodicitat quadrimestral dins dels 
+informes interns de seguiment de l’entitat i es consolida en la revisió 
+anual dels processos del sistema de qualitat, que es presenta al Comitè 
+de Direcció en el marc de la revisió global de resultats. 
+ 
+TAULA D’INDICADORS DEL PROCÉS 
+Indicador Definició Freqüència Responsable Objectiu Font de verificació 
+Fitxes de proveïdors 
+actualitzades 
+   100%  
+Satisfacció dels 
+proveïdors  
+   >85%  
+Nombre 
+d’Incidències 
+internes en el circuit 
+de compres (per 
+tipologia)    
+   0  
+Nombre 
+d’incidències amb 
+proveïdors (per 
+tipologia)    
+   0  
+RISCOS DEL PROCÉS 
+Risc Impacte potencial Mesures de control 
+Compres fora del circuit 
+autoritzat 
+Desviacions pressupostàries Sistema d’autorització prèvia 
+Dependència d’un únic 
+proveïdor 
+Vulnerabilitat operativa Diversificació de proveïdors 
+Fraccionament de compres Risc de manca de 
+transparència 
+Control pressupostari 
+centralitzat 
+Absència d’avaluació de 
+proveïdors 
+Baixa qualitat del servei Revisió anual de proveïdors 
+Compres urgents sense 
+registre 
+Pèrdua de traçabilitat Registre obligatori de 
+sol·licituds 
+DOCUMENTS ASSOCIATS 
+• Fitxa de sol·licitud de compra 
+• Fitxa de proveïdor 
+• Criteris normatius de proveïdors  
+• Llistat de proveïdors homologats 
+• Informe anual d’avaluació de proveïdors 
+• Registre de seguiment pressupostari (PO) 
+• Procediment de compres  
+VINCULACIÓ AMB EL MODEL EFQM 
+Criteri 4 → Gestió eficient de recursos i aliances 
+Criteri 5 → Gestió de processos 
+Criteri 6 → Rendiment operatiu i resultats 
+ROLS I RESPONSABILITATS DEL PROCÉS 
+Rol Responsabilitats dins del 
+procés 
+Principals activitats associades 
+Direcció 
+d’Administració i 
+Finances 
+Responsable del procés.  
+ 
+Defineix els criteris generals 
+de gestió de compres i 
+proveïdors, valida les 
+compres amb impacte 
+econòmic rellevant i 
+supervisa el seguiment 
+global del procés. 
+Definició de criteris de compra; 
+validació pressupostària de compres; 
+aprovació de contractacions rellevants; 
+supervisió del registre de proveïdors; 
+revisió d’indicadors del procés; anàlisi 
+d’incidències i desviacions; presentació 
+de resultats al Comitè de Direcció. 
+Tècnica 
+administrativa de 
+suport a compres i 
+proveïdors 
+Responsable operativa del 
+registre i tramitació 
+administrativa de les 
+compres i del manteniment 
+del registre de proveïdors.  
+Dona suport al seguiment 
+administratiu de les 
+relacions amb proveïdors i a 
+la traçabilitat documental 
+del procés. 
+Recepció i registre de sol·licituds de 
+compra; sol·licitud de pressupostos; 
+preparació de comandes; actualització 
+del registre de proveïdors; seguiment 
+administratiu de serveis contractats; 
+registre d’incidències amb proveïdors; 
+suport a l’avaluació anual de 
+proveïdors. 
+Responsables 
+d’àrea o de 
+projecte. 
+Detectar necessitats de 
+compra vinculades als 
+projectes o serveis i validar 
+les sol·licituds corresponents 
+dins del marc pressupostari 
+assignat. 
+Identificació de necessitats; validació 
+de sol·licituds de compra; verificació del 
+servei o material rebut; comunicació 
+d’incidències amb proveïdors. 
+Responsables 
+d’equipaments o 
+processos 
+operatius. 
+Coordinar la verificació 
+tècnica dels serveis 
+contractats quan aquests 
+afecten infraestructures, 
+equipaments o serveis 
+operatius de l’entitat. 
+Verificació de la correcta execució dels 
+serveis contractats; registre 
+d’incidències operatives; coordinació 
+amb proveïdors en actuacions 
+tècniques; comunicació amb el procés 
+de compres si cal actuació econòmica. 
+Proveïdors 
+externs. 
+Subministrar béns o prestar 
+serveis d’acord amb les 
+condicions establertes en les 
+comandes o contractes 
+formalitzats amb l’entitat. 
+Execució de serveis o 
+subministraments; compliment de 
+terminis; comunicació d’incidències; 
+lliurament de documentació associada 
+al servei prestat. 
+Àrea de 
+Comptabilitat / 
+Administració. 
+Garantir el correcte registre 
+comptable de les operacions 
+de compra i la imputació 
+pressupostària de les 
+factures. 
+Validació administrativa de factures; 
+registre comptable de la despesa; 
+control de documentació justificativa; 
+suport al seguiment pressuposta 
+ 

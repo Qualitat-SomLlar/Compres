@@ -62,7 +62,7 @@ export default function WorkerSelector({ onSelect, selectedId, label, error, req
             </div>
           </div>
         ) : (
-          <span className="text-xs text-slate-600 font-medium italic">Selecciona un/a tècnic/a...</span>
+          <span className="text-xs text-slate-600 font-medium italic">selecciona un/a tècnic/a</span>
         )}
         <ChevronDown size={14} className={cn("text-slate-500 transition-transform", isOpen && "rotate-180")} />
       </button>
@@ -75,7 +75,7 @@ export default function WorkerSelector({ onSelect, selectedId, label, error, req
               <input
                 type="text"
                 className="w-full bg-white/[0.02] border border-white/[0.05] rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-brand-primary/50"
-                placeholder="Cerca per nom o correu..."
+                placeholder="cerca per nom o correu"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 autoFocus
