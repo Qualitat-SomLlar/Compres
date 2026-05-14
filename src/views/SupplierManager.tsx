@@ -293,7 +293,7 @@ export default function SupplierManager() {
                             <p className="text-[10px] text-slate-500">{doc.date} · {doc.type}</p>
                           </div>
                         </div>
-                        <button className="text-[10px] font-black text-brand-primary uppercase hover:underline">Veure</button>
+                        <button onClick={() => toast('No es pot visualitzar: document de demostració', { icon: '📄' })} className="text-[10px] font-black text-brand-primary uppercase hover:underline">Veure</button>
                       </div>
                     ))}
                   </div>

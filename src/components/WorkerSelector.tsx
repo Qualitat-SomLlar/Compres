@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User, Search, Check, ChevronDown, UserPlus } from 'lucide-react';
 import { MOCK_WORKERS } from '../lib/mockData';
 import { Worker } from '../types';
@@ -16,6 +17,7 @@ export default function WorkerSelector({ onSelect, selectedId, label, error, req
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   const selectedWorker = MOCK_WORKERS.find(w => w.id === selectedId);
 
@@ -129,7 +131,7 @@ export default function WorkerSelector({ onSelect, selectedId, label, error, req
           </div>
           
           <div className="p-3 bg-white/[0.01] border-t border-white/[0.05]">
-            <button className="w-full flex items-center justify-center gap-2 py-2 text-[10px] font-black text-slate-600 uppercase tracking-widest hover:text-white transition-colors">
+            <button onClick={() => navigate('/admin')} className="w-full flex items-center justify-center gap-2 py-2 text-[10px] font-black text-slate-600 uppercase tracking-widest hover:text-white transition-colors">
               <UserPlus size={12} />
               <span>Gestionar Directori</span>
             </button>
