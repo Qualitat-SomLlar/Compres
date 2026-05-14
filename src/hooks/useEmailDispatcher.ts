@@ -17,10 +17,25 @@ export function useEmailDispatcher() {
 
     const recipients = new Set<string>();
 
-    // 1. Afegir correus per rols
+    // 1. Afegir correus per rols (Contextuals a la sol·licitud)
     if (setting.recipientRoles && setting.recipientRoles.length > 0) {
-      const usersInRoles = users.filter(u => setting.recipientRoles.includes(u.role));
-      usersInRoles.forEach(u => recipients.add(u.email));
+      setting.recipientRoles.forEach(role => {
+        if (role === 'tecnic') {
+          // El tècnic que ha creat la sol·licitud
+          if (request.createdByUserEmail) recipients.add(request.createdByUserEmail);
+          // I el tècnic sol·licitant si és diferent i està informat
+          const techUser = users.find(u => u.id === request.requestingTechnicianId);
+          if (techUser?.email) recipients.add(techUser.email);
+        } else if (role === 'coordinacio' || role === 'direccio_area') {
+          // Aquests rols s'han de filtrar per l'ÀREA de la sol·licitud
+          const areaUsers = users.filter(u => u.role === role && u.areaId === request.areaId);
+          areaUsers.forEach(u => recipients.add(u.email));
+        } else {
+          // Rols globals (finances, admin_compres, etc.) que reben de totes les àrees
+          const globalUsers = users.filter(u => u.role === role);
+          globalUsers.forEach(u => recipients.add(u.email));
+        }
+      });
     }
 
     // 2. Afegir correus addicionals
