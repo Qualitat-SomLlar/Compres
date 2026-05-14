@@ -62,6 +62,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setLoading(true);
     try {
       const provider = new OAuthProvider('microsoft.com');
+      provider.setCustomParameters({
+        tenant: '717c4e82-3759-464a-b048-b986492de4d6'
+      });
       const credential = await signInWithPopup(auth, provider);
       
       // Actualitzem les dades i el rol a Firestore
