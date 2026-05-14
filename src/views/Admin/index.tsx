@@ -128,8 +128,7 @@ function WorkersManager({ searchTerm }: { searchTerm: string }) {
       fullName: formData.get('fullName') as string,
       email: formData.get('email') as string,
       area: formData.get('area') as string,
-      approvalFlowRole: formData.get('approvalFlowRole') as any,
-      internalRole: formData.get('internalRole') as string,
+      role: formData.get('role') as any,
       active: true,
       notificationsEnabled: true,
       firstName: (formData.get('fullName') as string).split(' ')[0],
@@ -186,8 +185,8 @@ function WorkersManager({ searchTerm }: { searchTerm: string }) {
           <thead>
             <tr className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-white/[0.05]">
               <th className="pb-4">Nom i Correu</th>
-              <th className="pb-4">Àrea / Rol Intern</th>
-              <th className="pb-4">Rol Flux</th>
+              <th className="pb-4">Àrea / Centre</th>
+              <th className="pb-4">Rol al Flux</th>
               <th className="pb-4 text-center">Estat</th>
               <th className="pb-4 text-right">Accions</th>
             </tr>
@@ -201,11 +200,10 @@ function WorkersManager({ searchTerm }: { searchTerm: string }) {
                 </td>
                 <td className="py-4">
                   <div className="text-xs text-slate-300 uppercase tracking-tighter">{worker.area}</div>
-                  <div className="text-[10px] text-slate-500">{worker.internalRole}</div>
                 </td>
                 <td className="py-4">
                   <span className="text-[10px] font-black text-brand-primary uppercase tracking-widest">
-                    {ROLE_LABELS[worker.approvalFlowRole]}
+                    {ROLE_LABELS[worker.role]}
                   </span>
                 </td>
                 <td className="py-4 text-center">
@@ -273,13 +271,9 @@ function WorkersManager({ searchTerm }: { searchTerm: string }) {
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Rol al Flux</label>
-                  <select name="approvalFlowRole" className="input-field w-full" defaultValue={selectedWorker?.approvalFlowRole || 'tecnic'}>
+                  <select name="role" className="input-field w-full" defaultValue={selectedWorker?.role || 'tecnic'}>
                     {Object.entries(ROLE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Rol Intern</label>
-                  <input name="internalRole" type="text" className="input-field w-full" defaultValue={selectedWorker?.internalRole || ''} placeholder="Ex: Tècnic de camp" />
                 </div>
               </div>
               <div className="pt-6 border-t border-white/5 flex justify-end gap-3">

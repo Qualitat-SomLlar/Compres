@@ -10,6 +10,7 @@ service cloud.firestore {
     function isAuthenticated() { return request.auth != null; }
     function getUserData() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
     function hasRole(role) { return isAuthenticated() && getUserData().role == role; }
+    function isAdmin() { return hasRole('admin_compres') || hasRole('finances'); }
 
     // User Profiles
     match /users/{userId} {
@@ -20,15 +21,12 @@ service cloud.firestore {
     // Purchase Requests
     match /purchaseRequests/{requestId} {
       allow read: if isAuthenticated();
-      
-      // Permetre crear si està autenticat (el camp és requestingTechnicianId o createdByUserId)
       allow create: if isAuthenticated();
-      
-      // Actualització segons flux (Coordinació, Direcció, Finances)
       allow update: if isAuthenticated() && (
         hasRole('coordinacio') || 
         hasRole('direccio_area') || 
         hasRole('finances') || 
+        hasRole('admin_compres') ||
         request.auth.uid == resource.data.createdByUserId
       );
     }
@@ -36,14 +34,38 @@ service cloud.firestore {
     // Suppliers
     match /suppliers/{supplierId} {
       allow read: if isAuthenticated();
-      allow write: if hasRole('finances') || hasRole('admin_compres');
+      allow write: if isAdmin();
+    }
+
+    // Workers
+    match /workers/{workerId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Centers, Projects, Analytic Codes
+    match /centers/{id} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /projects/{id} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /analyticCodes/{id} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+
+    // Notification Settings
+    match /notificationSettings/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Notifications
+    match /notifications/{notifId} {
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && request.auth.uid == resource.data.userId;
     }
 
     // Audit Logs
     match /auditLogs/{logId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated(); // Només per append
-      allow update, delete: if false; // Inmutable
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
     }
   }
 }

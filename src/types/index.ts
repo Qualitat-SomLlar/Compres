@@ -95,8 +95,7 @@ export interface Worker {
   fullName: string;
   email: string;
   area: string;
-  internalRole: string; // P.ex: Tècnic de camp
-  approvalFlowRole: UserRole;
+  role: UserRole;
   active: boolean;
   notificationsEnabled: boolean;
   managerId?: string;
