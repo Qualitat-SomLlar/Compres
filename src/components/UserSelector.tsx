@@ -1,21 +1,21 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Search, Check, ChevronDown, UserPlus } from 'lucide-react';
-import { useWorkers } from '../hooks/useWorkers';
-import { Worker } from '../types';
+import { useUsers } from '../hooks/useUsers';
+import { User } from '../types';
 import { cn } from '../lib/utils';
 import { Loader2 } from 'lucide-react';
 
-interface WorkerSelectorProps {
-  onSelect: (worker: Worker) => void;
+interface UserSelectorProps {
+  onSelect: (worker: User) => void;
   selectedId?: string;
   label?: string;
   error?: string;
   required?: boolean;
 }
 
-export default function WorkerSelector({ onSelect, selectedId, label, error, required }: WorkerSelectorProps) {
-  const { workers, loading } = useWorkers();
+export default function UserSelector({ onSelect, selectedId, label, error, required }: UserSelectorProps) {
+  const { users: workers, loading } = useUsers();
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -24,8 +24,8 @@ export default function WorkerSelector({ onSelect, selectedId, label, error, req
   const selectedWorker = workers.find(w => w.id === selectedId);
 
   const filteredWorkers = workers.filter(w => 
-    w.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    w.email.toLowerCase().includes(searchTerm.toLowerCase())
+    (w.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (w.email || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   useEffect(() => {
@@ -58,10 +58,10 @@ export default function WorkerSelector({ onSelect, selectedId, label, error, req
         {selectedWorker ? (
           <div className="flex items-center gap-3">
             <div className="w-6 h-6 rounded-full bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center text-[10px] font-bold text-brand-primary">
-              {selectedWorker.fullName.charAt(0)}
+              {(selectedWorker.name || 'U').charAt(0)}
             </div>
             <div>
-              <p className="text-xs font-bold text-white">{selectedWorker.fullName}</p>
+              <p className="text-xs font-bold text-white">{selectedWorker.name}</p>
               <p className="text-[9px] text-slate-500 uppercase tracking-tight">{selectedWorker.email}</p>
             </div>
           </div>
@@ -119,14 +119,14 @@ export default function WorkerSelector({ onSelect, selectedId, label, error, req
                         ? "bg-brand-primary border-brand-primary text-white" 
                         : "bg-white/5 border-white/5 text-slate-400 group-hover:border-brand-primary/30"
                     )}>
-                      {worker.fullName.charAt(0)}
+                      {(worker.name || 'U').charAt(0)}
                     </div>
                     <div className="text-left">
                       <p className={cn(
                         "text-xs font-bold transition-colors",
                         selectedId === worker.id ? "text-brand-primary" : "text-white group-hover:text-brand-primary"
                       )}>
-                        {worker.fullName}
+                        {worker.name}
                       </p>
                       <p className="text-[10px] text-slate-500">{worker.email}</p>
                     </div>

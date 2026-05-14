@@ -12,9 +12,9 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { User, Worker, Attachment, AttachmentCategory, RequestStatus, PurchaseRequest } from '../types';
+import { User, Attachment, AttachmentCategory, RequestStatus, PurchaseRequest } from '../types';
 import { CATEGORIES, AREAS } from '../constants';
-import WorkerSelector from '../components/WorkerSelector';
+import UserSelector from '../components/UserSelector';
 import CustomSelect from '../components/CustomSelect';
 import CustomDatePicker from '../components/CustomDatePicker';
 import FileUploader from '../components/FileUploader';
@@ -56,11 +56,11 @@ export default function NewRequest({ user }: { user: User }) {
     requiresThreeQuotes: false
   });
 
-  const handleWorkerSelect = (worker: Worker) => {
+  const handleWorkerSelect = (worker: User) => {
     setFormData({
       ...formData,
       requestingTechnicianId: worker.id,
-      requestingTechnicianName: worker.fullName,
+      requestingTechnicianName: worker.name,
       requestingTechnicianEmail: worker.email
     });
   };
@@ -193,7 +193,7 @@ export default function NewRequest({ user }: { user: User }) {
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                 Tècnic/a sol·licitant <span className="text-red-500">*</span>
               </label>
-              <WorkerSelector 
+              <UserSelector 
                 onSelect={handleWorkerSelect} 
                 selectedId={formData.requestingTechnicianId} 
               />

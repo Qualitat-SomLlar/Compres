@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db } from '../lib/firebase';
 import { onAuthStateChanged, User as FirebaseUser, signInWithPopup, OAuthProvider } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, query, where, collection, getDocs, deleteDoc } from 'firebase/firestore';
 import { User, UserRole } from '../types';
 
 interface AuthContextType {
@@ -31,9 +31,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          // Llegeix les dades de l'usuari de Firestore
-          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          // 1. Intentem cercar per UID (cas d'usuari que ja ha entrat abans)
+          let userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
           let userData: User;
+
+          if (!userDoc.exists() && firebaseUser.email) {
+            // 2. Si no trobem UID, cerquem si ja existia el seu correu (creat pel Superadmin)
+            const q = query(collection(db, 'users'), where('email', '==', firebaseUser.email));
+            const querySnapshot = await getDocs(q);
+            
+            if (!querySnapshot.empty) {
+              const existingDoc = querySnapshot.docs[0];
+              // Migrem el document antic al nou document amb ID = UID
+              const data = existingDoc.data();
+              await setDoc(doc(db, 'users', firebaseUser.uid), {
+                ...data,
+                id: firebaseUser.uid,
+                updatedAt: new Date().toISOString()
+              });
+              await deleteDoc(existingDoc.ref);
+              userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+            }
+          }
 
           if (userDoc.exists()) {
             userData = { id: firebaseUser.uid, ...userDoc.data() } as User;
@@ -49,18 +68,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             
             setUser(userData);
           } else {
-            // Si és el primer cop, creem el document
+            // Si és el primer cop i no estava pre-creat, creem el document
             const isSuperAdmin = firebaseUser.email && SUPERADMIN_EMAILS.includes(firebaseUser.email);
             const isAdmin = firebaseUser.email && ADMIN_EMAILS.includes(firebaseUser.email);
-            const dummyUser: User = {
+            const newUser: User = {
               id: firebaseUser.uid,
               name: firebaseUser.displayName || 'Usuari Som Llar',
               email: firebaseUser.email || 'test@somllar.org',
               role: isSuperAdmin ? 'superadmin' : isAdmin ? 'admin_compres' : 'tecnic',
-              areaId: 'admin'
+              areaId: 'admin',
+              active: true,
+              notificationsEnabled: true,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
             };
-            await setDoc(doc(db, 'users', firebaseUser.uid), dummyUser);
-            setUser(dummyUser);
+            await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
+            setUser(newUser);
           }
         } catch (error) {
           console.error("Error al carregar l'usuari des de Firestore:", error);

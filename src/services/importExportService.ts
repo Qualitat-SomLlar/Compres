@@ -13,9 +13,9 @@ export const importExportService = {
         headers = ['Nom', 'NIF', 'Email', 'Telèfon', 'Persona de Contacte', 'Categoria', 'Adreça', 'Ciutat', 'Estat', 'Homologat'];
         fileName = 'plantilla_proveidors.xlsx';
         break;
-      case 'worker':
+      case 'user':
         headers = ['Nom', 'Cognoms', 'Email', 'Àrea', 'Rol Intern', 'Rol Flux', 'Actiu', 'Notificacions'];
-        fileName = 'plantilla_treballadors.xlsx';
+        fileName = 'plantilla_usuaris.xlsx';
         break;
       case 'center':
         headers = ['Nom', 'Codi', 'Tipus', 'Adreça', 'Ciutat', 'Àrea', 'Actiu'];

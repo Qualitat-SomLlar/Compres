@@ -1,7 +1,6 @@
-import { PurchaseRequest, Supplier, User, Worker, NotificationSetting, Attachment } from '../types';
+import { PurchaseRequest, Supplier, User, NotificationSetting, Attachment } from '../types';
 
 export const MOCK_USERS: User[] = [];
-export const MOCK_WORKERS: Worker[] = [];
 export const MOCK_SUPPLIERS: Supplier[] = [];
 export const MOCK_REQUESTS: PurchaseRequest[] = [];
 export const MOCK_CENTERS: any[] = [];

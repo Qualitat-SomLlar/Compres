@@ -26,23 +26,22 @@ import toast from 'react-hot-toast';
 import { cn } from '../../lib/utils';
 import { ROLE_LABELS, ATTACHMENT_CATEGORIES, NOTIFICATION_EVENTS, AREAS } from '../../constants';
 import { importExportService } from '../../services/importExportService';
-import { useWorkers } from '../../hooks/useWorkers';
 import { useNotificationSettings } from '../../hooks/useNotificationSettings';
 import { useCenters } from '../../hooks/useCenters';
 import { useAnalyticCodes } from '../../hooks/useAnalyticCodes';
 import { useCenters } from '../../hooks/useCenters';
 import { Loader2, Plus, Edit2, Trash2, Save, X, Database, ShieldAlert, Users } from 'lucide-react';
 
-type AdminTab = 'workers' | 'flows' | 'notifications' | 'imports' | 'super';
+type AdminTab = 'users' | 'flows' | 'notifications' | 'imports' | 'super';
 
 export default function AdminPanel() {
-  const [activeTab, setActiveTab] = useState<AdminTab>('workers');
+  const [activeTab, setActiveTab] = useState<AdminTab>('users');
   const [searchTerm, setSearchTerm] = useState('');
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'workers':
-        return <WorkersManager searchTerm={searchTerm} />;
+      case 'users':
+        return <UsersManager searchTerm={searchTerm} />;
       case 'flows':
         return <FlowsManager />;
       case 'notifications':
@@ -67,10 +66,10 @@ export default function AdminPanel() {
         
         <div className="flex items-center gap-2 p-1 bg-white/[0.02] border border-white/[0.05] rounded-2xl">
           <TabButton 
-            active={activeTab === 'workers'} 
-            onClick={() => setActiveTab('workers')} 
+            active={activeTab === 'users'} 
+            onClick={() => setActiveTab('users')} 
             icon={<Users size={16} />}
-            label="Treballadors/es"
+            label="Usuaris"
           />
           <TabButton 
             active={activeTab === 'flows'} 
@@ -130,15 +129,15 @@ function TabButton({ active, onClick, icon, label }: TabButtonProps) {
   );
 }
 
-function WorkersManager({ searchTerm }: { searchTerm: string }) {
-  const { workers, loading, addWorker, updateWorker, deleteWorker } = useWorkers();
-  const [isWorkerModalOpen, setIsWorkerModalOpen] = useState(false);
-  const [selectedWorker, setSelectedWorker] = useState<any | null>(null);
+function UsersManager({ searchTerm }: { searchTerm: string }) {
+  const { users, loading, addUser, updateUser, deleteUser } = useUsers();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const filteredWorkers = workers.filter(w => 
-    w.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    w.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredUsers = users.filter(u => 
+    u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    u.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -146,25 +145,25 @@ function WorkersManager({ searchTerm }: { searchTerm: string }) {
     setIsSaving(true);
     const formData = new FormData(e.currentTarget);
     const data = {
-      fullName: formData.get('fullName') as string,
+      name: formData.get('name') as string,
       email: formData.get('email') as string,
-      area: formData.get('area') as string,
+      areaId: formData.get('areaId') as string,
       role: formData.get('role') as any,
       active: true,
       notificationsEnabled: true,
-      firstName: (formData.get('fullName') as string).split(' ')[0],
-      lastName: (formData.get('fullName') as string).split(' ').slice(1).join(' ')
+      firstName: (formData.get('name') as string).split(' ')[0],
+      lastName: (formData.get('name') as string).split(' ').slice(1).join(' ')
     };
 
     try {
-      if (selectedWorker) {
-        await updateWorker(selectedWorker.id, data);
-        toast.success("Treballador/a actualitzat correctament");
+      if (selectedUser) {
+        await updateUser(selectedUser.id, data);
+        toast.success("Usuari/a actualitzat correctament");
       } else {
-        await addWorker(data);
-        toast.success("Treballador/a creat correctament");
+        await addUser(data);
+        toast.success("Usuari/a creat correctament");
       }
-      setIsWorkerModalOpen(false);
+      setIsModalOpen(false);
     } catch (err) {
       toast.error("Error al desar les dades");
     } finally {
@@ -176,7 +175,7 @@ function WorkersManager({ searchTerm }: { searchTerm: string }) {
     return (
       <div className="flex flex-col items-center justify-center p-20 gap-4">
         <Loader2 className="animate-spin text-brand-primary" size={40} />
-        <p className="text-slate-500 font-bold text-xs uppercase tracking-widest">Carregant treballadors...</p>
+        <p className="text-slate-500 font-bold text-xs uppercase tracking-widest">Carregant usuaris...</p>
       </div>
     );
   }
@@ -188,16 +187,16 @@ function WorkersManager({ searchTerm }: { searchTerm: string }) {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
           <input 
             type="text" 
-            placeholder="Cerca treballador..." 
+            placeholder="Cerca usuari..." 
             className="input-field input-search w-64 text-xs"
           />
         </div>
         <button 
-          onClick={() => { setSelectedWorker(null); setIsWorkerModalOpen(true); }}
+          onClick={() => { setSelectedUser(null); setIsModalOpen(true); }}
           className="btn-primary flex items-center gap-2 text-xs font-black uppercase tracking-widest py-3"
         >
           <Plus size={16} />
-          <span>Nou Treballador/a</span>
+          <span>Nou Usuari/a</span>
         </button>
       </div>
 
@@ -206,48 +205,48 @@ function WorkersManager({ searchTerm }: { searchTerm: string }) {
           <thead>
             <tr className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-white/[0.05]">
               <th className="pb-4">Nom i Correu</th>
-              <th className="pb-4">Àrea / Centre</th>
+              <th className="pb-4">Àrea</th>
               <th className="pb-4">Rol</th>
               <th className="pb-4 text-center">Estat</th>
               <th className="pb-4 text-right">Accions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/[0.02]">
-            {filteredWorkers.map(worker => (
-              <tr key={worker.id} className="group">
+            {filteredUsers.map(u => (
+              <tr key={u.id} className="group">
                 <td className="py-4">
-                  <div className="text-xs font-bold text-white">{worker.fullName}</div>
-                  <div className="text-[10px] text-slate-500">{worker.email}</div>
+                  <div className="text-xs font-bold text-white">{u.name}</div>
+                  <div className="text-[10px] text-slate-500">{u.email}</div>
                 </td>
                 <td className="py-4">
-                  <div className="text-xs text-slate-300 uppercase tracking-tighter">{worker.area}</div>
+                  <div className="text-xs text-slate-300 uppercase tracking-tighter">{u.areaId}</div>
                 </td>
                 <td className="py-4">
                   <span className="text-[10px] font-black text-brand-primary uppercase tracking-widest">
-                    {ROLE_LABELS[worker.role]}
+                    {ROLE_LABELS[u.role]}
                   </span>
                 </td>
                 <td className="py-4 text-center">
                   <span className={cn(
                     "px-2 py-0.5 rounded text-[9px] font-black tracking-widest uppercase",
-                    worker.active ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"
+                    u.active ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"
                   )}>
-                    {worker.active ? 'Actiu' : 'Inactiu'}
+                    {u.active ? 'Actiu' : 'Inactiu'}
                   </span>
                 </td>
                 <td className="py-4 text-right">
                   <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 
-                      onClick={() => { setSelectedWorker(worker); setIsWorkerModalOpen(true); }}
+                      onClick={() => { setSelectedUser(u); setIsModalOpen(true); }}
                       className="p-2 hover:bg-white/5 rounded-lg text-slate-500 hover:text-brand-primary"
                     >
                       <Edit2 size={14} />
                     </button>
                     <button 
                       onClick={async () => {
-                        if (confirm(`Estàs segur que vols eliminar ${worker.fullName}?`)) {
-                          await deleteWorker(worker.id);
-                          toast.success("Treballador/a eliminat correctament");
+                        if (confirm(`Estàs segur que vols eliminar ${u.name}?`)) {
+                          await deleteUser(u.id);
+                          toast.success("Usuari/a eliminat correctament");
                         }
                       }}
                       className="p-2 hover:bg-white/5 rounded-lg text-slate-500 hover:text-red-500"
@@ -511,7 +510,7 @@ function NotificationsManager() {
 function ImportsManager() {
   const entities = [
     { id: 'supplier', name: 'Proveïdors', icon: <Users size={18} /> },
-    { id: 'worker', name: 'Treballadors/es', icon: <Users size={18} /> },
+    { id: 'user', name: 'Usuaris', icon: <Users size={18} /> },
     { id: 'center', name: 'Centres de Destí', icon: <CheckCircle size={18} /> },
     { id: 'analyticCode', name: 'Codis Analítics', icon: <CheckCircle size={18} /> },
   ];

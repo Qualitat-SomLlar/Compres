@@ -7,10 +7,16 @@ export type UserRole = 'tecnic' | 'coordinacio' | 'direccio_area' | 'finances' |
 
 export interface User {
   id: string;
-  name: string;
+  name: string; // Nom complet
+  firstName?: string;
+  lastName?: string;
   email: string;
   role: UserRole;
   areaId: string;
+  active: boolean;
+  notificationsEnabled: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export type RequestStatus = 
@@ -88,21 +94,7 @@ export interface PurchaseRequest {
   finalNotes?: string;
 }
 
-export interface Worker {
-  id: string;
-  firstName: string;
-  lastName: string;
-  fullName: string;
-  email: string;
-  area: string;
-  role: UserRole;
-  active: boolean;
-  notificationsEnabled: boolean;
-  managerId?: string;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-}
+
 
 export interface Attachment {
   id: string;
