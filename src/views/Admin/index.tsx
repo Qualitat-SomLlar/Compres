@@ -17,9 +17,10 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { cn } from '../../lib/utils';
-import { MOCK_WORKERS, MOCK_CENTERS, MOCK_ANALYTIC_CODES, MOCK_NOTIFICATION_SETTINGS } from '../../lib/mockData';
 import { ROLE_LABELS, ATTACHMENT_CATEGORIES, NOTIFICATION_EVENTS, AREAS } from '../../constants';
 import { importExportService } from '../../services/importExportService';
+import { useWorkers } from '../../hooks/useWorkers';
+import { Loader2 } from 'lucide-react';
 
 type AdminTab = 'workers' | 'flows' | 'notifications' | 'imports';
 
@@ -106,13 +107,56 @@ function TabButton({ active, onClick, icon, label }: TabButtonProps) {
 }
 
 function WorkersManager({ searchTerm }: { searchTerm: string }) {
+  const { workers, loading, addWorker, updateWorker, deleteWorker } = useWorkers();
   const [isWorkerModalOpen, setIsWorkerModalOpen] = useState(false);
   const [selectedWorker, setSelectedWorker] = useState<any | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const filteredWorkers = MOCK_WORKERS.filter(w => 
+  const filteredWorkers = workers.filter(w => 
     w.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     w.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsSaving(true);
+    const formData = new FormData(e.currentTarget);
+    const data = {
+      fullName: formData.get('fullName') as string,
+      email: formData.get('email') as string,
+      area: formData.get('area') as string,
+      approvalFlowRole: formData.get('approvalFlowRole') as any,
+      internalRole: formData.get('internalRole') as string,
+      active: true,
+      notificationsEnabled: true,
+      firstName: (formData.get('fullName') as string).split(' ')[0],
+      lastName: (formData.get('fullName') as string).split(' ').slice(1).join(' ')
+    };
+
+    try {
+      if (selectedWorker) {
+        await updateWorker(selectedWorker.id, data);
+        toast.success("Treballador/a actualitzat correctament");
+      } else {
+        await addWorker(data);
+        toast.success("Treballador/a creat correctament");
+      }
+      setIsWorkerModalOpen(false);
+    } catch (err) {
+      toast.error("Error al desar les dades");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-20 gap-4">
+        <Loader2 className="animate-spin text-brand-primary" size={40} />
+        <p className="text-slate-500 font-bold text-xs uppercase tracking-widest">Carregant treballadors...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 space-y-6">
@@ -178,7 +222,12 @@ function WorkersManager({ searchTerm }: { searchTerm: string }) {
                       <Edit2 size={14} />
                     </button>
                     <button 
-                      onClick={() => toast.success("Treballador/a eliminat correctament")}
+                      onClick={async () => {
+                        if (confirm(`Estàs segur que vols eliminar ${worker.fullName}?`)) {
+                          await deleteWorker(worker.id);
+                          toast.success("Treballador/a eliminat correctament");
+                        }
+                      }}
                       className="p-2 hover:bg-white/5 rounded-lg text-slate-500 hover:text-red-500"
                     >
                       <Trash2 size={14} />
@@ -203,32 +252,39 @@ function WorkersManager({ searchTerm }: { searchTerm: string }) {
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={(e) => { e.preventDefault(); toast.success("Dades desades correctament"); setIsWorkerModalOpen(false); }} className="p-6 overflow-y-auto space-y-6">
+            <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-6">
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Nom complet <span className="text-red-500">*</span></label>
-                  <input type="text" required className="input-field w-full" defaultValue={selectedWorker?.fullName || ''} placeholder="Ex: Maria Garcia" />
+                  <input name="fullName" type="text" required className="input-field w-full" defaultValue={selectedWorker?.fullName || ''} placeholder="Ex: Maria Garcia" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Correu electrònic <span className="text-red-500">*</span></label>
-                  <input type="email" required className="input-field w-full" defaultValue={selectedWorker?.email || ''} placeholder="Ex: mgarcia@somllar.org" />
+                  <input name="email" type="email" required className="input-field w-full" defaultValue={selectedWorker?.email || ''} placeholder="Ex: mgarcia@somllar.org" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Àrea</label>
-                  <select className="input-field w-full" defaultValue={selectedWorker?.area || ''}>
+                  <select name="area" className="input-field w-full" defaultValue={selectedWorker?.area || ''}>
                     {AREAS.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}
                   </select>
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Rol al Flux</label>
-                  <select className="input-field w-full" defaultValue={selectedWorker?.approvalFlowRole || 'tecnic'}>
+                  <select name="approvalFlowRole" className="input-field w-full" defaultValue={selectedWorker?.approvalFlowRole || 'tecnic'}>
                     {Object.entries(ROLE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
                 </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Rol Intern</label>
+                  <input name="internalRole" type="text" className="input-field w-full" defaultValue={selectedWorker?.internalRole || ''} placeholder="Ex: Tècnic de camp" />
+                </div>
               </div>
               <div className="pt-6 border-t border-white/5 flex justify-end gap-3">
-                <button type="button" onClick={() => setIsWorkerModalOpen(false)} className="btn-secondary px-6 py-2.5 text-xs font-bold uppercase tracking-widest">Cancel·lar</button>
-                <button type="submit" className="btn-primary flex items-center gap-2 px-6 py-2.5 text-xs font-bold uppercase tracking-widest"><Save size={16}/> Desar Dades</button>
+                <button type="button" onClick={() => setIsWorkerModalOpen(false)} className="btn-secondary px-6 py-2.5 text-xs font-bold uppercase tracking-widest" disabled={isSaving}>Cancel·lar</button>
+                <button type="submit" className="btn-primary flex items-center gap-2 px-6 py-2.5 text-xs font-bold uppercase tracking-widest" disabled={isSaving}>
+                  {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16}/>} 
+                  Desar Dades
+                </button>
               </div>
             </form>
           </div>
