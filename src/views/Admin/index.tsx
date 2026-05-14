@@ -186,7 +186,7 @@ function WorkersManager({ searchTerm }: { searchTerm: string }) {
             <tr className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-white/[0.05]">
               <th className="pb-4">Nom i Correu</th>
               <th className="pb-4">Àrea / Centre</th>
-              <th className="pb-4">Rol al Flux</th>
+              <th className="pb-4">Rol</th>
               <th className="pb-4 text-center">Estat</th>
               <th className="pb-4 text-right">Accions</th>
             </tr>
@@ -270,7 +270,7 @@ function WorkersManager({ searchTerm }: { searchTerm: string }) {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Rol al Flux</label>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Rol</label>
                   <select name="role" className="input-field w-full" defaultValue={selectedWorker?.role || 'tecnic'}>
                     {Object.entries(ROLE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
