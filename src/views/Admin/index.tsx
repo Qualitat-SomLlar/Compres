@@ -29,19 +29,17 @@ import { importExportService } from '../../services/importExportService';
 import { useNotificationSettings } from '../../hooks/useNotificationSettings';
 import { useCenters } from '../../hooks/useCenters';
 import { useAnalyticCodes } from '../../hooks/useAnalyticCodes';
-import { useCenters } from '../../hooks/useCenters';
-import { Loader2, Plus, Edit2, Trash2, Save, X, Database, ShieldAlert, Users } from 'lucide-react';
+import { useAnalyticCodes } from '../../hooks/useAnalyticCodes';
 
 type AdminTab = 'users' | 'flows' | 'notifications' | 'imports' | 'super';
 
 export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState<AdminTab>('users');
-  const [searchTerm, setSearchTerm] = useState('');
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'users':
-        return <UsersManager searchTerm={searchTerm} />;
+        return <UsersManager />;
       case 'flows':
         return <FlowsManager />;
       case 'notifications':
@@ -61,7 +59,7 @@ export default function AdminPanel() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <h2 className="text-3xl font-black text-white tracking-tighter">Administració del Sistema</h2>
-          <p className="text-slate-500 font-medium">Gestiona els treballadors, el flux d'aprovació i la configuració del sistema.</p>
+          <p className="text-slate-500 font-medium">Gestiona els usuaris, el flux d'aprovació i la configuració del sistema.</p>
         </div>
         
         <div className="flex items-center gap-2 p-1 bg-white/[0.02] border border-white/[0.05] rounded-2xl">
@@ -129,15 +127,16 @@ function TabButton({ active, onClick, icon, label }: TabButtonProps) {
   );
 }
 
-function UsersManager({ searchTerm }: { searchTerm: string }) {
+function UsersManager() {
   const { users, loading, addUser, updateUser, deleteUser } = useUsers();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const filteredUsers = users.filter(u => 
-    u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.email.toLowerCase().includes(searchTerm.toLowerCase())
+    (u.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (u.email || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -189,6 +188,8 @@ function UsersManager({ searchTerm }: { searchTerm: string }) {
             type="text" 
             placeholder="Cerca usuari..." 
             className="input-field input-search w-64 text-xs"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         <button 
