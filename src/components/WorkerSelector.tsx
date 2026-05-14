@@ -68,7 +68,7 @@ export default function WorkerSelector({ onSelect, selectedId, label, error, req
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 w-full mt-2 bg-[#151c2c] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="absolute z-50 w-full mt-2 bg-[#151c2c] border border-white/10 rounded-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
           <div className="p-3 border-b border-white/[0.05]">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
@@ -99,7 +99,7 @@ export default function WorkerSelector({ onSelect, selectedId, label, error, req
                     setSearchTerm('');
                   }}
                   className={cn(
-                    "w-full flex items-center justify-between px-4 py-3 hover:bg-white/[0.02] transition-colors group",
+                    "w-full flex items-center justify-between px-4 py-3 hover:bg-brand-primary/15 transition-colors group",
                     selectedId === worker.id && "bg-brand-primary/5"
                   )}
                 >

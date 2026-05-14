@@ -57,7 +57,7 @@ export default function CustomSelect({ options, value, onChange, placeholder = "
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 w-full mt-2 bg-[#151c2c] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="absolute z-50 w-full mt-2 bg-[#151c2c] border border-white/10 rounded-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
           <div className="max-h-60 overflow-y-auto py-2">
             {options.length === 0 ? (
               <div className="p-4 text-center">
@@ -73,7 +73,7 @@ export default function CustomSelect({ options, value, onChange, placeholder = "
                     setIsOpen(false);
                   }}
                   className={cn(
-                    "w-full flex items-center justify-between px-4 py-3 hover:bg-white/[0.02] transition-colors group",
+                    "w-full flex items-center justify-between px-4 py-3 hover:bg-brand-primary/15 transition-colors group",
                     value === option.value && "bg-brand-primary/5"
                   )}
                 >
