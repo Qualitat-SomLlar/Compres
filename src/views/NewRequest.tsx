@@ -32,7 +32,7 @@ export default function NewRequest({ user }: { user: User }) {
   const { addRequest } = useRequests();
   const { addNotification } = useNotifications();
   const { getUsersByRole } = useUsers();
-  const { codes } = useAnalyticCodes();
+  const { analyticCodes } = useAnalyticCodes();
   const { centers } = useCenters();
   const { projects } = useProjects();
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -212,7 +212,7 @@ export default function NewRequest({ user }: { user: User }) {
                 placeholder="Selecciona projecte"
                 value={formData.projectId}
                 onChange={v => setFormData({...formData, projectId: v})}
-                options={projects.map(p => ({
+                options={(projects || []).map(p => ({
                   value: p.code,
                   label: p.code,
                   description: p.name
@@ -228,7 +228,7 @@ export default function NewRequest({ user }: { user: User }) {
                 placeholder="Selecciona codi"
                 value={formData.analyticCode}
                 onChange={v => setFormData({...formData, analyticCode: v})}
-                options={codes.map(ac => ({
+                options={(analyticCodes || []).map(ac => ({
                   value: ac.code,
                   label: ac.code,
                   description: ac.description
@@ -251,7 +251,7 @@ export default function NewRequest({ user }: { user: User }) {
                     destinationCenterName: center?.name || ''
                   });
                 }}
-                options={centers.map(c => ({
+                options={(centers || []).map(c => ({
                   value: c.id,
                   label: c.name
                 }))}
