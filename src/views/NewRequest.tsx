@@ -132,17 +132,6 @@ export default function NewRequest({ user }: { user: User }) {
           <ArrowLeft size={16} />
           <span>Tornar a la llista</span>
         </button>
-        
-        <div className="flex items-center gap-3">
-          <button onClick={() => toast.success('Esborrany desat correctament')} className="btn-secondary flex items-center gap-2 text-xs py-2.5 px-6 font-black uppercase tracking-widest">
-            <Save size={18} />
-            <span>Desar esborrany</span>
-          </button>
-          <button onClick={handleSubmit} className="btn-primary flex items-center gap-2 text-xs py-2.5 px-6 font-black uppercase tracking-widest shadow-xl shadow-brand-primary/20">
-            <Send size={18} />
-            <span>Enviar per aprovar</span>
-          </button>
-        </div>
       </div>
 
       <div className="space-y-4">
@@ -153,7 +142,7 @@ export default function NewRequest({ user }: { user: User }) {
       <form onSubmit={handleSubmit} className="space-y-10">
         
         {/* Bloc 0: Autoria i Responsabilitat */}
-        <section className="card p-10 bg-brand-primary/[0.02] border-brand-primary/20">
+        <section className="card p-10 bg-brand-primary/[0.02] border-brand-primary/20 relative z-20">
           <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-10 flex items-center gap-3">
             <div className="p-2 bg-brand-primary/10 rounded-lg text-brand-primary"><ShieldCheck size={18} /></div>
             Identificació de l'Expedient
@@ -200,7 +189,7 @@ export default function NewRequest({ user }: { user: User }) {
                 value={formData.projectId}
                 onChange={e => setFormData({...formData, projectId: e.target.value})}
               >
-                <option value="">Selecciona projecte...</option>
+                <option value="">selecciona projecte</option>
                 <option value="SOC-01">Programes Socials Generals</option>
                 <option value="REHAB-BCN">Rehabilitació BCN</option>
                 <option value="EMERG-ACCES">Emergència Accés Habitatge</option>
@@ -217,7 +206,7 @@ export default function NewRequest({ user }: { user: User }) {
                 value={formData.analyticCode}
                 onChange={e => setFormData({...formData, analyticCode: e.target.value})}
               >
-                <option value="">Selecciona codi...</option>
+                <option value="">selecciona codi</option>
                 {MOCK_ANALYTIC_CODES.map(ac => (
                   <option key={ac.id} value={ac.code}>{ac.code} - {ac.description}</option>
                 ))}
@@ -241,7 +230,7 @@ export default function NewRequest({ user }: { user: User }) {
                   });
                 }}
               >
-                <option value="">Selecciona centre...</option>
+                <option value="">selecciona centre</option>
                 {MOCK_CENTERS.map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
@@ -267,7 +256,7 @@ export default function NewRequest({ user }: { user: User }) {
                   value={formData.category}
                   onChange={e => setFormData({...formData, category: e.target.value})}
                 >
-                  <option value="">Selecciona categoria...</option>
+                  <option value="">selecciona categoria</option>
                   {CATEGORIES.map(cat => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
@@ -398,6 +387,17 @@ export default function NewRequest({ user }: { user: User }) {
           <Info size={20} />
         </div>
         <p className="leading-relaxed">En fer clic a <span className="text-white border-b border-brand-primary pb-0.5">Enviar per aprovar</span> l'expedient entrarà en el flux automatitzat de signatures basat en la matriu de competències d'aprovació.</p>
+      </div>
+
+      <div className="flex items-center justify-end gap-3 pt-6">
+        <button type="button" onClick={() => toast.success('Esborrany desat correctament')} className="btn-secondary flex items-center gap-2 text-xs py-3 px-8 font-black uppercase tracking-widest">
+          <Save size={18} />
+          <span>Desar esborrany</span>
+        </button>
+        <button type="button" onClick={handleSubmit} className="btn-primary flex items-center gap-2 text-xs py-3 px-8 font-black uppercase tracking-widest shadow-xl shadow-brand-primary/20">
+          <Send size={18} />
+          <span>Enviar per aprovar</span>
+        </button>
       </div>
     </div>
   );
