@@ -143,7 +143,7 @@ export default function NewRequest({ user }: { user: User }) {
       <form onSubmit={handleSubmit} className="space-y-10">
         
         {/* Bloc 0: Autoria i Responsabilitat */}
-        <section className="card p-10 bg-brand-primary/[0.02] border-brand-primary/20 relative z-50 !overflow-visible">
+        <section className="card p-10 bg-brand-primary/[0.02] border-brand-primary/20 relative z-[60] !overflow-visible">
           <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-10 flex items-center gap-3">
             <div className="p-2 bg-brand-primary/10 rounded-lg text-brand-primary"><ShieldCheck size={18} /></div>
             Identificació de l'Expedient
@@ -174,7 +174,7 @@ export default function NewRequest({ user }: { user: User }) {
         </section>
 
         {/* Bloc 1: Context del Projecte */}
-        <section className="card p-10 relative z-40 !overflow-visible">
+        <section className="card p-10 relative z-50 !overflow-visible">
           <div className="absolute top-0 right-0 w-48 h-48 bg-brand-primary/5 blur-3xl -mr-24 -mt-24 rounded-full"></div>
           <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-10 flex items-center gap-3 relative z-10">
             <div className="p-2 bg-white/5 rounded-lg text-slate-500">1</div>
@@ -237,7 +237,7 @@ export default function NewRequest({ user }: { user: User }) {
         </section>
 
         {/* Bloc 2: Detalls de la Compra */}
-        <section className="card p-10 relative z-30 !overflow-visible">
+        <section className="card p-10 relative z-40 !overflow-visible">
           <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-10 flex items-center gap-3 relative z-10">
             <div className="p-2 bg-white/5 rounded-lg text-slate-500">2</div>
             Descripció del Bé o Servei
@@ -296,7 +296,7 @@ export default function NewRequest({ user }: { user: User }) {
         </section>
 
         {/* Bloc 3: Documents adjunts */}
-        <section className="card p-10 relative overflow-hidden">
+        <section className="card p-10 relative z-30 !overflow-visible">
           <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-10 flex items-center gap-3 relative z-10">
             <div className="p-2 bg-white/5 rounded-lg text-slate-500"><FileText size={18} /></div>
             Documents Adjunts

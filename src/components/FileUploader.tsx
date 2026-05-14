@@ -3,6 +3,7 @@ import { Upload, X, File, FileText, ImageIcon, CheckCircle2, AlertCircle, Loader
 import { cn } from '../lib/utils';
 import { ATTACHMENT_CATEGORIES } from '../constants';
 import { AttachmentCategory } from '../types';
+import CustomSelect from './CustomSelect';
 
 interface FileUploaderProps {
   onUpload: (files: File[], category: AttachmentCategory) => void;
@@ -63,18 +64,17 @@ export default function FileUploader({ onUpload, maxSizeMB = 10 }: FileUploaderP
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between mb-4">
-        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Categoria del Document</label>
-        <select 
+    <div className="space-y-4 relative z-50">
+      <div className="space-y-3 mb-4">
+        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Categoria del Document</label>
+        <CustomSelect 
           value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value as AttachmentCategory)}
-          className="bg-transparent text-[10px] font-black text-brand-primary uppercase tracking-widest border-none p-0 focus:ring-0 cursor-pointer"
-        >
-          {ATTACHMENT_CATEGORIES.map(cat => (
-            <option key={cat.id} value={cat.id} className="bg-[#151c2c]">{cat.name}</option>
-          ))}
-        </select>
+          onChange={(v) => setSelectedCategory(v as AttachmentCategory)}
+          options={ATTACHMENT_CATEGORIES.map(cat => ({
+            value: cat.id,
+            label: cat.name
+          }))}
+        />
       </div>
 
       <div
