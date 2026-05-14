@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  loginWithMicrosoft: (role?: UserRole) => Promise<void>;
+  loginWithMicrosoft: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -108,26 +108,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return unsubscribe;
   }, []);
 
-  // Login amb Microsoft assignant el rol escollit a l'inici
-  const loginWithMicrosoft = async (role: UserRole = 'tecnic') => {
+  // Login amb Microsoft
+  const loginWithMicrosoft = async () => {
     setLoading(true);
     try {
       const provider = new OAuthProvider('microsoft.com');
       provider.setCustomParameters({
         tenant: '717c4e82-3759-464a-b048-b986492de4d6'
       });
-      const credential = await signInWithPopup(auth, provider);
-      
-      const isAdmin = credential.user.email && ADMIN_EMAILS.includes(credential.user.email);
-      const finalRole = isAdmin ? 'admin_compres' : role;
-
-      // Actualitzem les dades i el rol a Firestore
-      await setDoc(doc(db, 'users', credential.user.uid), {
-        name: credential.user.displayName || `Usuari ${finalRole}`,
-        email: credential.user.email || `${finalRole}@somllar.org`,
-        role: finalRole,
-        areaId: 'admin'
-      }, { merge: true });
+      await signInWithPopup(auth, provider);
+      // No fem cap setDoc aquí, onAuthStateChanged s'encarrega de crear o actualitzar l'usuari a Firestore
     } catch (error) {
       console.error("Error en el login amb Microsoft:", error);
       setLoading(false);

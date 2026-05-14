@@ -217,14 +217,22 @@ function AppContent() {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-brand-secondary gap-4">
-        <h1 className="text-3xl font-black text-white mb-4">Gestió de Compres</h1>
-        <button onClick={() => loginWithMicrosoft('tecnic')} className="btn-primary py-3 px-8 text-xs font-black uppercase">
-          Entrar com a Tècnic
+      <div className="min-h-screen flex flex-col items-center justify-center bg-brand-secondary gap-6">
+        <div className="text-center space-y-2">
+          <h1 className="text-4xl font-black text-white tracking-tight">Gestió de Compres | Som Llar</h1>
+          <p className="text-slate-400 font-medium">Plataforma centralitzada de compres i subministraments</p>
+        </div>
+        
+        <button onClick={() => loginWithMicrosoft()} className="btn-primary flex items-center gap-3 py-4 px-10 text-sm font-black uppercase mt-4 shadow-2xl shadow-brand-primary/20">
+          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M11.4 24H0V12.6H11.4V24ZM24 24H12.6V12.6H24V24ZM11.4 11.4H0V0H11.4V11.4ZM24 11.4H12.6V0H24V11.4Z" fill="currentColor"/>
+          </svg>
+          Iniciar sessió amb Microsoft
         </button>
-        <button onClick={() => loginWithMicrosoft('finances')} className="btn-secondary py-3 px-8 text-xs font-black uppercase border-brand-primary/20 text-brand-primary">
-          Entrar com a Finances
-        </button>
+        
+        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-8">
+          Accés exclusiu amb correu corporatiu (@somllar.cat)
+        </p>
       </div>
     );
   }
