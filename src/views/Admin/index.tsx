@@ -15,9 +15,9 @@ import {
   X,
   Save,
   Database,
-  ShieldAlert,
   BellPlus,
-  Loader2
+  Loader2,
+  Settings
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUsers } from '../../hooks/useUsers';

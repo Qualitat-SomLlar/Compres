@@ -9,7 +9,8 @@ import {
   HelpCircle,
   FileText,
   User as UserIcon,
-  ShieldCheck
+  ShieldCheck,
+  Plus
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { User, Attachment, AttachmentCategory, RequestStatus, PurchaseRequest } from '../types';

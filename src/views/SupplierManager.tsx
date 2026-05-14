@@ -12,7 +12,8 @@ import {
   XCircle,
   AlertCircle,
   X,
-  Save
+  Save,
+  Building
 } from 'lucide-react';
 import { useSuppliers } from '../hooks/useSuppliers';
 import { Loader2 } from 'lucide-react';
