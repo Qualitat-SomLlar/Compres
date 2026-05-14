@@ -361,6 +361,27 @@ function FlowsManager() {
 function NotificationsManager() {
   const { settings, loading, updateSetting } = useNotificationSettings();
   const events = NOTIFICATION_EVENTS;
+  const roles = Object.entries(ROLE_LABELS);
+
+  const toggleRole = (setting: NotificationSetting, role: string) => {
+    const roles = setting.recipientRoles || [];
+    const newRoles = roles.includes(role as any) 
+      ? roles.filter(r => r !== role)
+      : [...roles, role as any];
+    updateSetting(setting.id, { recipientRoles: newRoles });
+  };
+
+  const addEmail = (setting: NotificationSetting, email: string) => {
+    if (!email || !email.includes('@')) return;
+    const emails = setting.recipientEmails || [];
+    if (emails.includes(email)) return;
+    updateSetting(setting.id, { recipientEmails: [...emails, email] });
+  };
+
+  const removeEmail = (setting: NotificationSetting, email: string) => {
+    const emails = setting.recipientEmails || [];
+    updateSetting(setting.id, { recipientEmails: emails.filter(e => e !== email) });
+  };
 
   if (loading) {
     return (
@@ -372,38 +393,93 @@ function NotificationsManager() {
   }
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-8 space-y-10">
       <div>
-        <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Esdeveniments i Altes de Correu</h3>
-        <p className="text-xs text-slate-600">Activa quins esdeveniments del sistema generen un correu automàtic via Microsoft Outlook.</p>
+        <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Flux de Notificacions Automàtiques</h3>
+        <p className="text-xs text-slate-600 font-medium">Configura quins rols o correus rebran alertes per a cada esdeveniment.</p>
       </div>
 
-      <div className="space-y-4 max-w-2xl">
+      <div className="grid grid-cols-1 gap-8">
         {events.map(event => {
           const setting = settings.find(s => s.eventKey === event.id);
+          if (!setting) return null;
+
           return (
-            <div key={event.id} className="flex items-center justify-between p-4 bg-white/[0.01] border border-white/5 rounded-2xl hover:bg-white/[0.02] transition-all group">
-              <div className="flex items-center gap-4">
-                <div className="p-2 bg-white/5 rounded-xl text-slate-500 group-hover:text-brand-primary transition-colors">
-                  <Bell size={16} />
+            <div key={event.id} className="card p-8 bg-white/[0.01] border-white/5 space-y-8 group hover:border-brand-primary/20 transition-all">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className={cn(
+                    "p-3 rounded-2xl transition-all",
+                    setting.enabled ? "bg-brand-primary/10 text-brand-primary" : "bg-white/5 text-slate-600"
+                  )}>
+                    <Bell size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-white uppercase tracking-tight">{event.name}</h4>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Esdeveniment: {event.id}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-300">{event.name}</p>
-                  <p className="text-[10px] text-slate-600 uppercase tracking-widest mt-1">Grup: Flux de Compres</p>
-                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="sr-only peer" 
+                    checked={setting.enabled} 
+                    onChange={(e) => updateSetting(setting.id, { enabled: e.target.checked })} 
+                  />
+                  <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-primary peer-checked:after:bg-white"></div>
+                </label>
               </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  className="sr-only peer" 
-                  checked={setting?.enabled ?? false} 
-                  onChange={(e) => {
-                    if (setting) updateSetting(setting.id, e.target.checked);
-                    else toast.error("Cal configurar l'esdeveniment a la base de dades");
-                  }}
-                />
-                <div className="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-primary peer-checked:after:bg-white"></div>
-              </label>
+
+              {setting.enabled && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10 pt-6 border-t border-white/5 animate-in fade-in duration-500">
+                  <div className="space-y-4">
+                    <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.2em]">Rols receptors</p>
+                    <div className="flex flex-wrap gap-2">
+                      {roles.map(([key, label]) => (
+                        <button
+                          key={key}
+                          onClick={() => toggleRole(setting, key)}
+                          className={cn(
+                            "px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border",
+                            setting.recipientRoles?.includes(key as any)
+                              ? "bg-brand-primary/10 border-brand-primary text-brand-primary"
+                              : "bg-white/5 border-transparent text-slate-500 hover:border-white/10"
+                          )}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.2em]">Correus addicionals</p>
+                    <div className="space-y-3">
+                      <input 
+                        type="email" 
+                        placeholder="Afegeix correu i prem Enter" 
+                        className="input-field text-xs py-2 w-full"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            addEmail(setting, e.currentTarget.value);
+                            e.currentTarget.value = '';
+                          }
+                        }}
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        {setting.recipientEmails?.map(email => (
+                          <div key={email} className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-xl border border-white/5">
+                            <span className="text-[10px] font-medium text-slate-400">{email}</span>
+                            <button onClick={() => removeEmail(setting, email)} className="text-slate-600 hover:text-red-500 transition-colors">
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}

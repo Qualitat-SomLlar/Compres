@@ -160,11 +160,10 @@ export interface ApprovalRole {
 
 export interface NotificationSetting {
   id: string;
-  targetType: 'role' | 'user';
-  targetId: string;
   eventKey: string;
   enabled: boolean;
-  emailOverride?: string;
+  recipientRoles: UserRole[];
+  recipientEmails: string[];
   createdAt: string;
   updatedAt: string;
 }

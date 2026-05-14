@@ -25,12 +25,14 @@ import { useUsers } from '../hooks/useUsers';
 import { useAnalyticCodes } from '../hooks/useAnalyticCodes';
 import { useCenters } from '../hooks/useCenters';
 import { useProjects } from '../hooks/useProjects';
+import { useEmailDispatcher } from '../hooks/useEmailDispatcher';
 import { emailService } from '../services/emailService';
 
 export default function NewRequest({ user }: { user: User }) {
   const navigate = useNavigate();
   const { addRequest } = useRequests();
   const { addNotification } = useNotifications();
+  const { dispatchEmail } = useEmailDispatcher();
   const { getUsersByRole } = useUsers();
   const { analyticCodes } = useAnalyticCodes();
   const { centers } = useCenters();
@@ -140,9 +142,11 @@ export default function NewRequest({ user }: { user: User }) {
           type: 'info',
           requestId: newRequest.id
         });
-        
-        await emailService.sendApprovalNotification(newRequest, targetUser.email, 'pendent_coordinacio');
       }
+
+      // Despatxar correus segons configuració de Superadmin
+      await dispatchEmail('solicitud_creada', newRequest);
+      
       navigate('/compres');
     });
   };

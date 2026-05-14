@@ -28,10 +28,10 @@ export function useNotificationSettings() {
     return () => unsubscribe();
   }, []);
 
-  const updateSetting = async (id: string, enabled: boolean) => {
+  const updateSetting = async (id: string, data: Partial<NotificationSetting>) => {
     const docRef = doc(db, 'notificationSettings', id);
     await updateDoc(docRef, {
-      enabled,
+      ...data,
       updatedAt: new Date().toISOString()
     });
   };

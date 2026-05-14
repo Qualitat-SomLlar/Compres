@@ -26,13 +26,14 @@ import StatusBadge from '../components/StatusBadge';
 import { useRequests } from '../hooks/useRequests';
 import { useNotifications } from '../hooks/useNotifications';
 import { useUsers } from '../hooks/useUsers';
+import { useEmailDispatcher } from '../hooks/useEmailDispatcher';
 import { workflowService } from '../services/workflowService';
-import { emailService } from '../services/emailService';
 export default function RequestDetail({ user }: { user: User }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const { getRequestById, updateRequest } = useRequests();
   const { addNotification } = useNotifications();
+  const { dispatchEmail } = useEmailDispatcher();
   const { getUsersByRole } = useUsers();
   
   const request = id ? getRequestById(id) : undefined;
@@ -66,7 +67,6 @@ export default function RequestDetail({ user }: { user: User }) {
       const targetRoleOrCreator = workflowService.getTargetRoleForStatus(newStatus);
       
       if (targetRoleOrCreator === 'creator') {
-        // Notificar al creador
         await addNotification({
           userId: request.createdByUserId,
           title: `Actualització: ${STATUS_LABELS[newStatus]?.label}`,
@@ -74,24 +74,33 @@ export default function RequestDetail({ user }: { user: User }) {
           type: action === 'reject' ? 'error' : 'success',
           requestId: request.id
         });
-        
-        await emailService.sendApprovalNotification(request, request.createdByUserEmail, newStatus);
       } else if (targetRoleOrCreator) {
-        // Notificar als usuaris amb el rol objectiu (filtrant per àrea si cal)
         const needsAreaFilter = ['coordinacio', 'direccio_area'].includes(targetRoleOrCreator);
         const targetUsers = getUsersByRole(targetRoleOrCreator as any, needsAreaFilter ? request.areaId : undefined);
-        
         for (const targetUser of targetUsers) {
           await addNotification({
             userId: targetUser.id,
-            title: `Pendent d'aprovació: ${request.code || request.id}`,
-            message: `Tens una nova sol·licitud pendent de validar de l'àrea ${request.areaId}.`,
+            title: `Pendent: ${request.code || request.id}`,
+            message: `Tens una nova sol·licitud pendent.`,
             type: 'warning',
             requestId: request.id
           });
-          
-          await emailService.sendApprovalNotification(request, targetUser.email, newStatus);
         }
+      }
+
+      // Notificacions Email (Dispatcher)
+      let eventKey = '';
+      if (action === 'reject') eventKey = 'rebutjada';
+      else if (action === 'return') eventKey = 'retornada_esmena';
+      else if (newStatus === 'aprovada') eventKey = 'compra_aprovada';
+      else if (newStatus === 'pendent_finances') eventKey = 'enviada_finances';
+      else if (newStatus === 'pendent_direccio') eventKey = 'validada_direccio';
+      else if (newStatus === 'comanda_emesa') eventKey = 'compra_tramitada';
+      else if (newStatus === 'tancada') eventKey = 'compra_tancada';
+      else if (newStatus === 'incidencia') eventKey = 'incidencia';
+
+      if (eventKey) {
+        await dispatchEmail(eventKey, { ...request, status: newStatus });
       }
 
       toast.success(`Acció realitzada: ${STATUS_LABELS[newStatus]?.label}`);
