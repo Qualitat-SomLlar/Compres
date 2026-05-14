@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { User, UserRole } from '../types';
 
@@ -28,5 +28,15 @@ export function useUsers() {
     });
   };
 
-  return { users, loading, getUsersByRole };
+  const updateUser = async (id: string, data: Partial<User>) => {
+    const docRef = doc(db, 'users', id);
+    await updateDoc(docRef, data);
+  };
+
+  const deleteUser = async (id: string) => {
+    const docRef = doc(db, 'users', id);
+    await deleteDoc(docRef);
+  };
+
+  return { users, loading, getUsersByRole, updateUser, deleteUser };
 }

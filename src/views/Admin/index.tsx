@@ -13,8 +13,13 @@ import {
   AlertCircle,
   FileSpreadsheet,
   X,
-  Save
+  Save,
+  Database,
+  ShieldAlert
 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { useUsers } from '../../hooks/useUsers';
+import { useProjects } from '../../hooks/useProjects';
 import toast from 'react-hot-toast';
 import { cn } from '../../lib/utils';
 import { ROLE_LABELS, ATTACHMENT_CATEGORIES, NOTIFICATION_EVENTS, AREAS } from '../../constants';
@@ -25,7 +30,7 @@ import { useCenters } from '../../hooks/useCenters';
 import { useAnalyticCodes } from '../../hooks/useAnalyticCodes';
 import { Loader2 } from 'lucide-react';
 
-type AdminTab = 'workers' | 'flows' | 'notifications' | 'imports';
+type AdminTab = 'workers' | 'flows' | 'notifications' | 'imports' | 'super';
 
 export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState<AdminTab>('workers');
@@ -41,8 +46,13 @@ export default function AdminPanel() {
         return <NotificationsManager />;
       case 'imports':
         return <ImportsManager />;
+      case 'super':
+        return <SuperManager />;
     }
   };
+
+  const { user } = useAuth();
+  const isSuper = user?.role === 'superadmin';
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
@@ -77,6 +87,14 @@ export default function AdminPanel() {
             icon={<FileSpreadsheet size={16} />}
             label="Imports"
           />
+          {isSuper && (
+            <TabButton 
+              active={activeTab === 'super'} 
+              onClick={() => setActiveTab('super')} 
+              icon={<ShieldAlert size={16} />}
+              label="Super"
+            />
+          )}
         </div>
       </div>
 
@@ -465,6 +483,90 @@ function ImportsManager() {
           </ul>
         </div>
       </div>
+    </div>
+  );
+}
+
+function SuperManager() {
+  const { users, updateUser } = useUsers();
+  const { projects } = useProjects();
+  const { centers } = useCenters();
+  const { analyticCodes } = useAnalyticCodes();
+
+  const handleRoleChange = async (userId: string, newRole: any) => {
+    try {
+      await updateUser(userId, { role: newRole });
+      toast.success("Rol d'usuari actualitzat");
+    } catch (err) {
+      toast.error("Error al canviar el rol");
+    }
+  };
+
+  return (
+    <div className="p-8 space-y-12">
+      <div className="flex items-center gap-4 p-6 bg-red-500/10 border border-red-500/20 rounded-3xl">
+        <div className="p-3 bg-red-500 rounded-2xl text-white">
+          <ShieldAlert size={24} />
+        </div>
+        <div>
+          <h3 className="text-lg font-black text-white uppercase tracking-tight">Zona de Superusuari</h3>
+          <p className="text-xs text-red-200/60 font-medium">Accés total a la configuració crítica del sistema i permisos d'usuaris.</p>
+        </div>
+      </div>
+
+      <section className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Gestió de Rols d'Usuaris (Accés App)</h4>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {users.map(u => (
+            <div key={u.id} className="p-5 bg-white/[0.01] border border-white/5 rounded-2xl space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold text-white">{u.name}</p>
+                  <p className="text-[9px] text-slate-500">{u.email}</p>
+                </div>
+                <div className={cn(
+                  "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest",
+                  u.role === 'superadmin' ? "bg-red-500/20 text-red-500" : "bg-brand-primary/10 text-brand-primary"
+                )}>
+                  {u.role}
+                </div>
+              </div>
+              <select 
+                className="input-field w-full text-[10px] py-2"
+                value={u.role}
+                onChange={(e) => handleRoleChange(u.id, e.target.value)}
+              >
+                {Object.entries(ROLE_LABELS).map(([k, v]) => (
+                  <option key={k} value={k}>{v}</option>
+                ))}
+                <option value="superadmin">SUPERADMIN (Accés Total)</option>
+              </select>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-6">
+        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Estat de les Col·leccions de Dades</h4>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { label: 'Projectes', count: projects.length, icon: <Database size={16} /> },
+            { label: 'Centres', count: centers.length, icon: <Database size={16} /> },
+            { label: 'Codis Analítics', count: analyticCodes.length, icon: <Database size={16} /> },
+            { label: 'Usuaris Registrats', count: users.length, icon: <Users size={16} /> }
+          ].map((stat, i) => (
+            <div key={i} className="p-4 bg-white/[0.01] border border-white/5 rounded-2xl flex items-center gap-4">
+              <div className="p-2 bg-white/5 rounded-lg text-slate-500">{stat.icon}</div>
+              <div>
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">{stat.label}</p>
+                <p className="text-lg font-black text-white">{stat.count}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

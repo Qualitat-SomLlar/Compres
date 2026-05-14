@@ -21,6 +21,7 @@ const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => useContext(AuthContext);
 
 const ADMIN_EMAILS = ['secretariadq@somllar.cat', 'secretariadq@somllar.org'];
+const SUPERADMIN_EMAILS = ['raulfdz3@gmail.com', 'secretariadq@somllar.cat'];
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -38,7 +39,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             userData = { id: firebaseUser.uid, ...userDoc.data() } as User;
             
             // Forcem el rol d'admin si el correu coincideix
-            if (firebaseUser.email && ADMIN_EMAILS.includes(firebaseUser.email) && userData.role !== 'admin_compres') {
+            if (firebaseUser.email && SUPERADMIN_EMAILS.includes(firebaseUser.email) && userData.role !== 'superadmin') {
+              userData.role = 'superadmin';
+              await setDoc(doc(db, 'users', firebaseUser.uid), { role: 'superadmin' }, { merge: true });
+            } else if (firebaseUser.email && ADMIN_EMAILS.includes(firebaseUser.email) && userData.role !== 'admin_compres' && userData.role !== 'superadmin') {
               userData.role = 'admin_compres';
               await setDoc(doc(db, 'users', firebaseUser.uid), { role: 'admin_compres' }, { merge: true });
             }
@@ -46,12 +50,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setUser(userData);
           } else {
             // Si és el primer cop, creem el document
+            const isSuperAdmin = firebaseUser.email && SUPERADMIN_EMAILS.includes(firebaseUser.email);
             const isAdmin = firebaseUser.email && ADMIN_EMAILS.includes(firebaseUser.email);
             const dummyUser: User = {
               id: firebaseUser.uid,
               name: firebaseUser.displayName || 'Usuari Som Llar',
               email: firebaseUser.email || 'test@somllar.org',
-              role: isAdmin ? 'admin_compres' : 'tecnic',
+              role: isSuperAdmin ? 'superadmin' : isAdmin ? 'admin_compres' : 'tecnic',
               areaId: 'admin'
             };
             await setDoc(doc(db, 'users', firebaseUser.uid), dummyUser);

@@ -10,7 +10,12 @@ service cloud.firestore {
     function isAuthenticated() { return request.auth != null; }
     function getUserData() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
     function hasRole(role) { return isAuthenticated() && getUserData().role == role; }
-    function isAdmin() { return hasRole('admin_compres') || hasRole('finances'); }
+    function isSuperAdmin() { return hasRole('superadmin'); }
+    function isAdmin() { return isSuperAdmin() || hasRole('admin_compres') || hasRole('finances'); }
+
+    match /{allPaths=**} {
+      allow read, write: if isSuperAdmin();
+    }
 
     // User Profiles
     match /users/{userId} {
