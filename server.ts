@@ -12,13 +12,12 @@ const firebaseConfig = JSON.parse(fs.readFileSync('./firebase-applet-config.json
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId || '(default)');
 
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-  app.use(express.json());
+app.use(express.json());
 
-  app.post("/api/fcm-tokens", requireAuth, async (req: AuthRequest, res) => {
+app.post("/api/fcm-tokens", requireAuth, async (req: AuthRequest, res) => {
     try {
       const { token, deviceInfo } = req.body;
       const q = query(collection(db, 'users'), where('uid', '==', req.user!.uid));
@@ -441,11 +440,12 @@ async function startServer() {
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
+    createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
+    }).then(vite => {
+      app.use(vite.middlewares);
     });
-    app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
@@ -454,9 +454,10 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
-}
+  if (process.env.NODE_ENV !== "production" || process.env.RENDER || process.env.RAILWAY_ENVIRONMENT || process.env.K_SERVICE || !process.env.VERCEL) {
+    app.listen(PORT, () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  }
 
-startServer();
+export default app;
