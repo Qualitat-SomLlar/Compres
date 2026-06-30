@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../components/AuthContext";
 import { Shield, Sparkles } from "lucide-react";
 import { Navigate } from "react-router-dom";
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../lib/firebase-client';
 
 export function Login() {
   const { signIn, user } = useAuth();
@@ -10,9 +12,9 @@ export function Login() {
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
-    fetch("/api/public/users")
-      .then(r => r.json())
-      .then(data => {
+    getDocs(collection(db, 'users'))
+      .then(snap => {
+        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         if (data && data.length > 0) {
           setDbUsers(data);
           setSelectedRole(`id_${data[0].id}`);

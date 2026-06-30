@@ -1,14 +1,16 @@
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
-import { requireAuth, AuthRequest } from "./src/middleware/auth.ts";
+import { requireAuth, AuthRequest } from "./src/middleware/auth";
 
-import { initializeApp } from 'firebase/app';
+import { getApps, initializeApp } from 'firebase/app';
 import { getFirestore, collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, query, where, orderBy, arrayUnion } from 'firebase/firestore';
 
-// @ts-ignore
-import firebaseConfig from './firebase-applet-config.json';
-const firebaseApp = initializeApp(firebaseConfig);
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const firebaseConfig = require('./firebase-applet-config.json');
+
+const firebaseApp = getApps().find(app => app.name === '[DEFAULT]') || initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId || '(default)');
 
 const app = express();
@@ -448,7 +450,7 @@ app.post("/api/fcm-tokens", requireAuth, async (req: AuthRequest, res) => {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*all', (req, res) => {
+    app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

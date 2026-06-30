@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { collection, getDocs, doc, setDoc, updateDoc, query, where } from 'firebase/firestore';
+import { db } from '../lib/firebase-client';
 
 interface AuthContextType {
   user: any | null;
@@ -25,15 +27,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signIn = async (roleOrId: string) => {
     if (roleOrId.startsWith('id_')) {
        try {
-         const res = await fetch("/api/public/users");
-         if (res.ok) {
-            const users = await res.json();
-            const dbUser = users.find((u: any) => 'id_' + u.id === roleOrId);
-            if (dbUser) {
-               setUser(dbUser);
-               localStorage.setItem('mockUser', JSON.stringify(dbUser));
-               return;
-            }
+         const snap = await getDocs(collection(db, 'users'));
+         const users = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+         const dbUser = users.find((u: any) => 'id_' + u.id === roleOrId);
+         if (dbUser) {
+            setUser(dbUser);
+            localStorage.setItem('mockUser', JSON.stringify(dbUser));
+            return;
          }
        } catch(e) {
          console.error(e);
@@ -59,12 +59,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('mockUser', JSON.stringify(mockUser));
     
     try {
-      await fetch('/api/auth/sync', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${roleOrId}`
-        }
-      });
+      // Sync mock user to DB
+      const q = query(collection(db, 'users'), where('uid', '==', mockUser.uid));
+      const snap = await getDocs(q);
+      if (snap.empty) {
+        const newDocRef = doc(collection(db, 'users'));
+        await setDoc(newDocRef, { id: newDocRef.id, ...mockUser });
+      } else {
+        const userDoc = snap.docs[0];
+        await updateDoc(userDoc.ref, { email: mockUser.email, displayName: mockUser.displayName });
+      }
     } catch (e) {
       console.error("Error syncing user", e);
     }

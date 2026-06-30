@@ -1,10 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
+import { getApps, initializeApp } from 'firebase/app';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
-import { initializeApp } from 'firebase/app';
 
-// Initialize firebase again or just read config
-import firebaseConfig from '../../firebase-applet-config.json';
-const firebaseApp = initializeApp(firebaseConfig, 'AuthMiddlewareApp');
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const firebaseConfig = require('../../firebase-applet-config.json');
+
+const firebaseApp = getApps().find(app => app.name === 'AuthMiddlewareApp') || initializeApp(firebaseConfig, 'AuthMiddlewareApp');
 const db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId || '(default)');
 
 export interface AuthRequest extends Request {

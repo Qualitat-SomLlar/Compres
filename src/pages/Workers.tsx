@@ -63,14 +63,10 @@ export function Workers() {
 
   const fetchWorkers = async () => {
     try {
-      // API (Postgres)
-      const token = await getToken();
-      const res = await fetch("/api/workers", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        setWorkers(await res.json());
-      }
+      const snap = await getDocs(collection(db, 'workers'));
+      let workersData = snap.docs.map(d => ({ id: d.id, ...d.data() } as Worker));
+      workersData.sort((a, b) => (a.workerNumber || 0) - (b.workerNumber || 0));
+      setWorkers(workersData);
       setIsLoading(false);
     } catch (e) {
       console.error(e);
@@ -106,18 +102,13 @@ export function Workers() {
         updatedAt: new Date().toISOString()
       };
 
-      const token = await getToken();
-      const url = editingId ? `/api/workers/${editingId}` : "/api/workers";
-      const method = editingId ? "PUT" : "POST";
-      
-      await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
+      if (editingId) {
+        await updateDoc(doc(db, 'workers', editingId.toString()), payload);
+      } else {
+        const newDoc = doc(collection(db, 'workers'));
+        await setDoc(newDoc, { id: newDoc.id, ...payload, createdAt: new Date().toISOString() });
+      }
+
       fetchWorkers();
       setShowModal(false);
       setEditingId(null);
@@ -129,11 +120,7 @@ export function Workers() {
   const handleDelete = async (id: number | string) => {
     if (!confirm("Segur que vols eliminar aquesta treballadora?")) return;
     try {
-      const token = await getToken();
-      await fetch(`/api/workers/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await deleteDoc(doc(db, 'workers', id.toString()));
       fetchWorkers();
     } catch (e) {
       console.error("Error", e);
@@ -163,14 +150,8 @@ export function Workers() {
     if (!confirm(`Segur que vols eliminar ${selectedWorkers.size} treballadores?`)) return;
     
     try {
-      const token = await getToken();
       await Promise.all(
-        Array.from(selectedWorkers).map(id =>
-          fetch(`/api/workers/${id}`, {
-            method: "DELETE",
-            headers: { Authorization: `Bearer ${token}` }
-          })
-        )
+        Array.from(selectedWorkers).map(id => deleteDoc(doc(db, 'workers', id.toString())))
       );
       setSelectedWorkers(new Set());
       fetchWorkers();
@@ -195,19 +176,10 @@ export function Workers() {
       }
       
       updates.updatedAt = new Date().toISOString();
-      const token = await getToken();
 
       await Promise.all(
         Array.from(selectedWorkers).map(async (id) => {
-          const worker = workers.find(w => w.id === id);
-          if (worker) {
-            const res = await fetch(`/api/workers/${id}`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-              body: JSON.stringify({ ...worker, ...updates })
-            });
-            if (!res.ok) console.error("API update failed:", res.status, await res.text());
-          }
+          await updateDoc(doc(db, 'workers', id.toString()), updates);
         })
       );
       
