@@ -1,10 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { initializeApp } from 'firebase/app';
-import fs from 'fs';
 
 // Initialize firebase again or just read config
-const firebaseConfig = JSON.parse(fs.readFileSync('./firebase-applet-config.json', 'utf-8'));
+import firebaseConfig from '../../firebase-applet-config.json';
 const firebaseApp = initializeApp(firebaseConfig, 'AuthMiddlewareApp');
 const db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId || '(default)');
 

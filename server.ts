@@ -5,10 +5,9 @@ import { requireAuth, AuthRequest } from "./src/middleware/auth.ts";
 
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, query, where, orderBy, arrayUnion } from 'firebase/firestore';
-import fs from 'fs';
 
 // @ts-ignore
-const firebaseConfig = JSON.parse(fs.readFileSync('./firebase-applet-config.json', 'utf-8'));
+import firebaseConfig from './firebase-applet-config.json';
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId || '(default)');
 
