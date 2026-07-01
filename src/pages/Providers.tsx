@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useAuth } from "../components/AuthContext";
 import { Plus, Search, ShieldCheck, Clock, X, ArrowUpDown } from "lucide-react";
+import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase-client';
 
 export function Providers() {
   const { getToken, user } = useAuth();
@@ -41,13 +43,8 @@ export function Providers() {
   const fetchProviders = async () => {
     try {
       setLoading(true);
-      const token = await getToken();
-      const res = await fetch("/api/providers", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        setProviders(await res.json());
-      }
+      const snap = await getDocs(collection(db, 'providers'));
+      setProviders(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (e) {
       console.error(e);
     } finally {
@@ -55,18 +52,10 @@ export function Providers() {
     }
   };
 
-  const updateStatus = async (id: number, status: string) => {
+  const updateStatus = async (id: number | string, status: string) => {
     try {
       setLoading(true);
-      const token = await getToken();
-      await fetch(`/api/providers/${id}/status`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ status })
-      });
+      await updateDoc(doc(db, 'providers', id.toString()), { status, updatedAt: new Date().toISOString() });
       fetchProviders();
     } catch (e) {
       console.error(e);
@@ -74,15 +63,11 @@ export function Providers() {
     }
   };
 
-  const handleDeleteProvider = async (id: number) => {
+  const handleDeleteProvider = async (id: number | string) => {
     if (!confirm("Eliminar aquest proveïdor i totes les dades associades?")) return;
     try {
       setLoading(true);
-      const token = await getToken();
-      await fetch(`/api/providers/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await deleteDoc(doc(db, 'providers', id.toString()));
       fetchProviders();
     } catch (e) {
       console.error(e);
@@ -122,24 +107,17 @@ export function Providers() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const token = await getToken();
-      const url = editingProviderId ? `/api/providers/${editingProviderId}` : "/api/providers";
-      const method = editingProviderId ? "PUT" : "POST";
-      
-      const res = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
-      });
-      if (res.ok) {
-        setShowModal(false);
-        setEditingProviderId(null);
-        setFormData({ razonSocial: "", nif: "", contactos: "", ambitoServicio: "TICs" });
-        fetchProviders();
+      if (editingProviderId) {
+        await updateDoc(doc(db, 'providers', editingProviderId.toString()), { ...formData, updatedAt: new Date().toISOString() });
+      } else {
+        const newDoc = doc(collection(db, 'providers'));
+        await setDoc(newDoc, { id: newDoc.id, ...formData, status: "Registrado", createdAt: new Date().toISOString() });
       }
+
+      setShowModal(false);
+      setEditingProviderId(null);
+      setFormData({ razonSocial: "", nif: "", contactos: "", ambitoServicio: "TICs" });
+      fetchProviders();
     } catch (e) {
       console.error(e);
     } finally {

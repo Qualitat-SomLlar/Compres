@@ -16,17 +16,22 @@ export function Layout({ children }: { children: ReactNode }) {
         const token = await requestFirebaseNotificationPermission();
         if (token) {
           const authToken = await getToken();
-          await fetch('/api/fcm-tokens', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${authToken}`
-            },
-            body: JSON.stringify({
-              token,
-              deviceInfo: navigator.userAgent
-            })
-          });
+          // Guarda el FCM token a Firestore sota l'usuari o en una col·lecció
+          if (user) {
+            const uid = user.uid || user.id;
+            try {
+              const { doc, setDoc } = await import('firebase/firestore');
+              const { db } = await import('../lib/firebase-client');
+              await setDoc(doc(db, 'fcm_tokens', token), {
+                token,
+                userId: uid,
+                deviceInfo: navigator.userAgent,
+                updatedAt: new Date().toISOString()
+              });
+            } catch (e) {
+              console.error("Error saving FCM token", e);
+            }
+          }
         }
       } catch (e) {
         console.log("No s'ha pogut registrar el token FCM", e);

@@ -2,6 +2,8 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useAuth } from "../components/AuthContext";
 import { Plus, ShoppingBag, Clock, FileText, X, ArrowUpDown } from "lucide-react";
 import { useLocation } from "react-router-dom";
+import { collection, getDocs, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase-client';
 
 export function Purchases() {
   const { getToken, user } = useAuth();
@@ -30,13 +32,8 @@ export function Purchases() {
 
   const fetchCategories = async () => {
     try {
-      const token = await getToken();
-      const res = await fetch("/api/categories", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        setCategories(await res.json());
-      }
+      const snap = await getDocs(collection(db, 'requestCategories'));
+      setCategories(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (e) {
       console.error(e);
     }
@@ -52,13 +49,8 @@ export function Purchases() {
   const fetchPurchases = async () => {
     try {
       setLoading(true);
-      const token = await getToken();
-      const res = await fetch("/api/purchases", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        setPurchases(await res.json());
-      }
+      const snap = await getDocs(collection(db, 'purchaseRequests'));
+      setPurchases(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (e) {
       console.error(e);
     } finally {
@@ -68,13 +60,8 @@ export function Purchases() {
 
   const fetchProviders = async () => {
     try {
-      const token = await getToken();
-      const res = await fetch("/api/providers", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        setProviders(await res.json());
-      }
+      const snap = await getDocs(collection(db, 'providers'));
+      setProviders(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (e) {
       console.error(e);
     }
@@ -84,33 +71,28 @@ export function Purchases() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const token = await getToken();
       const payload = {
         ...formData,
-        providerId: formData.providerId ? parseInt(formData.providerId) : undefined,
+        providerId: formData.providerId ? formData.providerId : undefined,
+        status: "Pendent d'aprovació",
+        createdBy: user?.uid || user?.id,
+        createdAt: new Date().toISOString()
       };
       
-      const res = await fetch("/api/purchases", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
+      const newDoc = doc(collection(db, 'purchaseRequests'));
+      await setDoc(newDoc, { id: newDoc.id, ...payload });
+      
+      setShowModal(false);
+      setFormData({
+        categoryId: "",
+        subcategoria: "",
+        codigoAnalitico: "",
+        pis: "",
+        detalles: "",
+        providerId: "",
+        importeEstimado: "",
       });
-      if (res.ok) {
-        setShowModal(false);
-        setFormData({
-          categoryId: "",
-          subcategoria: "",
-          codigoAnalitico: "",
-          pis: "",
-          detalles: "",
-          providerId: "",
-          importeEstimado: "",
-        });
-        fetchPurchases();
-      }
+      fetchPurchases();
     } catch (e) {
       console.error(e);
     } finally {
@@ -118,18 +100,10 @@ export function Purchases() {
     }
   };
 
-  const updateStatus = async (id: number, status: string) => {
+  const updateStatus = async (id: number | string, status: string) => {
     try {
       setLoading(true);
-      const token = await getToken();
-      await fetch(`/api/purchases/${id}/status`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ status })
-      });
+      await updateDoc(doc(db, 'purchaseRequests', id.toString()), { status, updatedAt: new Date().toISOString() });
       fetchPurchases();
     } catch (e) {
       console.error(e);

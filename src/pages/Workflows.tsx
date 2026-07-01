@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Plus, X, Save, ArrowRight, Trash2, GitPullRequest, Edit2 } from "lucide-react";
 import { useAuth } from "../components/AuthContext";
+import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
+import { db } from '../lib/firebase-client';
 
 type Category = {
   id: number;
@@ -58,16 +60,22 @@ export function Workflows() {
 
   const fetchData = async () => {
     try {
-      const token = await getToken();
-      const headers = { Authorization: `Bearer ${token}` };
-      
-      const [catRes, wfRes] = await Promise.all([
-        fetch("/api/categories", { headers }),
-        fetch("/api/workflows", { headers })
+      const [catSnap, wfSnap, stepsSnap] = await Promise.all([
+        getDocs(collection(db, 'requestCategories')),
+        getDocs(collection(db, 'workflows')),
+        getDocs(collection(db, 'workflowSteps'))
       ]);
       
-      if (catRes.ok) setCategories(await catRes.json());
-      if (wfRes.ok) setWorkflows(await wfRes.json());
+      const cats = catSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+      const steps = stepsSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+      const wfs = wfSnap.docs.map(d => {
+        const wfData = { id: d.id, ...d.data() } as any;
+        wfData.steps = steps.filter(s => s.workflowId === d.id).sort((a, b) => a.stepOrder - b.stepOrder);
+        return wfData;
+      });
+      
+      setCategories(cats);
+      setWorkflows(wfs);
       
       setIsLoading(false);
     } catch (e) {
@@ -79,18 +87,12 @@ export function Workflows() {
   const handleCreateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const token = await getToken();
-      const url = editingCatId ? `/api/categories/${editingCatId}` : "/api/categories";
-      const method = editingCatId ? "PUT" : "POST";
-      
-      await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(newCat)
-      });
+      if (editingCatId) {
+        await updateDoc(doc(db, 'requestCategories', editingCatId.toString()), newCat);
+      } else {
+        const newDoc = doc(collection(db, 'requestCategories'));
+        await setDoc(newDoc, { id: newDoc.id, ...newCat });
+      }
       fetchData();
       setShowCatModal(false);
       setEditingCatId(null);
@@ -103,18 +105,13 @@ export function Workflows() {
   const handleCreateWorkflow = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const token = await getToken();
-      const url = editingWfId ? `/api/workflows/${editingWfId}` : "/api/workflows";
-      const method = editingWfId ? "PUT" : "POST";
-      
-      await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ ...newWorkflow, categoryId: parseInt(newWorkflow.categoryId) })
-      });
+      const payload = { ...newWorkflow };
+      if (editingWfId) {
+        await updateDoc(doc(db, 'workflows', editingWfId.toString()), payload);
+      } else {
+        const newDoc = doc(collection(db, 'workflows'));
+        await setDoc(newDoc, { id: newDoc.id, ...payload });
+      }
       fetchData();
       setShowWorkflowModal(false);
       setEditingWfId(null);
@@ -128,18 +125,17 @@ export function Workflows() {
     e.preventDefault();
     if (!showStepModal) return;
     try {
-      const token = await getToken();
       const workflow = workflows.find(w => w.id === showStepModal.workflowId);
       const stepOrder = workflow ? workflow.steps.length + 1 : 1;
       
-      await fetch(`/api/workflows/${showStepModal.workflowId}/steps`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ ...newStep, stepOrder })
+      const newDoc = doc(collection(db, 'workflowSteps'));
+      await setDoc(newDoc, { 
+        id: newDoc.id, 
+        workflowId: showStepModal.workflowId,
+        ...newStep, 
+        stepOrder 
       });
+      
       fetchData();
       setShowStepModal(null);
       setNewStep({ actionName: "", requiredRole: "ResponsableArea" });
@@ -148,42 +144,30 @@ export function Workflows() {
     }
   };
 
-  const handleDeleteCategory = async (id: number) => {
+  const handleDeleteCategory = async (id: number | string) => {
     if (!confirm("Eliminar categoria? S'eliminaran també els fluxos associats a ella.")) return;
     try {
-      const token = await getToken();
-      await fetch(`/api/categories/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await deleteDoc(doc(db, 'requestCategories', id.toString()));
       fetchData();
     } catch (e) {
       console.error("Error", e);
     }
   };
 
-  const handleDeleteWorkflow = async (id: number) => {
+  const handleDeleteWorkflow = async (id: number | string) => {
     if (!confirm("Eliminar flux i tots els seus passos?")) return;
     try {
-      const token = await getToken();
-      await fetch(`/api/workflows/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await deleteDoc(doc(db, 'workflows', id.toString()));
       fetchData();
     } catch (e) {
       console.error("Error", e);
     }
   };
 
-  const handleDeleteStep = async (stepId: number) => {
+  const handleDeleteStep = async (stepId: number | string) => {
     if (!confirm("Eliminar pas del flux?")) return;
     try {
-      const token = await getToken();
-      await fetch(`/api/workflow-steps/${stepId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await deleteDoc(doc(db, 'workflowSteps', stepId.toString()));
       fetchData();
     } catch (e) {
       console.error("Error", e);

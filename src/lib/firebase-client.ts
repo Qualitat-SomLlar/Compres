@@ -3,15 +3,14 @@ import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import { getFirestore } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
-let app, messaging: import("firebase/messaging").Messaging | null = null;
-let db: import("firebase/firestore").Firestore | null = null;
+const app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
+const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || '(default)');
 
+let messaging: import("firebase/messaging").Messaging | null = null;
 try {
-  app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
   messaging = getMessaging(app);
-  db = getFirestore(app, firebaseConfig.firestoreDatabaseId || '(default)');
 } catch (e) {
-  console.log("Firebase no configurat correctament. Assegura't de posar les teves credencials a src/lib/firebase-client.ts", e);
+  console.log("Firebase messaging not supported or configured incorrectly.", e);
 }
 
 export { messaging, db };

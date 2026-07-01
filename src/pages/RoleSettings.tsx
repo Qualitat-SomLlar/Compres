@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc } from "firebase/firestore";
+import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, getDocs } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { Shield, Plus, Trash2, Edit2, X, Save, Users as UsersIcon, Settings, ArrowUpDown } from "lucide-react";
 import { useAuth } from "../components/AuthContext";
@@ -66,11 +66,8 @@ export function RoleSettings() {
 
   const fetchUsers = async () => {
     try {
-      const token = await getToken();
-      const res = await fetch("/api/users", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) setSystemUsers(await res.json());
+      const snap = await getDocs(collection(db, "users"));
+      setSystemUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (e) {
       console.error(e);
     }
@@ -93,15 +90,7 @@ export function RoleSettings() {
 
   const handleUpdateBaseRole = async (userId: string, role: string) => {
     try {
-      const token = await getToken();
-      await fetch(`/api/users/${userId}/role`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ role })
-      });
+      await updateDoc(doc(db, "users", userId), { role });
       fetchUsers();
     } catch (e) {
       console.error("error update base role", e);
@@ -111,15 +100,8 @@ export function RoleSettings() {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const token = await getToken();
-      await fetch("/api/users", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(newUser)
-      });
+      const newDoc = doc(collection(db, "users"));
+      await setDoc(newDoc, { id: newDoc.id, ...newUser, createdAt: new Date().toISOString() });
       fetchUsers();
       setShowUserModal(false);
       setNewUser({ email: "", displayName: "", role: "ResponsableArea" });

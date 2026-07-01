@@ -93,7 +93,7 @@ export function Dashboard() {
         <div className="mt-auto pt-6 border-t border-slate-200 flex flex-col md:flex-row items-center justify-between text-[11px] text-slate-400 font-medium gap-4">
           <div className="flex flex-wrap gap-4 md:space-x-6">
             <span className="flex items-center space-x-2"><span className="w-2 h-2 rounded-full bg-blue-500"></span> <span>Audit Trail: ENABLED</span></span>
-            <span className="flex items-center space-x-2"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> <span>Database: PostgreSQL</span></span>
+            <span className="flex items-center space-x-2"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> <span>Database: Firebase</span></span>
           </div>
           <div className="flex space-x-4">
             <span className="text-slate-300 italic uppercase hidden md:inline">ID de sessió: SOM-LLAR-{user?.uid?.substring(0,6) || "LOCAL"}</span>
