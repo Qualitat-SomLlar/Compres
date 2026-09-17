@@ -13,6 +13,8 @@ export interface User {
   email: string;
   role: UserRole;
   areaId: string;
+  areaName?: string;
+  hierarchyLevel?: number;
   active: boolean;
   notificationsEnabled: boolean;
   createdAt?: string;

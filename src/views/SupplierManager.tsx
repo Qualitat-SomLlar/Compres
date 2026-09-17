@@ -13,8 +13,12 @@ import {
   AlertCircle,
   X,
   Save,
-  Building
+  Building,
+  Trash2,
+  Download
 } from 'lucide-react';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { storage } from '../lib/firebase';
 import { useSuppliers } from '../hooks/useSuppliers';
 import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -46,21 +50,62 @@ export default function SupplierManager() {
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !selectedSupplier) return;
     
     setIsUploading(true);
-    // Mock upload
-    setTimeout(() => {
-      const newDoc = { id: Math.random().toString(), name: file.name, date: new Date().toISOString().split('T')[0], type: 'Normatiu' };
-      const updatedSupplier = { ...selectedSupplier, documents: [...(selectedSupplier.documents || []), newDoc] };
-      
-      setSuppliers(prev => prev.map(s => s.id === updatedSupplier.id ? updatedSupplier : s));
-      setSelectedSupplier(updatedSupplier);
+    try {
+      const timestamp = Date.now();
+      const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const storagePath = `suppliers/${selectedSupplier.id}/${timestamp}_${cleanFileName}`;
+      const storageRef = ref(storage, storagePath);
+
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+
+      const newDoc = { 
+        id: `doc-${timestamp}`, 
+        name: file.name, 
+        date: new Date().toISOString().split('T')[0], 
+        type: 'Normatiu',
+        storagePath,
+        downloadURL
+      };
+      const updatedDocs = [...(selectedSupplier.documents || []), newDoc];
+      await updateSupplier(selectedSupplier.id, { documents: updatedDocs });
+      setSelectedSupplier({ ...selectedSupplier, documents: updatedDocs });
+      toast.success('Document pujat i vinculat al proveïdor correctament');
+    } catch (err) {
+      console.error(err);
+      toast.error('Error al pujar el document');
+    } finally {
       setIsUploading(false);
-      toast.success('Document pujat correctament');
-    }, 1000);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleDeleteDocument = async (docToDelete: any) => {
+    if (!selectedSupplier) return;
+    if (!window.confirm(`Vols eliminar el document "${docToDelete.name}"?`)) return;
+
+    try {
+      if (docToDelete.storagePath) {
+        try {
+          await deleteObject(ref(storage, docToDelete.storagePath));
+        } catch (storageErr) {
+          console.warn("No s'ha pogut eliminar el fitxer de Storage:", storageErr);
+        }
+      }
+
+      const remaining = (selectedSupplier.documents || []).filter((d: any) => d.id !== docToDelete.id);
+      await updateSupplier(selectedSupplier.id, { documents: remaining });
+      setSelectedSupplier({ ...selectedSupplier, documents: remaining });
+      toast.success("Document eliminat correctament");
+    } catch (err) {
+      console.error(err);
+      toast.error("Error en eliminar el document");
+    }
   };
 
   const handleStatusChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -338,7 +383,27 @@ export default function SupplierManager() {
                             <p className="text-[10px] text-slate-500">{doc.date} · {doc.type}</p>
                           </div>
                         </div>
-                        <button onClick={() => toast('No es pot visualitzar: document de demostració', { icon: '📄' })} className="text-[10px] font-black text-brand-primary uppercase hover:underline">Veure</button>
+                        <div className="flex items-center gap-2">
+                          {doc.downloadURL && (
+                            <a 
+                              href={doc.downloadURL} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              download={doc.name}
+                              className="p-1.5 text-slate-400 hover:text-brand-primary hover:bg-brand-primary/10 rounded-lg transition-colors"
+                              title="Descarregar / Veure document"
+                            >
+                              <Download size={14} />
+                            </a>
+                          )}
+                          <button 
+                            onClick={() => handleDeleteDocument(doc)} 
+                            className="p-1.5 text-slate-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                            title="Eliminar document"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>

@@ -20,7 +20,12 @@ service cloud.firestore {
     // User Profiles
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated() && request.auth.uid == userId;
+      allow create: if isAuthenticated() && (isAdmin() || request.auth.uid == userId);
+      allow update: if isAuthenticated() && (
+        isAdmin() || 
+        (request.auth.uid == userId && request.resource.data.role == resource.data.role && request.resource.data.active == resource.data.active)
+      );
+      allow delete: if isAdmin();
     }
 
     // Purchase Requests
@@ -28,12 +33,28 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update: if isAuthenticated() && (
+        isAdmin() ||
         hasRole('coordinacio') || 
         hasRole('direccio_area') || 
-        hasRole('finances') || 
-        hasRole('admin_compres') ||
+        hasRole('comptabilitat') ||
         request.auth.uid == resource.data.createdByUserId
       );
+
+      // Subcol·leccions d'adjunts i pressupostos comparatius
+      match /attachments/{attachmentId} {
+        allow read, write: if isAuthenticated();
+      }
+      match /quotes/{quoteId} {
+        allow read, write: if isAuthenticated();
+      }
+    }
+
+    // Documents i pressupostos a nivell global
+    match /attachments/{attachmentId} {
+      allow read, write: if isAuthenticated();
+    }
+    match /quotes/{quoteId} {
+      allow read, write: if isAuthenticated();
     }
 
     // Suppliers

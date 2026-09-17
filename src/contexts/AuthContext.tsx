@@ -21,8 +21,8 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
-const ADMIN_EMAILS = ['secretariadq@somllar.cat', 'secretariadq@somllar.org'];
-const SUPERADMIN_EMAILS = ['secretariadq@somllar.cat', 'secretariadq@somllar.org'];
+const ADMIN_EMAILS = ['secretariadq@somllar.cat'];
+const SUPERADMIN_EMAILS = ['secretariadq@somllar.cat'];
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -32,13 +32,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
+          const userEmail = (firebaseUser.email || '').toLowerCase().trim();
+
+          // Restricció estricta de domini corporatiu @somllar.cat
+          if (!userEmail.endsWith('@somllar.cat')) {
+            await auth.signOut();
+            setUser(null);
+            toast.error("Accés denegat: Només es permet l'accés amb comptes corporatius @somllar.cat");
+            setLoading(false);
+            return;
+          }
+
           // 1. Intentem cercar per UID (cas d'usuari que ja ha entrat abans)
           let userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
           let userData: User;
 
-          if (!userDoc.exists() && firebaseUser.email) {
+          if (!userDoc.exists() && userEmail) {
             // 2. Si no trobem UID, cerquem si ja existia el seu correu (creat pel Superadmin)
-            const q = query(collection(db, 'users'), where('email', '==', firebaseUser.email));
+            const q = query(collection(db, 'users'), where('email', '==', userEmail));
             const querySnapshot = await getDocs(q);
             
             if (!querySnapshot.empty) {
@@ -48,9 +59,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               await setDoc(doc(db, 'users', firebaseUser.uid), {
                 ...data,
                 id: firebaseUser.uid,
+                email: userEmail,
                 updatedAt: new Date().toISOString()
               });
-              await deleteDoc(existingDoc.ref);
+              try {
+                await deleteDoc(existingDoc.ref);
+              } catch (delErr) {
+                console.warn("No s'ha pogut eliminar el registre antic de pre-registre:", delErr);
+              }
               userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
             }
           }
@@ -79,14 +95,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setUser(userData);
           } else {
             // Si és el primer cop i no estava pre-creat, creem el document
-            const isSuperAdmin = firebaseUser.email && SUPERADMIN_EMAILS.includes(firebaseUser.email);
-            const isAdmin = firebaseUser.email && ADMIN_EMAILS.includes(firebaseUser.email);
+            const isSuperAdmin = SUPERADMIN_EMAILS.includes(userEmail);
+            const isAdmin = ADMIN_EMAILS.includes(userEmail);
             const newUser: User = {
               id: firebaseUser.uid,
               name: firebaseUser.displayName || 'Usuari Som Llar',
-              email: firebaseUser.email || 'test@somllar.org',
+              email: userEmail,
               role: isSuperAdmin ? 'superadmin' : isAdmin ? 'admin_compres' : 'tecnic',
-              areaId: 'admin',
+              areaId: 'social',
               active: true,
               notificationsEnabled: true,
               createdAt: new Date().toISOString(),

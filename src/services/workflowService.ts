@@ -36,8 +36,8 @@ export const workflowService = {
     const { status } = request;
     const { role } = user;
 
-    // Admins can do anything
-    if (role === 'admin_compres') return true;
+    // Admins and Superadmins can manage anything
+    if (role === 'admin_compres' || role === 'superadmin') return true;
 
     switch (status) {
       case 'esborrany':
@@ -56,11 +56,14 @@ export const workflowService = {
       
       case 'aprovada':
         // Typically Admin or Finance emits the order
-        return role === 'finances' || role === 'admin_compres';
+        return role === 'finances';
 
       case 'comanda_emesa':
-        // Technician or Receiver confirms reception
-        return role === 'tecnic' || role === 'admin_compres' || role === 'finances';
+        // Technician, Creator or Receiver confirms reception
+        return role === 'tecnic' || 
+               role === 'finances' || 
+               request.requestingTechnicianId === user.id ||
+               request.createdByUserId === user.id;
 
       case 'rebuda':
         // Finance or Accounting closes the request
@@ -87,6 +90,101 @@ export const workflowService = {
       case 'rebuda': return 'finances';
       case 'tancada': return 'creator';
       default: return null;
+    }
+  },
+
+  /**
+   * Identifica les persones i equips concrets amb facultat d'aprovació per a una sol·licitud
+   * basant-se en l'àrea d'adscripció i el nivell jeràrquic del treballador.
+   */
+  getEligibleApprovers(request: PurchaseRequest, allUsers: User[]): {
+    roleName: string;
+    scopeDescription: string;
+    users: User[];
+    hasCover: boolean;
+    levelNumber: number;
+  } | null {
+    const activeUsers = allUsers.filter(u => u.active !== false);
+    const areaId = request.areaId;
+
+    switch (request.status) {
+      case 'pendent_coordinacio': {
+        const matching = activeUsers.filter(u => u.role === 'coordinacio' && u.areaId === areaId);
+        return {
+          roleName: `Coordinació d'Àrea`,
+          scopeDescription: `Coordinadors/es adscrits a l'àrea de la compra (${areaId.toUpperCase()})`,
+          users: matching,
+          hasCover: matching.length > 0,
+          levelNumber: 2
+        };
+      }
+      case 'pendent_direccio': {
+        const matching = activeUsers.filter(u => u.role === 'direccio_area' && u.areaId === areaId);
+        return {
+          roleName: `Direcció d'Àrea`,
+          scopeDescription: `Directors/es adscrits a l'àrea de la compra (${areaId.toUpperCase()})`,
+          users: matching,
+          hasCover: matching.length > 0,
+          levelNumber: 3
+        };
+      }
+      case 'pendent_finances': {
+        const matching = activeUsers.filter(u => u.role === 'finances');
+        return {
+          roleName: `Direcció ADM i Finances`,
+          scopeDescription: `Equip directiu de Finances i Administració General`,
+          users: matching,
+          hasCover: matching.length > 0,
+          levelNumber: 4
+        };
+      }
+      case 'aprovada': {
+        const matching = activeUsers.filter(u => u.role === 'finances' || u.role === 'admin_compres');
+        return {
+          roleName: `Administració de Compres / Finances`,
+          scopeDescription: `Responsables de tramitació i emissió de comandes formals`,
+          users: matching,
+          hasCover: matching.length > 0,
+          levelNumber: 5
+        };
+      }
+      case 'comanda_emesa': {
+        const matching = activeUsers.filter(u => 
+          u.id === request.requestingTechnicianId || 
+          u.id === request.createdByUserId ||
+          u.role === 'admin_compres'
+        );
+        return {
+          roleName: `Conformitat de Recepció`,
+          scopeDescription: `Tècnic/a sol·licitant (${request.requestingTechnicianName}) o equip receptor`,
+          users: matching,
+          hasCover: matching.length > 0,
+          levelNumber: 1
+        };
+      }
+      case 'rebuda': {
+        const matching = activeUsers.filter(u => u.role === 'finances' || u.role === 'comptabilitat');
+        return {
+          roleName: `Comptabilitat i Tancament`,
+          scopeDescription: `Validació de factura i tancament d'expedient`,
+          users: matching,
+          hasCover: matching.length > 0,
+          levelNumber: 5
+        };
+      }
+      case 'esborrany':
+      case 'retornada': {
+        const matching = activeUsers.filter(u => u.id === request.createdByUserId);
+        return {
+          roleName: `Tècnic/a Creador`,
+          scopeDescription: `Treballador/a que ha generat la sol·licitud (${request.createdByUserName})`,
+          users: matching,
+          hasCover: matching.length > 0,
+          levelNumber: 1
+        };
+      }
+      default:
+        return null;
     }
   }
 };

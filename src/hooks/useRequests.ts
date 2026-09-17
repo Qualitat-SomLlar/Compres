@@ -37,8 +37,25 @@ export function useRequests() {
   };
 
   const addRequest = async (newRequest: Omit<PurchaseRequest, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const year = new Date().getFullYear();
+    const prefix = `PR-${year}-`;
+    
+    // Calculem el següent número correlatiu
+    let maxNumber = 0;
+    requests.forEach(r => {
+      if (r.code && r.code.startsWith(prefix)) {
+        const numPart = parseInt(r.code.replace(prefix, ''), 10);
+        if (!isNaN(numPart) && numPart > maxNumber) {
+          maxNumber = numPart;
+        }
+      }
+    });
+
+    const nextCode = newRequest.code || `${prefix}${String(maxNumber + 1).padStart(3, '0')}`;
+
     const requestData = {
       ...newRequest,
+      code: nextCode,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };

@@ -12,16 +12,18 @@ export function useNotifications(userId?: string) {
 
     const q = query(
       collection(db, 'notifications'),
-      where('userId', '==', userId),
-      orderBy('createdAt', 'desc')
+      where('userId', '==', userId)
     );
 
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
-        const notifs = snapshot.docs.map(doc => ({
-          ...doc.data(),
-          id: doc.id
-        } as AppNotification));
+        const notifs = snapshot.docs
+          .map(doc => ({
+            ...doc.data(),
+            id: doc.id
+          } as AppNotification))
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
         setNotifications(notifs);
         setUnreadCount(notifs.filter(n => !n.read).length);
       },

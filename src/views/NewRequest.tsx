@@ -10,11 +10,12 @@ import {
   FileText,
   User as UserIcon,
   ShieldCheck,
-  Plus
+  Plus,
+  Building2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { User, Attachment, AttachmentCategory, RequestStatus, PurchaseRequest } from '../types';
-import { CATEGORIES, AREAS } from '../constants';
+import { CATEGORIES, AREAS, getAreaName } from '../constants';
 import UserSelector from '../components/UserSelector';
 import CustomSelect from '../components/CustomSelect';
 import CustomDatePicker from '../components/CustomDatePicker';
@@ -28,6 +29,7 @@ import { useCenters } from '../hooks/useCenters';
 import { useProjects } from '../hooks/useProjects';
 import { useEmailDispatcher } from '../hooks/useEmailDispatcher';
 import { emailService } from '../services/emailService';
+import { fileService } from '../services/fileService';
 
 export default function NewRequest({ user }: { user: User }) {
   const navigate = useNavigate();
@@ -38,7 +40,10 @@ export default function NewRequest({ user }: { user: User }) {
   const { analyticCodes } = useAnalyticCodes();
   const { centers } = useCenters();
   const { projects } = useProjects();
+  const { updateRequest } = useRequests();
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [filesQueue, setFilesQueue] = useState<{ file: File, category: AttachmentCategory, id: string }[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     requestingTechnicianId: '',
     requestingTechnicianName: '',
@@ -54,16 +59,18 @@ export default function NewRequest({ user }: { user: User }) {
     urgency: 'mitjana' as 'baixa' | 'mitjana' | 'alta' | 'critica',
     deadline: '',
     estimatedAmount: 0,
-    requiresThreeQuotes: false
+    requiresThreeQuotes: false,
+    areaId: user.areaId || ''
   });
 
   const handleWorkerSelect = (worker: User) => {
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       requestingTechnicianId: worker.id,
       requestingTechnicianName: worker.name,
-      requestingTechnicianEmail: worker.email
-    });
+      requestingTechnicianEmail: worker.email,
+      areaId: worker.areaId || prev.areaId
+    }));
   };
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -76,13 +83,18 @@ export default function NewRequest({ user }: { user: User }) {
   };
 
   const handleAttachmentUpload = (files: File[], category: AttachmentCategory) => {
-    const newAttachments: Attachment[] = files.map(file => ({
-      id: Math.random().toString(36).substring(7),
+    const newQueueItems = files.map(file => {
+      const id = Math.random().toString(36).substring(7);
+      return { file, category, id };
+    });
+
+    const newAttachments: Attachment[] = newQueueItems.map(({ file, category, id }) => ({
+      id,
       purchaseRequestId: 'NEW',
       fileName: file.name,
       storagePath: `temp/${file.name}`,
-      downloadURL: URL.createObjectURL(file), // Temporary URL for preview
-      mimeType: file.type,
+      downloadURL: URL.createObjectURL(file), // Preview local
+      mimeType: file.type || 'application/octet-stream',
       size: file.size,
       category,
       uploadedByUserId: user.id,
@@ -90,66 +102,108 @@ export default function NewRequest({ user }: { user: User }) {
       createdAt: new Date().toISOString(),
       status: 'completed'
     }));
-    setAttachments([...attachments, ...newAttachments]);
+
+    setFilesQueue(prev => [...prev, ...newQueueItems]);
+    setAttachments(prev => [...prev, ...newAttachments]);
   };
 
   const handleDeleteAttachment = (id: string) => {
-    setAttachments(attachments.filter(a => a.id !== id));
+    setFilesQueue(prev => prev.filter(f => f.id !== id));
+    setAttachments(prev => prev.filter(a => a.id !== id));
+  };
+
+  const saveRequest = async (targetStatus: 'pendent_coordinacio' | 'esborrany') => {
+    if (targetStatus === 'pendent_coordinacio') {
+      if (!formData.requestingTechnicianId) {
+        toast.error('Siusplau, selecciona el tècnic sol·licitant');
+        return;
+      }
+      if (!formData.projectId) {
+        toast.error('Siusplau, selecciona un projecte');
+        return;
+      }
+      if (!formData.analyticCode) {
+        toast.error('Siusplau, selecciona un codi analític');
+        return;
+      }
+      if (!formData.destinationCenterId) {
+        toast.error('Siusplau, selecciona un centre de destí');
+        return;
+      }
+      if (!formData.itemDescription.trim()) {
+        toast.error('Siusplau, indica la descripció del bé o servei');
+        return;
+      }
+    } else {
+      // Per a esborranys només demanem una descripció mínima
+      if (!formData.itemDescription.trim() && !formData.requestingTechnicianName) {
+        toast.error('Indica almenys una breu descripció o el tècnic per guardar com a esborrany');
+        return;
+      }
+    }
+
+    setIsSubmitting(true);
+    const loadingToast = toast.loading(targetStatus === 'esborrany' ? 'Desant esborrany...' : 'Tramitant expedient...');
+
+    try {
+      // Determinar l'àrea d'imputació (prioritat: treballador triat -> centre -> codi analític -> usuari)
+      const selectedCenter = centers.find(c => c.id === formData.destinationCenterId);
+      const selectedAnalytic = analyticCodes.find(ac => ac.code === formData.analyticCode);
+      const requestAreaId = (formData.areaId || selectedCenter?.area || selectedAnalytic?.area || user.areaId || 'social').toLowerCase();
+
+      // 1. Crear el document a Firestore
+      const newRequest = await addRequest({
+        ...formData,
+        itemDescription: formData.itemDescription || 'Sense descripció (Esborrany)',
+        justification: formData.justification || 'Pendent de justificació',
+        deadline: formData.deadline || new Date().toISOString().split('T')[0],
+        createdByUserId: user.id,
+        createdByUserName: user.name,
+        createdByUserEmail: user.email,
+        areaId: requestAreaId,
+        attachmentsCount: filesQueue.length,
+        status: targetStatus
+      });
+
+      // 2. Pujada real dels fitxers a Firebase Storage i registre a Firestore
+      if (filesQueue.length > 0) {
+        const uploadPromises = filesQueue.map(item => 
+          fileService.uploadFile(item.file, newRequest.id, item.category, user.id, user.name)
+        );
+        const uploadedAttachments = await Promise.all(uploadPromises);
+        await updateRequest(newRequest.id, { attachmentsCount: uploadedAttachments.length });
+      }
+
+      // 3. Notificacions (només si s'envia a aprovació)
+      if (targetStatus === 'pendent_coordinacio') {
+        const targetUsers = getUsersByRole('coordinacio', requestAreaId);
+        for (const targetUser of targetUsers) {
+          await addNotification({
+            userId: targetUser.id,
+            title: `Nova sol·licitud: ${newRequest.code || newRequest.id}`,
+            message: `${user.name} ha creat una nova sol·licitud de ${newRequest.estimatedAmount}€.`,
+            type: 'info',
+            requestId: newRequest.id
+          });
+        }
+        await dispatchEmail('solicitud_creada', newRequest);
+        toast.success(`Sol·licitud ${newRequest.code || newRequest.id} enviada correctament!`, { id: loadingToast });
+      } else {
+        toast.success(`Esborrany ${newRequest.code || newRequest.id} desat correctament!`, { id: loadingToast });
+      }
+
+      navigate('/compres');
+    } catch (error) {
+      console.error(error);
+      toast.error('Error al tramitar la sol·licitud', { id: loadingToast });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.requestingTechnicianId) {
-      toast.error('Siusplau, selecciona el tècnic sol·licitant');
-      return;
-    }
-    if (!formData.projectId) {
-      toast.error('Siusplau, selecciona un projecte');
-      return;
-    }
-    if (!formData.analyticCode) {
-      toast.error('Siusplau, selecciona un codi analític');
-      return;
-    }
-    if (!formData.destinationCenterId) {
-      toast.error('Siusplau, selecciona un centre de destí');
-      return;
-    }
-    
-    // Enviament real a Firestore
-    toast.promise(
-      addRequest({
-        ...formData,
-        createdByUserId: user.id,
-        createdByUserName: user.name,
-        createdByUserEmail: user.email,
-        areaId: user.areaId,
-        attachmentsCount: attachments.length,
-        status: 'pendent_coordinacio'
-      }),
-      {
-        loading: 'Enviant sol·licitud a Firestore...',
-        success: 'Sol·licitud enviada correctament!',
-        error: 'Error al enviar la sol·licitud',
-      }
-    ).then(async (newRequest) => {
-      // Notificar als coordinadors de l'àrea
-      const targetUsers = getUsersByRole('coordinacio', user.areaId);
-      for (const targetUser of targetUsers) {
-        await addNotification({
-          userId: targetUser.id,
-          title: `Nova sol·licitud: ${newRequest.code || newRequest.id}`,
-          message: `${user.name} ha creat una nova sol·licitud de ${newRequest.estimatedAmount}€.`,
-          type: 'info',
-          requestId: newRequest.id
-        });
-      }
-
-      // Despatxar correus segons configuració de Superadmin
-      await dispatchEmail('solicitud_creada', newRequest);
-      
-      navigate('/compres');
-    });
+    saveRequest('pendent_coordinacio');
   };
 
   return (
@@ -203,6 +257,14 @@ export default function NewRequest({ user }: { user: User }) {
                 onSelect={handleWorkerSelect} 
                 selectedId={formData.requestingTechnicianId} 
               />
+              {formData.requestingTechnicianName && (
+                <div className="flex items-center gap-2 mt-2 px-3 py-2 rounded-xl bg-white/[0.02] border border-white/5 text-[10px] text-slate-400">
+                  <Building2 size={12} className="text-brand-primary shrink-0" />
+                  <span>Àrea d'adscripció: <strong className="text-white">{getAreaName(formData.areaId)}</strong></span>
+                  <span className="text-slate-600">•</span>
+                  <span className="text-slate-500">Circuit assignat a la Coordinació i Direcció d'aquesta àrea</span>
+                </div>
+              )}
             </div>
           </div>
         </section>
@@ -417,11 +479,21 @@ export default function NewRequest({ user }: { user: User }) {
       </div>
 
       <div className="flex items-center justify-end gap-3 pt-6">
-        <button type="button" onClick={() => toast.success('Esborrany desat correctament')} className="btn-secondary flex items-center gap-2 text-xs py-3 px-8 font-black uppercase tracking-widest">
+        <button 
+          type="button" 
+          disabled={isSubmitting}
+          onClick={() => saveRequest('esborrany')} 
+          className="btn-secondary flex items-center gap-2 text-xs py-3 px-8 font-black uppercase tracking-widest disabled:opacity-50"
+        >
           <Save size={18} />
           <span>Desar esborrany</span>
         </button>
-        <button type="button" onClick={handleSubmit} className="btn-primary flex items-center gap-2 text-xs py-3 px-8 font-black uppercase tracking-widest shadow-xl shadow-brand-primary/20">
+        <button 
+          type="button" 
+          disabled={isSubmitting}
+          onClick={() => saveRequest('pendent_coordinacio')} 
+          className="btn-primary flex items-center gap-2 text-xs py-3 px-8 font-black uppercase tracking-widest shadow-xl shadow-brand-primary/20 disabled:opacity-50"
+        >
           <Send size={18} />
           <span>Enviar per aprovar</span>
         </button>

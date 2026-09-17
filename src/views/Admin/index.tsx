@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   GitMerge, 
@@ -18,14 +18,19 @@ import {
   BellPlus,
   Loader2,
   Settings,
-  ShieldCheck
+  ShieldCheck,
+  Building2,
+  Filter,
+  UserCheck,
+  ChevronRight,
+  Info
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUsers } from '../../hooks/useUsers';
 import { useProjects } from '../../hooks/useProjects';
 import toast from 'react-hot-toast';
 import { cn } from '../../lib/utils';
-import { ROLE_LABELS, ATTACHMENT_CATEGORIES, NOTIFICATION_EVENTS, AREAS } from '../../constants';
+import { ROLE_LABELS, ATTACHMENT_CATEGORIES, NOTIFICATION_EVENTS, AREAS, HIERARCHY_ROLES, getHierarchyRole, getAreaName } from '../../constants';
 import { importExportService } from '../../services/importExportService';
 import { useNotificationSettings } from '../../hooks/useNotificationSettings';
 import { useCenters } from '../../hooks/useCenters';
@@ -67,7 +72,7 @@ export default function AdminPanel() {
             </div>
             <h2 className="text-3xl font-black text-white tracking-tighter">Administració del Sistema</h2>
           </div>
-          <p className="text-sm text-slate-500 font-medium max-w-xl">Gestiona els usuaris, el flux d'aprovació i la configuració global del sistema.</p>
+          <p className="text-sm text-slate-500 font-medium max-w-xl">Gestiona el directori de treballadors/usuaris, el flux d'aprovació jeràrquic i la configuració global.</p>
         </div>
         
         <div className="flex items-center gap-2 p-1 bg-white/[0.02] border border-white/[0.05] rounded-2xl">
@@ -75,7 +80,7 @@ export default function AdminPanel() {
             active={activeTab === 'users'} 
             onClick={() => setActiveTab('users')} 
             icon={<Users size={16} />}
-            label="Usuaris"
+            label="Treballadors i Usuaris"
           />
           <TabButton 
             active={activeTab === 'flows'} 
@@ -141,23 +146,45 @@ function UsersManager() {
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [areaFilter, setAreaFilter] = useState('all');
+  const [roleFilter, setRoleFilter] = useState('all');
+  
+  // Per a la previsualització interactiva al modal
+  const [formRole, setFormRole] = useState('tecnic');
 
-  const filteredUsers = users.filter(u => 
-    (u.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (u.email || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  useEffect(() => {
+    if (selectedUser) {
+      setFormRole(selectedUser.role || 'tecnic');
+    } else {
+      setFormRole('tecnic');
+    }
+  }, [selectedUser, isModalOpen]);
+
+  const filteredUsers = users.filter(u => {
+    const matchSearch = (u.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        (u.email || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchArea = areaFilter === 'all' || (u.areaId || '').toLowerCase() === areaFilter.toLowerCase();
+    const matchRole = roleFilter === 'all' || u.role === roleFilter;
+    return matchSearch && matchArea && matchRole;
+  });
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSaving(true);
     const formData = new FormData(e.currentTarget);
+    const selectedAreaId = formData.get('areaId') as string;
+    const selectedRoleKey = formData.get('role') as string;
+    const roleConfig = getHierarchyRole(selectedRoleKey);
+
     const data = {
       name: formData.get('name') as string,
       email: formData.get('email') as string,
-      areaId: formData.get('areaId') as string,
-      role: formData.get('role') as any,
-      active: true,
-      notificationsEnabled: true,
+      areaId: selectedAreaId,
+      areaName: getAreaName(selectedAreaId),
+      role: selectedRoleKey as any,
+      hierarchyLevel: roleConfig.level,
+      active: formData.get('active') === 'on',
+      notificationsEnabled: formData.get('notificationsEnabled') === 'on',
       firstName: (formData.get('name') as string).split(' ')[0],
       lastName: (formData.get('name') as string).split(' ').slice(1).join(' ')
     };
@@ -165,13 +192,14 @@ function UsersManager() {
     try {
       if (selectedUser) {
         await updateUser(selectedUser.id, data);
-        toast.success("Usuari/a actualitzat correctament");
+        toast.success("Treballador/a actualitzat correctament");
       } else {
         await addUser(data);
-        toast.success("Usuari/a creat correctament");
+        toast.success("Treballador/a creat correctament");
       }
       setIsModalOpen(false);
     } catch (err) {
+      console.error(err);
       toast.error("Error al desar les dades");
     } finally {
       setIsSaving(false);
@@ -182,105 +210,209 @@ function UsersManager() {
     return (
       <div className="flex flex-col items-center justify-center p-20 gap-4">
         <Loader2 className="animate-spin text-brand-primary" size={40} />
-        <p className="text-slate-500 font-bold text-xs uppercase tracking-widest">Carregant usuaris...</p>
+        <p className="text-slate-500 font-bold text-xs uppercase tracking-widest">Carregant directori de personal...</p>
       </div>
     );
   }
 
+  const activeUsersCount = users.filter(u => u.active !== false).length;
+  const coordinatorsCount = users.filter(u => u.role === 'coordinacio' && u.active !== false).length;
+  const directorsCount = users.filter(u => u.role === 'direccio_area' && u.active !== false).length;
+  const financesCount = users.filter(u => u.role === 'finances' && u.active !== false).length;
+
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-          <input 
-            type="text" 
-            placeholder="Cerca usuari..." 
-            className="input-field input-search w-64 text-xs"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+    <div className="p-8 space-y-8">
+      {/* Resum de Cobertura Jeràrquica */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2">
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+            <Users size={14} className="text-brand-primary" /> Total Treballadors
+          </p>
+          <p className="text-2xl font-black text-white">{activeUsersCount} <span className="text-xs text-slate-500 font-normal">actius</span></p>
         </div>
+
+        <div className="p-5 rounded-2xl bg-amber-500/[0.03] border border-amber-500/20 space-y-2">
+          <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-2">
+            <ShieldCheck size={14} /> Nivell 2 · Coordinació
+          </p>
+          <p className="text-2xl font-black text-white">{coordinatorsCount} <span className="text-xs text-slate-500 font-normal">coordinadors</span></p>
+        </div>
+
+        <div className="p-5 rounded-2xl bg-orange-500/[0.03] border border-orange-500/20 space-y-2">
+          <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest flex items-center gap-2">
+            <ShieldCheck size={14} /> Nivell 3 · Direcció Àrea
+          </p>
+          <p className="text-2xl font-black text-white">{directorsCount} <span className="text-xs text-slate-500 font-normal">directors</span></p>
+        </div>
+
+        <div className="p-5 rounded-2xl bg-purple-500/[0.03] border border-purple-500/20 space-y-2">
+          <p className="text-[10px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-2">
+            <ShieldCheck size={14} /> Nivell 4 · Finances
+          </p>
+          <p className="text-2xl font-black text-white">{financesCount} <span className="text-xs text-slate-500 font-normal">responsables</span></p>
+        </div>
+      </div>
+
+      {/* Barra de controls i filtres */}
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-3 flex-1">
+          <div className="relative min-w-[200px] flex-1 max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+            <input 
+              type="text" 
+              placeholder="Cerca per nom o correu..." 
+              className="input-field input-search w-full text-xs pl-9"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <select
+              value={areaFilter}
+              onChange={(e) => setAreaFilter(e.target.value)}
+              className="input-field text-xs py-2"
+            >
+              <option value="all">Totes les Àrees</option>
+              {AREAS.map(a => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              className="input-field text-xs py-2"
+            >
+              <option value="all">Tots els Rols i Nivells</option>
+              {HIERARCHY_ROLES.map(r => (
+                <option key={r.key} value={r.key}>{r.shortLabel} ({r.label})</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         <button 
           onClick={() => { setSelectedUser(null); setIsModalOpen(true); }}
-          className="btn-primary flex items-center gap-2 text-xs font-black uppercase tracking-widest py-3"
+          className="btn-primary flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest py-3 px-5 shrink-0"
         >
           <Plus size={16} />
-          <span>Nou Usuari/a</span>
+          <span>Nou Treballador/a</span>
         </button>
       </div>
 
+      {/* Taula de Treballadors */}
       <div className="overflow-x-auto">
         <table className="w-full text-left">
           <thead>
             <tr className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-white/[0.05]">
-              <th className="pb-4">Nom i Correu</th>
-              <th className="pb-4">Àrea</th>
-              <th className="pb-4">Rol</th>
+              <th className="pb-4">Treballador/a</th>
+              <th className="pb-4">Àrea d'Adscripció</th>
+              <th className="pb-4">Jerarquia i Rol</th>
+              <th className="pb-4">Facultat en el Flux</th>
               <th className="pb-4 text-center">Estat</th>
               <th className="pb-4 text-right">Accions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/[0.02]">
-            {filteredUsers.map(u => (
-              <tr key={u.id} className="group">
-                <td className="py-4">
-                  <div className="text-xs font-bold text-white">{u.name}</div>
-                  <div className="text-[10px] text-slate-500">{u.email}</div>
-                </td>
-                <td className="py-4">
-                  <div className="text-xs text-slate-300 uppercase tracking-tighter">{u.areaId}</div>
-                </td>
-                <td className="py-4">
-                  <span className="text-[10px] font-black text-brand-primary uppercase tracking-widest">
-                    {ROLE_LABELS[u.role]}
-                  </span>
-                </td>
-                <td className="py-4 text-center">
-                  <span className={cn(
-                    "px-2 py-0.5 rounded text-[9px] font-black tracking-widest uppercase",
-                    u.active ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"
-                  )}>
-                    {u.active ? 'Actiu' : 'Inactiu'}
-                  </span>
-                </td>
-                <td className="py-4 text-right">
-                  <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button 
-                      onClick={() => { setSelectedUser(u); setIsModalOpen(true); }}
-                      className="p-2 hover:bg-white/5 rounded-lg text-slate-500 hover:text-brand-primary"
-                    >
-                      <Edit2 size={14} />
-                    </button>
-                    <button 
-                      onClick={async () => {
-                        if (confirm(`Estàs segur que vols eliminar ${u.name}?`)) {
-                          await deleteUser(u.id);
-                          toast.success("Usuari/a eliminat correctament");
-                        }
-                      }}
-                      className="p-2 hover:bg-white/5 rounded-lg text-slate-500 hover:text-red-500"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
+            {filteredUsers.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="py-12 text-center text-xs text-slate-500 font-bold">
+                  No s'han trobat treballadors amb els filtres seleccionats
                 </td>
               </tr>
-            ))}
+            ) : (
+              filteredUsers.map(u => {
+                const roleConfig = getHierarchyRole(u.role);
+                const areaName = getAreaName(u.areaId);
+
+                return (
+                  <tr key={u.id} className="group hover:bg-white/[0.01] transition-colors">
+                    <td className="py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center text-xs font-bold text-brand-primary">
+                          {(u.name || 'U').charAt(0)}
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-white group-hover:text-brand-primary transition-colors">{u.name}</div>
+                          <div className="text-[10px] text-slate-500">{u.email}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white/5 border border-white/5 text-slate-300">
+                        <Building2 size={12} className="text-brand-primary" />
+                        {areaName}
+                      </span>
+                    </td>
+                    <td className="py-4">
+                      <span className={cn(
+                        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black tracking-wide border",
+                        roleConfig.badgeColor
+                      )}>
+                        {roleConfig.shortLabel}
+                      </span>
+                    </td>
+                    <td className="py-4 max-w-xs">
+                      <p className="text-[10px] text-slate-400 line-clamp-1 italic">
+                        {roleConfig.description}
+                      </p>
+                    </td>
+                    <td className="py-4 text-center">
+                      <span className={cn(
+                        "px-2 py-0.5 rounded text-[9px] font-black tracking-widest uppercase",
+                        u.active !== false ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-red-500/10 text-red-400 border border-red-500/20"
+                      )}>
+                        {u.active !== false ? 'Actiu' : 'Inactiu'}
+                      </span>
+                    </td>
+                    <td className="py-4 text-right">
+                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={() => { setSelectedUser(u); setIsModalOpen(true); }}
+                          className="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-brand-primary transition-colors"
+                          title="Editar treballador/a"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button 
+                          onClick={async () => {
+                            if (confirm(`Estàs segur que vols eliminar el registre de ${u.name}?`)) {
+                              await deleteUser(u.id);
+                              toast.success("Treballador/a eliminat correctament");
+                            }
+                          }}
+                          className="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-red-400 transition-colors"
+                          title="Eliminar treballador/a"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
 
+      {/* Modal Crear / Editar Treballador/a */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-[#0f172a] border border-white/10 rounded-3xl w-full max-w-md overflow-hidden animate-in zoom-in duration-300 shadow-2xl">
+          <div className="bg-[#0f172a] border border-white/10 rounded-3xl w-full max-w-lg overflow-hidden animate-in zoom-in duration-300 shadow-2xl">
             <div className="p-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-              <h3 className="text-xs font-black text-white uppercase tracking-widest">
-                {selectedUser ? 'Editar Usuari/a' : 'Nou Usuari/a'}
-              </h3>
+              <div>
+                <h3 className="text-sm font-black text-white uppercase tracking-widest">
+                  {selectedUser ? 'Editar Treballador/a i Jerarquia' : 'Nou Treballador/a'}
+                </h3>
+                <p className="text-[10px] text-slate-500 mt-1">Assigna l'àrea i el rol d'autorització del circuit de compres</p>
+              </div>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-500 hover:text-white transition-colors">
                 <X size={20} />
               </button>
             </div>
+
             <form onSubmit={handleSubmit} className="p-8 space-y-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Nom Complet</label>
@@ -289,46 +421,107 @@ function UsersManager() {
                   defaultValue={selectedUser?.name} 
                   required 
                   className="input-field text-xs" 
-                  placeholder="Ex: Joan Pere" 
+                  placeholder="Ex: Marta Soler Vidal" 
                 />
               </div>
+
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Correu Electrònic</label>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Correu Electrònic Corporatiu</label>
                 <input 
                   name="email" 
                   type="email" 
                   defaultValue={selectedUser?.email} 
                   required 
                   className="input-field text-xs" 
-                  placeholder="nom@somllar.cat" 
+                  placeholder="msoler@somllar.cat" 
                 />
+                <p className="text-[9px] text-slate-500 italic">Només es permeten comptes del domini @somllar.cat</p>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Àrea</label>
-                  <select name="areaId" defaultValue={selectedUser?.areaId} className="input-field text-xs">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Àrea d'Adscripció</label>
+                  <select name="areaId" defaultValue={selectedUser?.areaId || 'social'} className="input-field text-xs">
                     {AREAS.map(area => (
                       <option key={area.id} value={area.id}>{area.name}</option>
                     ))}
                   </select>
                 </div>
+
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Rol</label>
-                  <select name="role" defaultValue={selectedUser?.role || 'tecnic'} className="input-field text-xs">
-                    {Object.entries(ROLE_LABELS).map(([key, label]) => (
-                      <option key={key} value={key}>{label}</option>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Nivell Jeràrquic / Rol</label>
+                  <select 
+                    name="role" 
+                    value={formRole}
+                    onChange={(e) => setFormRole(e.target.value)}
+                    className="input-field text-xs"
+                  >
+                    {HIERARCHY_ROLES.map(r => (
+                      <option key={r.key} value={r.key}>{r.shortLabel} - {r.label}</option>
                     ))}
                   </select>
                 </div>
               </div>
-              <button 
-                type="submit" 
-                disabled={isSaving}
-                className="w-full btn-primary py-4 text-xs font-black uppercase tracking-[0.2em] mt-4 flex items-center justify-center gap-3 shadow-lg shadow-brand-primary/20"
-              >
-                {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                <span>{selectedUser ? 'Guardar Canvis' : 'Crear Usuari/a'}</span>
-              </button>
+
+              {/* Informació explicativa del nivell seleccionat */}
+              {(() => {
+                const config = getHierarchyRole(formRole);
+                return (
+                  <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black text-brand-primary uppercase tracking-widest flex items-center gap-1.5">
+                        <Info size={12} /> Facultat d'Aprovació ({config.shortLabel})
+                      </span>
+                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">
+                        Àmbit: {config.scope === 'area' ? "Àrea d'adscripció" : "Global de Som Llar"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-300 leading-relaxed font-medium">
+                      {config.description}
+                    </p>
+                  </div>
+                );
+              })()}
+
+              <div className="pt-2 flex flex-col sm:flex-row gap-4 border-t border-white/5">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    name="active" 
+                    defaultChecked={selectedUser ? selectedUser.active !== false : true}
+                    className="w-4 h-4 rounded border-white/10 bg-white/5 text-brand-primary focus:ring-0" 
+                  />
+                  <span className="text-xs text-slate-300 font-bold">Compte Actiu</span>
+                </label>
+
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    name="notificationsEnabled" 
+                    defaultChecked={selectedUser ? selectedUser.notificationsEnabled !== false : true}
+                    className="w-4 h-4 rounded border-white/10 bg-white/5 text-brand-primary focus:ring-0" 
+                  />
+                  <span className="text-xs text-slate-300 font-bold">Rebre Notificacions per Correu</span>
+                </label>
+              </div>
+
+              <div className="flex gap-4 pt-2">
+                <button 
+                  type="button" 
+                  onClick={() => setIsModalOpen(false)}
+                  className="btn-secondary flex-1 py-3 text-xs font-black uppercase tracking-widest"
+                >
+                  Cancel·lar
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={isSaving}
+                  className="btn-primary flex-1 py-3 text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-brand-primary/20"
+                >
+                  {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  <span>{selectedUser ? 'Guardar Canvis' : 'Crear Treballador/a'}</span>
+                </button>
+              </div>
             </form>
           </div>
         </div>
@@ -586,17 +779,19 @@ function ImportsManager() {
               notificationsEnabled: (row['Notificacions'] || 'Si').toLowerCase() === 'si'
             });
           } else if (entityId === 'supplier') {
+            const rawStatus = (row['Estat'] || '').toLowerCase();
+            const validStatus = ['homologat', 'candidat', 'pendent_documentacio', 'en_revisio', 'bloquejat', 'baixa'].includes(rawStatus)
+              ? rawStatus as any
+              : (row['Homologat'] || 'Si').toLowerCase() === 'si' ? 'homologat' : 'candidat';
+
             await addSupplier({
               name: row['Nom'] || '',
               nif: row['NIF'] || '',
-              email: row['Email'] || '',
-              phone: row['Telèfon'] || '',
-              contactPerson: row['Persona de Contacte'] || '',
-              category: row['Categoria'] || '',
-              address: row['Adreça'] || '',
-              city: row['Ciutat'] || '',
-              status: row['Estat'] || 'Actiu',
-              isHomologated: (row['Homologat'] || 'Si').toLowerCase() === 'si'
+              category: row['Categoria'] || 'Serveis Generals',
+              status: validStatus,
+              rating: parseInt(row['Puntuació']) || 80,
+              criticality: ['baixa', 'mitjana', 'alta'].includes((row['Criticitat'] || '').toLowerCase()) ? (row['Criticitat'] || '').toLowerCase() as any : 'mitjana',
+              documents: []
             });
           } else if (entityId === 'center') {
             await addCenter({
@@ -605,7 +800,7 @@ function ImportsManager() {
               type: row['Tipus'] || '',
               address: row['Adreça'] || '',
               city: row['Ciutat'] || '',
-              areaId: (row['Àrea'] || 'social').toLowerCase(),
+              area: (row['Àrea'] || 'social').toLowerCase(),
               active: (row['Actiu'] || 'Si').toLowerCase() === 'si'
             });
           } else if (entityId === 'analyticCode') {
@@ -613,7 +808,7 @@ function ImportsManager() {
               code: row['Codi Analític'] || '',
               description: row['Descripció'] || '',
               projectId: row['Projecte'] || '',
-              areaId: (row['Àrea'] || 'admin').toLowerCase(),
+              area: (row['Àrea'] || 'admin').toLowerCase(),
               active: (row['Actiu'] || 'Si').toLowerCase() === 'si'
             });
           }
@@ -803,13 +998,13 @@ function SuperManager() {
       <section className="space-y-6">
         <div className="flex items-center justify-between">
           <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Codis Analítics</h4>
-          <button onClick={() => setEditingEntity({type: 'analyticCode', data: {name: '', code: '', active: true}})} className="btn-primary text-[9px] py-1.5 px-3">Nou Codi</button>
+          <button onClick={() => setEditingEntity({type: 'analyticCode', data: {description: '', code: '', projectId: '', area: 'social', active: true}})} className="btn-primary text-[9px] py-1.5 px-3">Nou Codi</button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {analyticCodes.map(ac => (
             <div key={ac.id} className="p-4 bg-white/[0.01] border border-white/5 rounded-2xl flex items-center justify-between group">
               <div>
-                <p className="text-xs font-bold text-white">{ac.name}</p>
+                <p className="text-xs font-bold text-white">{ac.description || ac.code}</p>
                 <p className="text-[10px] text-slate-500 uppercase font-black">{ac.code}</p>
               </div>
               <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -825,14 +1020,14 @@ function SuperManager() {
       <section className="space-y-6">
         <div className="flex items-center justify-between">
           <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Proveïdors Registrats</h4>
-          <button onClick={() => setEditingEntity({type: 'supplier', data: {name: '', cif: '', email: '', active: true}})} className="btn-primary text-[9px] py-1.5 px-3">Nou Proveïdor</button>
+          <button onClick={() => setEditingEntity({type: 'supplier', data: {name: '', nif: '', email: '', category: "Serveis Generals", status: 'candidat', rating: 80, criticality: 'mitjana', documents: []}})} className="btn-primary text-[9px] py-1.5 px-3">Nou Proveïdor</button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {suppliers.map(s => (
             <div key={s.id} className="p-4 bg-white/[0.01] border border-white/5 rounded-2xl flex items-center justify-between group">
               <div>
                 <p className="text-xs font-bold text-white">{s.name}</p>
-                <p className="text-[10px] text-slate-500 uppercase font-black">{s.cif}</p>
+                <p className="text-[10px] text-slate-500 uppercase font-black">{s.nif}</p>
               </div>
               <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button onClick={() => setEditingEntity({type: 'supplier', id: s.id, data: s})} className="p-2 hover:bg-white/5 rounded-lg text-slate-400"><Edit2 size={12}/></button>
@@ -885,20 +1080,20 @@ function SuperManager() {
               <input 
                 className="input-field w-full" 
                 placeholder="Nom / Descripció" 
-                value={editingEntity.data.name} 
-                onChange={e => setEditingEntity({...editingEntity, data: {...editingEntity.data, name: e.target.value}})}
+                value={editingEntity.data.description || editingEntity.data.name || ''} 
+                onChange={e => setEditingEntity({...editingEntity, data: {...editingEntity.data, name: e.target.value, description: e.target.value}})}
               />
               <input 
                 className="input-field w-full" 
                 placeholder="Codi" 
-                value={editingEntity.data.code} 
+                value={editingEntity.data.code || ''} 
                 onChange={e => setEditingEntity({...editingEntity, data: {...editingEntity.data, code: e.target.value}})}
               />
               {editingEntity.type === 'center' && (
                 <input 
                   className="input-field w-full" 
                   placeholder="Àrea" 
-                  value={editingEntity.data.area} 
+                  value={editingEntity.data.area || ''} 
                   onChange={e => setEditingEntity({...editingEntity, data: {...editingEntity.data, area: e.target.value}})}
                 />
               )}
@@ -906,14 +1101,14 @@ function SuperManager() {
                 <>
                   <input 
                     className="input-field w-full" 
-                    placeholder="CIF" 
-                    value={editingEntity.data.cif} 
-                    onChange={e => setEditingEntity({...editingEntity, data: {...editingEntity.data, cif: e.target.value}})}
+                    placeholder="NIF / CIF" 
+                    value={editingEntity.data.nif || editingEntity.data.cif || ''} 
+                    onChange={e => setEditingEntity({...editingEntity, data: {...editingEntity.data, nif: e.target.value, cif: e.target.value}})}
                   />
                   <input 
                     className="input-field w-full" 
                     placeholder="Correu Electrònic" 
-                    value={editingEntity.data.email} 
+                    value={editingEntity.data.email || ''} 
                     onChange={e => setEditingEntity({...editingEntity, data: {...editingEntity.data, email: e.target.value}})}
                   />
                 </>

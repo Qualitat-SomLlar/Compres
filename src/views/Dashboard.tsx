@@ -10,11 +10,13 @@ import {
   Clock, 
   Euro, 
   ArrowUpRight,
-  ShieldAlert
+  ShieldAlert,
+  Building
 } from 'lucide-react';
 import { CATEGORIES } from '../constants';
 import { cn } from '../lib/utils';
 import { useRequests } from '../hooks/useRequests';
+import { useSuppliers } from '../hooks/useSuppliers';
 
 const COLORS = ['#1e3a8a', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
@@ -49,11 +51,57 @@ const KpiCard = ({ title, value, icon: Icon, trend, colorClass, isAlert }: KpiCa
 
 export default function Dashboard() {
   const { requests, stats } = useRequests();
+  const { suppliers } = useSuppliers();
 
-  const statusData = React.useMemo(() => [
-    { name: 'Pendent', value: stats.pendingApprovals },
-    { name: 'Aprovades', value: stats.approvedCount },
-  ], [stats]);
+  const statusData = React.useMemo(() => {
+    const pendentsValidacio = requests.filter(r => 
+      ['pendent_coordinacio', 'pendent_direccio', 'pendent_finances'].includes(r.status)
+    ).length;
+
+    const aprovadesITramitacio = requests.filter(r => 
+      ['aprovada', 'comanda_emesa'].includes(r.status)
+    ).length;
+
+    const finalitzades = requests.filter(r => 
+      ['rebuda', 'tancada'].includes(r.status)
+    ).length;
+
+    const retornadesRebutjades = requests.filter(r => 
+      ['retornada', 'rebutjada', 'incidencia'].includes(r.status)
+    ).length;
+
+    const esborranys = requests.filter(r => 
+      r.status === 'esborrany'
+    ).length;
+
+    const result = [
+      { name: 'Pendents Validació', value: pendentsValidacio, color: '#f59e0b' },
+      { name: 'En Tramitació', value: aprovadesITramitacio, color: '#3b82f6' },
+      { name: 'Finalitzades', value: finalitzades, color: '#10b981' },
+      { name: 'Incidències / Rebutjades', value: retornadesRebutjades, color: '#ef4444' },
+      { name: 'Esborranys', value: esborranys, color: '#64748b' },
+    ].filter(item => item.value > 0);
+
+    return result.length > 0 ? result : [{ name: 'Sense sol·licituds', value: 1, color: '#334155' }];
+  }, [requests]);
+
+  const supplierStats = React.useMemo(() => {
+    const total = suppliers.length;
+    const homologats = suppliers.filter(s => s.status === 'homologat').length;
+    const percentHomologats = total > 0 ? Math.round((homologats / total) * 100) : 100;
+    
+    const rated = suppliers.filter(s => typeof s.rating === 'number' && s.rating > 0);
+    const avgRating = rated.length > 0
+      ? Math.round(rated.reduce((acc, s) => acc + s.rating, 0) / rated.length)
+      : (total > 0 ? 90 : 100);
+
+    return {
+      total,
+      homologats,
+      percentHomologats,
+      avgRating
+    };
+  }, [suppliers]);
 
   const categoryData = React.useMemo(() => {
     return CATEGORIES.map(cat => ({
@@ -143,7 +191,7 @@ export default function Dashboard() {
                   stroke="none"
                 >
                   {statusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell key={`cell-${index}`} fill={(entry as any).color || COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip 
@@ -156,22 +204,29 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Indicadors de Gestió de Proveïdors (SP2) */}
-      <h3 className="text-xl font-bold text-white pt-4">Indicadors de Qualitat (Proveïdors)</h3>
+      {/* Indicadors de Gestió de Proveïdors */}
+      <h3 className="text-xl font-bold text-white pt-4">Indicadors de Qualitat i Proveïdors</h3>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <KpiCard 
-          title="Fitxes Actualitzades" 
-          value="85%" 
+          title="Proveïdors Homologats" 
+          value={`${supplierStats.percentHomologats}%`} 
           icon={CheckCircle2} 
-          trend="Objectiu: 100%"
+          trend={`${supplierStats.homologats} de ${supplierStats.total} homologats`}
           colorClass="bg-emerald-500/10 text-emerald-500"
         />
         <KpiCard 
-          title="Satisfacció" 
-          value="92%" 
+          title="Qualitat i Satisfacció" 
+          value={`${supplierStats.avgRating}/100`} 
           icon={TrendingUp} 
-          trend="Objectiu: >85%"
+          trend="Avaluació mitjana"
           colorClass="bg-blue-500/10 text-blue-500"
+        />
+        <KpiCard 
+          title="Total Registrats" 
+          value={supplierStats.total} 
+          icon={Building} 
+          trend="Directori corporatiu"
+          colorClass="bg-purple-500/10 text-purple-500"
         />
       </div>
 
