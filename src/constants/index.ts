@@ -126,14 +126,26 @@ export const HIERARCHY_ROLES: HierarchyRoleConfig[] = [
   }
 ];
 
-export const getHierarchyRole = (roleKey: string): HierarchyRoleConfig => {
-  return HIERARCHY_ROLES.find(r => r.key === roleKey) || {
-    key: roleKey,
+export const getHierarchyRole = (roleKey?: string): HierarchyRoleConfig => {
+  const normKey = (roleKey || '').toLowerCase().trim();
+  const mappedKey = 
+    normKey === 'gerencia' ? 'gerencia' :
+    normKey === 'responsablearea' || normKey === 'direccio' || normKey === 'direccio_area' ? 'direccio_area' :
+    normKey === 'coordinacio' || normKey === 'coordinador' ? 'coordinacio' :
+    normKey === 'finances' || normKey === 'finanzas' || normKey === 'administracio' ? 'finances' :
+    normKey === 'admin' || normKey === 'superadmin' ? 'superadmin' :
+    normKey === 'admin_compres' ? 'admin_compres' :
+    normKey === 'comptabilitat' ? 'comptabilitat' :
+    normKey === 'tecnico' || normKey === 'tecnic' ? 'tecnic' :
+    normKey;
+
+  return HIERARCHY_ROLES.find(r => r.key === mappedKey) || {
+    key: roleKey || 'tecnic',
     level: 0,
-    label: ROLE_LABELS[roleKey] || roleKey,
-    shortLabel: ROLE_LABELS[roleKey] || roleKey,
+    label: ROLE_LABELS[mappedKey] || (roleKey ? (ROLE_LABELS[roleKey] || roleKey) : 'Treballador/a'),
+    shortLabel: ROLE_LABELS[mappedKey] || (roleKey ? (ROLE_LABELS[roleKey] || roleKey) : 'Treballador/a'),
     scope: 'global',
-    description: 'Rol personalitzat',
+    description: 'Rol assignat al treballador',
     badgeColor: 'bg-slate-500/10 text-slate-400 border-slate-500/20'
   };
 };

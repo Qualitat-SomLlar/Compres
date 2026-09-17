@@ -74,7 +74,39 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           }
 
           if (userDoc.exists()) {
-            userData = { id: firebaseUser.uid, ...userDoc.data() } as User;
+            const rawData = userDoc.data() as any;
+            const normalizeRole = (roleStr: any): UserRole => {
+              const r = String(roleStr || '').toLowerCase().trim();
+              if (r === 'gerencia') return 'gerencia';
+              if (r === 'responsablearea' || r === 'direccio' || r === 'direccio_area') return 'direccio_area';
+              if (r === 'coordinacio' || r === 'coordinador') return 'coordinacio';
+              if (r === 'finances' || r === 'finanzas' || r === 'administracio') return 'finances';
+              if (r === 'superadmin' || r === 'admin') return 'superadmin';
+              if (r === 'admin_compres') return 'admin_compres';
+              if (r === 'comptabilitat') return 'comptabilitat';
+              if (r === 'tecnico' || r === 'tecnic') return 'tecnic';
+              return (r as UserRole) || 'tecnic';
+            };
+
+            let calculatedRole = normalizeRole(rawData.role);
+            if (userEmail && SUPERADMIN_EMAILS.includes(userEmail)) {
+              calculatedRole = 'superadmin';
+            } else if (userEmail && ADMIN_EMAILS.includes(userEmail) && calculatedRole !== 'superadmin') {
+              calculatedRole = 'admin_compres';
+            }
+
+            const calculatedName = rawData.name || rawData.displayName || firebaseUser.displayName || (userEmail ? userEmail.split('@')[0] : '') || 'Usuari Som Llar';
+            const calculatedAreaId = rawData.areaId || (calculatedRole === 'gerencia' || calculatedRole === 'superadmin' || calculatedRole === 'finances' ? 'general' : 'social');
+
+            userData = {
+              id: firebaseUser.uid,
+              ...rawData,
+              name: calculatedName,
+              role: calculatedRole,
+              areaId: calculatedAreaId,
+              active: rawData.active !== false,
+              notificationsEnabled: rawData.notificationsEnabled !== false,
+            } as User;
             
             // Bloquejar accés si l'usuari està marcat com a inactiu
             if (userData.active === false) {
@@ -85,20 +117,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               return;
             }
 
-            // Forcem el rol d'admin si el correu coincideix
-            if (userEmail && SUPERADMIN_EMAILS.includes(userEmail) && userData.role !== 'superadmin') {
-              userData.role = 'superadmin';
+            // Si cal persistir dades netes a Firestore
+            if (rawData.role !== calculatedRole || !rawData.name || !rawData.areaId) {
               try {
-                await setDoc(doc(db, 'users', firebaseUser.uid), { role: 'superadmin' }, { merge: true });
+                await setDoc(doc(db, 'users', firebaseUser.uid), {
+                  name: calculatedName,
+                  role: calculatedRole,
+                  areaId: calculatedAreaId
+                }, { merge: true });
               } catch (setErr) {
-                console.warn("No s'ha pogut actualitzar el rol a Firestore:", setErr);
-              }
-            } else if (userEmail && ADMIN_EMAILS.includes(userEmail) && userData.role !== 'admin_compres' && userData.role !== 'superadmin') {
-              userData.role = 'admin_compres';
-              try {
-                await setDoc(doc(db, 'users', firebaseUser.uid), { role: 'admin_compres' }, { merge: true });
-              } catch (setErr) {
-                console.warn("No s'ha pogut actualitzar el rol a Firestore:", setErr);
+                console.warn("No s'ha pogut actualitzar el perfil normalitzat a Firestore:", setErr);
               }
             }
             

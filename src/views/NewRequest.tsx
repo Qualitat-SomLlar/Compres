@@ -241,10 +241,10 @@ export default function NewRequest({ user }: { user: User }) {
             <div className="space-y-3">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Introduïda per (Automàtic)</label>
               <div className="flex items-center gap-3 p-4 bg-white/5 border border-white/5 rounded-2xl">
-                <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-black text-slate-500">{user.name[0]}</div>
+                <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-black text-slate-500">{(user?.name || 'U')[0]}</div>
                 <div>
-                  <p className="text-xs font-bold text-slate-300">{user.name}</p>
-                  <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">{user.email}</p>
+                  <p className="text-xs font-bold text-slate-300">{user?.name || 'Usuari Som Llar'}</p>
+                  <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">{user?.email}</p>
                 </div>
               </div>
             </div>

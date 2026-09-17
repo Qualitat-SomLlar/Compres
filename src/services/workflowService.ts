@@ -32,12 +32,13 @@ export const workflowService = {
   /**
    * Check if a user has permission to approve/manage the request in its current state.
    */
-  canUserApprove(user: User, request: PurchaseRequest): boolean {
+  canUserApprove(user?: User, request?: PurchaseRequest): boolean {
+    if (!user || !request) return false;
     const { status } = request;
     const { role } = user;
 
-    // Admins and Superadmins can manage anything
-    if (role === 'admin_compres' || role === 'superadmin') return true;
+    // Admins, Superadmins and Gerència can manage anything
+    if (role === 'admin_compres' || role === 'superadmin' || role === 'gerencia') return true;
 
     switch (status) {
       case 'esborrany':
@@ -104,10 +105,10 @@ export const workflowService = {
     hasCover: boolean;
     levelNumber: number;
   } | null {
-    const activeUsers = allUsers.filter(u => u.active !== false);
-    const areaId = request.areaId;
+    const activeUsers = (allUsers || []).filter(u => u.active !== false);
+    const areaId = request?.areaId || 'social';
 
-    switch (request.status) {
+    switch (request?.status) {
       case 'pendent_coordinacio': {
         const matching = activeUsers.filter(u => u.role === 'coordinacio' && u.areaId === areaId);
         return {

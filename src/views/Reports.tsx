@@ -235,15 +235,15 @@ export default function Reports() {
                     {request.code || request.id}
                   </td>
                   <td className="px-8 py-6">
-                    <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{request.projectId}</div>
-                    <div className="text-xs font-bold text-white line-clamp-1">{request.itemDescription}</div>
+                    <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{request.projectId || 'Sense projecte'}</div>
+                    <div className="text-xs font-bold text-white line-clamp-1">{request.itemDescription || 'Sol·licitud de compra'}</div>
                   </td>
                   <td className="px-8 py-6">
-                    <div className="text-xs font-bold text-slate-300">{request.requestingTechnicianName}</div>
-                    <div className="text-[10px] text-slate-500 uppercase tracking-widest">{request.areaId}</div>
+                    <div className="text-xs font-bold text-slate-300">{request.requestingTechnicianName || 'Tècnic/a'}</div>
+                    <div className="text-[10px] text-slate-500 uppercase tracking-widest">{request.areaId ? request.areaId.toUpperCase() : 'SENSE ÀREA'}</div>
                   </td>
                   <td className="px-8 py-6">
-                    <span className="text-xs font-black text-white">{request.estimatedAmount.toLocaleString()} €</span>
+                    <span className="text-xs font-black text-white">{((request.finalAmount ?? request.estimatedAmount) || 0).toLocaleString()} €</span>
                   </td>
                   <td className="px-8 py-6">
                     <span className={cn(

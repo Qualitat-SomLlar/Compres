@@ -46,7 +46,7 @@ import { db } from '../lib/firebase';
 export default function RequestDetail({ user }: { user: User }) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getRequestById, updateRequest } = useRequests();
+  const { getRequestById, updateRequest, loading: loadingRequests } = useRequests();
   const { addNotification } = useNotifications();
   const { dispatchEmail } = useEmailDispatcher();
   const { users, getUsersByRole } = useUsers();
@@ -106,10 +106,24 @@ export default function RequestDetail({ user }: { user: User }) {
     return () => unsubQuotes();
   }, [request?.id]);
 
+  if (loadingRequests) {
+    return (
+      <div className="max-w-6xl mx-auto p-20 flex flex-col items-center justify-center gap-4 bg-brand-secondary rounded-3xl border border-white/5 animate-in fade-in">
+        <Loader2 size={36} className="animate-spin text-brand-primary" />
+        <p className="font-bold text-slate-400 text-xs tracking-widest uppercase">Carregant detalls de l'expedient...</p>
+      </div>
+    );
+  }
+
   if (!request) {
     return (
-      <div className="p-20 text-center font-black text-slate-500 uppercase tracking-widest bg-brand-secondary rounded-3xl border border-white/5">
-        No s'ha trobat la sol·licitud
+      <div className="max-w-6xl mx-auto p-20 text-center space-y-4 bg-brand-secondary rounded-3xl border border-white/5 animate-in fade-in">
+        <AlertCircle size={36} className="mx-auto text-amber-500" />
+        <h3 className="font-black text-white uppercase tracking-widest text-sm">No s'ha trobat la sol·licitud</h3>
+        <p className="text-xs text-slate-500 max-w-sm mx-auto">L'expedient sol·licitat no existeix o no està disponible.</p>
+        <button onClick={() => navigate('/compres')} className="btn-secondary text-xs uppercase px-4 py-2 mt-2">
+          Tornar a la llista d'expedients
+        </button>
       </div>
     );
   }
@@ -404,10 +418,10 @@ export default function RequestDetail({ user }: { user: User }) {
               <div className="absolute top-0 right-0 w-80 h-80 bg-brand-primary/5 blur-[100px] -mr-40 -mt-40 rounded-full"></div>
               <div className="flex flex-col md:flex-row justify-between items-start gap-8 relative z-10">
                 <div className="space-y-4">
-                  <h1 className="text-4xl font-black text-white tracking-tighter leading-tight max-w-lg">{request.itemDescription}</h1>
+                  <h1 className="text-4xl font-black text-white tracking-tighter leading-tight max-w-lg">{request.itemDescription || 'Sol·licitud de compra'}</h1>
                   <div className="flex flex-wrap gap-4">
                     <p className="text-slate-500 font-black uppercase text-[10px] tracking-[0.3em]">Codi: <span className="text-brand-primary">{request.code || request.id}</span></p>
-                    <p className="text-slate-500 font-black uppercase text-[10px] tracking-[0.3em]">Àrea: <span className="text-white">{request.areaId.toUpperCase()}</span></p>
+                    <p className="text-slate-500 font-black uppercase text-[10px] tracking-[0.3em]">Àrea: <span className="text-white">{request.areaId ? request.areaId.toUpperCase() : 'SENSE ÀREA'}</span></p>
                   </div>
                 </div>
                 <div className="text-left md:text-right shrink-0">
@@ -415,7 +429,7 @@ export default function RequestDetail({ user }: { user: User }) {
                     {request.finalAmount ? "Import Adjudicat" : "Import Estimat"}
                   </p>
                   <p className="text-5xl md:text-6xl font-black text-white tracking-tighter">
-                    {(request.finalAmount || request.estimatedAmount).toLocaleString()} <span className="text-3xl text-brand-primary/50">€</span>
+                    {((request.finalAmount ?? request.estimatedAmount) || 0).toLocaleString()} <span className="text-3xl text-brand-primary/50">€</span>
                   </p>
                   {request.supplierName && (
                     <div className="flex items-center md:justify-end gap-2 mt-2">
@@ -433,8 +447,8 @@ export default function RequestDetail({ user }: { user: User }) {
                   <Building2 size={14} className="text-brand-primary" /> Imputació Contable
                 </p>
                 <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
-                   <p className="text-sm font-bold text-slate-200">{request.projectId}</p>
-                   <p className="text-xs font-black text-brand-primary mt-1 tracking-widest">{request.analyticCode}</p>
+                   <p className="text-sm font-bold text-slate-200">{request.projectId || 'Sense projecte assignat'}</p>
+                   <p className="text-xs font-black text-brand-primary mt-1 tracking-widest">{request.analyticCode || 'Sense codi analític'}</p>
                 </div>
               </div>
               <div className="space-y-3">
@@ -442,7 +456,7 @@ export default function RequestDetail({ user }: { user: User }) {
                   <Calendar size={14} className="text-brand-primary" /> Horitzó Temporal
                 </p>
                 <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
-                  <p className="text-sm font-bold text-slate-200">{new Date(request.deadline).toLocaleDateString('ca-ES')}</p>
+                  <p className="text-sm font-bold text-slate-200">{request.deadline ? new Date(request.deadline).toLocaleDateString('ca-ES') : 'Sense data límit'}</p>
                   <p className="text-[10px] text-slate-500 font-black uppercase mt-1 tracking-tighter">Data límit desitjada</p>
                 </div>
               </div>
@@ -453,14 +467,14 @@ export default function RequestDetail({ user }: { user: User }) {
                   <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-3 flex items-center gap-2">
                     <UserIcon size={12} /> Tècnic/a sol·licitant
                   </p>
-                  <p className="text-xs font-bold text-white tracking-tight">{request.requestingTechnicianName}</p>
-                  <p className="text-[10px] text-slate-500 font-medium">{request.requestingTechnicianEmail}</p>
+                  <p className="text-xs font-bold text-white tracking-tight">{request.requestingTechnicianName || 'No assignat'}</p>
+                  <p className="text-[10px] text-slate-500 font-medium">{request.requestingTechnicianEmail || 'N/A'}</p>
                 </div>
                 <div className="p-5 rounded-2xl bg-[#0b0f19] border border-white/5">
                   <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-3 flex items-center gap-2">
                     <History size={12} /> Registrat al sistema per
                   </p>
-                  <p className="text-xs font-bold text-slate-300 tracking-tight">{request.createdByUserName}</p>
+                  <p className="text-xs font-bold text-slate-300 tracking-tight">{request.createdByUserName || 'Usuari'}</p>
                   <p className="text-[10px] text-slate-500 font-medium">{request.createdByUserEmail || 'N/A'}</p>
                 </div>
               </div>
@@ -468,7 +482,7 @@ export default function RequestDetail({ user }: { user: User }) {
               <div className="col-span-full space-y-4 pt-10 border-t border-white/[0.05]">
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Memòria Justificativa</p>
                 <div className="relative p-6 bg-white/[0.01] rounded-3xl border border-white/[0.03]">
-                  <p className="text-sm text-slate-400 leading-relaxed italic">"{request.justification}"</p>
+                  <p className="text-sm text-slate-400 leading-relaxed italic">{request.justification ? `"${request.justification}"` : 'Sense memòria justificativa especificada.'}</p>
                 </div>
               </div>
             </div>
@@ -592,7 +606,7 @@ export default function RequestDetail({ user }: { user: User }) {
                             </div>
                           </td>
                           <td className="py-6 px-4 text-center font-black text-white text-base">
-                            {q.amount.toLocaleString()} €
+                            {((q.amount) || 0).toLocaleString()} €
                           </td>
                           <td className="py-6 px-4 text-center font-bold text-slate-400">
                             <span className={cn(
@@ -690,8 +704,8 @@ export default function RequestDetail({ user }: { user: User }) {
               <TimelineStep 
                 title="Sol·licitud" 
                 status="completed" 
-                role={request.requestingTechnicianName} 
-                date={new Date(request.createdAt).toLocaleDateString('ca-ES')}
+                role={request.requestingTechnicianName || 'Tècnic/a sol·licitant'} 
+                date={request.createdAt ? new Date(request.createdAt).toLocaleDateString('ca-ES') : 'Recent'}
               />
             </div>
           </div>
@@ -750,10 +764,10 @@ export default function RequestDetail({ user }: { user: User }) {
                                 "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black uppercase shrink-0",
                                 isMe ? "bg-brand-primary text-black" : "bg-slate-800 text-slate-300"
                               )}>
-                                {approver.name.charAt(0)}
+                                {(approver.name || 'U').charAt(0)}
                               </div>
                               <div className="min-w-0">
-                                <p className="text-xs truncate">{approver.name} {isMe && <span className="text-brand-primary text-[10px] ml-1 font-black">(Tu)</span>}</p>
+                                <p className="text-xs truncate">{approver.name || 'Usuari'} {isMe && <span className="text-brand-primary text-[10px] ml-1 font-black">(Tu)</span>}</p>
                                 <p className="text-[9px] text-slate-500 truncate">{approver.email}</p>
                               </div>
                             </div>
@@ -773,7 +787,7 @@ export default function RequestDetail({ user }: { user: User }) {
                     <div>
                       <p className="font-bold text-[11px]">Sense treballador assignat</p>
                       <p className="text-[10px] text-amber-200/80 mt-0.5 leading-relaxed">
-                        No hi ha cap treballador actiu amb el rol "{eligibleApprovers.roleName}" assignat a l'àrea {getAreaName(request.areaId)}. Cal donar d'alta o assignar aquest càrrec des del panell d'Administració.
+                        No hi ha cap treballador actiu amb el rol "{eligibleApprovers.roleName}" assignat a l'àrea {getAreaName(request.areaId || 'social')}. Cal donar d'alta o assignar aquest càrrec des del panell d'Administració.
                       </p>
                     </div>
                   </div>

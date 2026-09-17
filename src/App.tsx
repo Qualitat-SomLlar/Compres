@@ -48,7 +48,7 @@ const SidebarItem = ({ to, icon: Icon, label, active, onClick }: { to: string, i
 );
 
 const ProtectedAdminRoute = ({ user, children }: { user: User, children: React.ReactNode }) => {
-  if (user.role !== 'admin_compres' && user.role !== 'superadmin') {
+  if (user.role !== 'admin_compres' && user.role !== 'superadmin' && user.role !== 'gerencia') {
     return <Navigate to="/" replace />;
   }
   return <>{children}</>;
@@ -105,7 +105,7 @@ const AppLayout = ({ children, user }: { children: React.ReactNode, user: User }
             <SidebarItem to="/proveidors" icon={Users} label="Proveïdors" active={location.pathname.startsWith('/proveidors')} onClick={handleNavClick} />
             <SidebarItem to="/informes" icon={FileText} label="Informes" active={location.pathname === '/informes'} onClick={handleNavClick} />
             
-            {(user.role === 'admin_compres' || user.role === 'superadmin') && (
+            {(user.role === 'admin_compres' || user.role === 'superadmin' || user.role === 'gerencia') && (
               <div className="pt-6 pb-2">
                 <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest px-4 mb-2">SISTEMA</p>
                 <SidebarItem to="/admin" icon={Settings} label="Administració" active={location.pathname.startsWith('/admin')} onClick={handleNavClick} />
@@ -120,11 +120,11 @@ const AppLayout = ({ children, user }: { children: React.ReactNode, user: User }
             >
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-xs font-bold text-white uppercase shadow-lg shadow-blue-500/20 ring-2 ring-white/10 group-hover:ring-brand-primary/50 transition-all">
-                  {user.name.charAt(0)}
+                  {(user?.name || 'U').charAt(0)}
                 </div>
                 <div className="overflow-hidden">
-                  <p className="text-sm font-semibold text-white truncate">{user.name}</p>
-                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">{user.role.replace('_', ' ')}</p>
+                  <p className="text-sm font-semibold text-white truncate">{user?.name || 'Usuari Som Llar'}</p>
+                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">{(user?.role || 'tecnic').replace('_', ' ')}</p>
                 </div>
               </div>
               <button onClick={(e) => { e.stopPropagation(); logout(); }} className="w-full flex items-center gap-2 justify-center py-2 text-xs font-medium text-slate-500 hover:text-white transition-colors border-t border-white/5 mt-2">
@@ -150,11 +150,11 @@ const AppLayout = ({ children, user }: { children: React.ReactNode, user: User }
             <div className="px-10 pb-10 -mt-16 space-y-8">
               <div className="flex flex-col items-center text-center space-y-4">
                 <div className="w-32 h-32 rounded-[2rem] bg-brand-primary flex items-center justify-center text-4xl font-black text-white shadow-2xl ring-4 ring-[#151c2c]">
-                  {user.name.charAt(0)}
+                  {(user?.name || 'U').charAt(0)}
                 </div>
                 <div>
-                  <h3 className="text-2xl font-black text-white tracking-tight">{user.name}</h3>
-                  <p className="text-xs font-black text-brand-primary uppercase tracking-[0.2em]">{user.role.replace('_', ' ')}</p>
+                  <h3 className="text-2xl font-black text-white tracking-tight">{user?.name || 'Usuari Som Llar'}</h3>
+                  <p className="text-xs font-black text-brand-primary uppercase tracking-[0.2em]">{(user?.role || 'tecnic').replace('_', ' ')}</p>
                 </div>
               </div>
 

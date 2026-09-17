@@ -442,7 +442,7 @@ export default function RequestsList({ user: propUser }: RequestsListProps) {
                     {/* Import */}
                     <td className="px-6 py-5">
                       <div className="text-sm font-black text-white tracking-tighter">
-                        {(request.finalAmount || request.estimatedAmount).toLocaleString()} <span className="text-slate-600 font-black text-[10px]">€</span>
+                        {((request.finalAmount ?? request.estimatedAmount) || 0).toLocaleString()} <span className="text-slate-600 font-black text-[10px]">€</span>
                       </div>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-[8px] text-slate-500 font-bold uppercase">
