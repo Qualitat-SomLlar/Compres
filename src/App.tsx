@@ -236,7 +236,7 @@ export default function App() {
 }
 
 function AppContent() {
-  const { user, loading, loginWithMicrosoft } = useAuth();
+  const { user, loading, loginWithMicrosoft, loginWithMicrosoftRedirect } = useAuth();
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-brand-secondary text-brand-primary">Carregant...</div>;
@@ -259,14 +259,23 @@ function AppContent() {
           </div>
         </div>
         
-        <button onClick={() => loginWithMicrosoft()} className="btn-primary flex items-center gap-3 py-4 px-10 text-sm font-black uppercase mt-4 shadow-2xl shadow-brand-primary/20">
-          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M11.4 24H0V12.6H11.4V24ZM24 24H12.6V12.6H24V24ZM11.4 11.4H0V0H11.4V11.4ZM24 11.4H12.6V0H24V11.4Z" fill="currentColor"/>
-          </svg>
-          Iniciar sessió amb Microsoft
-        </button>
+        <div className="flex flex-col items-center gap-3 mt-4">
+          <button onClick={() => loginWithMicrosoft()} className="btn-primary flex items-center gap-3 py-4 px-10 text-sm font-black uppercase shadow-2xl shadow-brand-primary/20 hover:scale-[1.02] transition-transform">
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M11.4 24H0V12.6H11.4V24ZM24 24H12.6V12.6H24V24ZM11.4 11.4H0V0H11.4V11.4ZM24 11.4H12.6V0H24V11.4Z" fill="currentColor"/>
+            </svg>
+            Iniciar sessió amb Microsoft
+          </button>
+          
+          <button 
+            onClick={() => loginWithMicrosoftRedirect()} 
+            className="text-xs text-slate-400 hover:text-white transition-colors underline py-1"
+          >
+            Problemes amb la finestra emergent? Iniciar amb redirecció completa
+          </button>
+        </div>
         
-        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-8">
+        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-6">
           Accés exclusiu amb correu corporatiu (@somllar.cat)
         </p>
       </div>

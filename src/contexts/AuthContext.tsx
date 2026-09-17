@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db } from '../lib/firebase';
-import { onAuthStateChanged, User as FirebaseUser, signInWithPopup, OAuthProvider } from 'firebase/auth';
+import { onAuthStateChanged, User as FirebaseUser, signInWithPopup, signInWithRedirect, getRedirectResult, OAuthProvider } from 'firebase/auth';
 import { doc, getDoc, setDoc, query, where, collection, getDocs, deleteDoc } from 'firebase/firestore';
 import { User, UserRole } from '../types';
 import toast from 'react-hot-toast';
@@ -9,6 +9,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   loginWithMicrosoft: () => Promise<void>;
+  loginWithMicrosoftRedirect: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -16,6 +17,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   loginWithMicrosoft: async () => {},
+  loginWithMicrosoftRedirect: async () => {},
   logout: async () => {}
 });
 
@@ -134,16 +136,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(false);
     });
 
+    // Comprovar si retornem d'una redirecció de login
+    getRedirectResult(auth).catch((error: any) => {
+      if (error && error.code !== 'auth/null-user') {
+        console.error("Error retornant de la redirecció de Microsoft:", error);
+        toast.error(`Error en retornar de Microsoft: ${error?.message || error?.code}`);
+      }
+    });
+
     return unsubscribe;
   }, []);
 
-  // Login amb Microsoft
+  // Login amb Microsoft mitjançant finestra emergent (Popup)
   const loginWithMicrosoft = async () => {
     setLoading(true);
     try {
       const provider = new OAuthProvider('microsoft.com');
       provider.setCustomParameters({
-        tenant: '717c4e82-3759-464a-b048-b986492de4d6'
+        tenant: '717c4e82-3759-464a-b048-b986492de4d6',
+        prompt: 'select_account'
       });
       await signInWithPopup(auth, provider);
       // onAuthStateChanged s'encarrega de crear o actualitzar l'usuari a Firestore
@@ -153,15 +164,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       const errorCode = error?.code || '';
       if (errorCode === 'auth/unauthorized-domain') {
-        toast.error("Domini no autoritzat a Firebase: Cal afegir el domini d'aquest web (a Vercel o hosting) a 'Authentication > Settings > Authorized domains' a la consola de Firebase.", { duration: 9000 });
+        toast.error("Domini no autoritzat a Firebase: Cal afegir el domini d'aquest web a 'Authentication > Settings > Authorized domains' a la consola de Firebase.", { duration: 9000 });
       } else if (errorCode === 'auth/popup-blocked') {
-        toast.error("El navegador ha bloquejat la finestra emergent. Si us plau, activa les finestres emergents per a aquest lloc.", { duration: 7000 });
+        toast.error("El navegador ha bloquejat la finestra emergent. Si us plau, activa les finestres emergents o utilitza la redirecció.", { duration: 7000 });
       } else if (errorCode === 'auth/popup-closed-by-user') {
-        toast("Inici de sessió cancel·lat.", { icon: 'ℹ️', duration: 4000 });
+        toast.error("La finestra emergent s'ha tancat. Si s'ha tancat sola abans de carregar, cal afegir el domini a 'Dominios autorizados' de Firebase Console o provar l'opció de redirecció.", { duration: 9000 });
       } else if (errorCode === 'auth/operation-not-allowed') {
         toast.error("El proveïdor Microsoft no està habilitat a Firebase Console (Authentication > Sign-in method).", { duration: 9000 });
       } else {
         toast.error(`Error en iniciar sessió: ${error?.message || errorCode || 'Error desconegut'}`, { duration: 7000 });
+      }
+    }
+  };
+
+  // Login amb Microsoft mitjançant redirecció completa (sense popup)
+  const loginWithMicrosoftRedirect = async () => {
+    setLoading(true);
+    try {
+      const provider = new OAuthProvider('microsoft.com');
+      provider.setCustomParameters({
+        tenant: '717c4e82-3759-464a-b048-b986492de4d6',
+        prompt: 'select_account'
+      });
+      await signInWithRedirect(auth, provider);
+    } catch (error: any) {
+      console.error("Error en la redirecció amb Microsoft:", error);
+      setLoading(false);
+      const errorCode = error?.code || '';
+      if (errorCode === 'auth/unauthorized-domain') {
+        toast.error("Domini no autoritzat a Firebase: Cal afegir aquest domini a 'Dominios autorizados' a Firebase Console.", { duration: 9000 });
+      } else {
+        toast.error(`Error en iniciar redirecció: ${error?.message || errorCode}`, { duration: 7000 });
       }
     }
   };
@@ -171,7 +204,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginWithMicrosoft, logout }}>
+    <AuthContext.Provider value={{ user, loading, loginWithMicrosoft, loginWithMicrosoftRedirect, logout }}>
       {!loading && children}
     </AuthContext.Provider>
   );
