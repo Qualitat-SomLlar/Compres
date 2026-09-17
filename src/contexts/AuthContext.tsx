@@ -34,7 +34,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          const userEmail = (firebaseUser.email || '').toLowerCase().trim();
+          const userEmail = (firebaseUser.email || firebaseUser.providerData?.[0]?.email || '').toLowerCase().trim();
 
           // Restricció estricta de domini corporatiu @somllar.cat
           if (!userEmail.endsWith('@somllar.cat')) {
@@ -86,14 +86,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             }
 
             // Forcem el rol d'admin si el correu coincideix
-            if (firebaseUser.email && SUPERADMIN_EMAILS.includes(firebaseUser.email) && userData.role !== 'superadmin') {
+            if (userEmail && SUPERADMIN_EMAILS.includes(userEmail) && userData.role !== 'superadmin') {
               userData.role = 'superadmin';
               try {
                 await setDoc(doc(db, 'users', firebaseUser.uid), { role: 'superadmin' }, { merge: true });
               } catch (setErr) {
                 console.warn("No s'ha pogut actualitzar el rol a Firestore:", setErr);
               }
-            } else if (firebaseUser.email && ADMIN_EMAILS.includes(firebaseUser.email) && userData.role !== 'admin_compres' && userData.role !== 'superadmin') {
+            } else if (userEmail && ADMIN_EMAILS.includes(userEmail) && userData.role !== 'admin_compres' && userData.role !== 'superadmin') {
               userData.role = 'admin_compres';
               try {
                 await setDoc(doc(db, 'users', firebaseUser.uid), { role: 'admin_compres' }, { merge: true });
@@ -127,8 +127,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           }
         } catch (error: any) {
           console.error("Error al carregar l'usuari des de Firestore:", error);
-          toast.error(`Error en carregar les dades de l'usuari: ${error?.message || 'Error de connexió a Firestore'}`);
-          setUser(null);
+          // Fallback segur: crear sessió en memòria perquè l'usuari validat per Microsoft mai es quedi congelat a 'Carregant...'
+          const fallbackEmail = (firebaseUser.email || firebaseUser.providerData?.[0]?.email || '').toLowerCase().trim();
+          const isSuperAdmin = SUPERADMIN_EMAILS.includes(fallbackEmail);
+          const fallbackUser: User = {
+            id: firebaseUser.uid,
+            name: firebaseUser.displayName || 'Usuari Som Llar',
+            email: fallbackEmail,
+            role: isSuperAdmin ? 'superadmin' : 'tecnic',
+            areaId: 'social',
+            active: true,
+            notificationsEnabled: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          setUser(fallbackUser);
+          toast.error(`Connexió directa: no s'ha pogut sincronitzar el perfil complet des de la base de dades (${error?.message || 'timeout'}).`);
         }
       } else {
         setUser(null);

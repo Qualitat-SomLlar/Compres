@@ -27,9 +27,11 @@ for (const key of requiredConfigKeys) {
   }
 }
 
+export const FIRESTORE_DATABASE_ID = import.meta.env.VITE_FIREBASE_DATABASE_ID || "ai-studio-compras-48fb283c-38cf-405c-ac81-04f31b00f68b";
+
 export const app = initializeApp(firebaseConfig);
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
-});
+}, FIRESTORE_DATABASE_ID);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
