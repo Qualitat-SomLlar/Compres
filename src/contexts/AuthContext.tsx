@@ -86,10 +86,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             // Forcem el rol d'admin si el correu coincideix
             if (firebaseUser.email && SUPERADMIN_EMAILS.includes(firebaseUser.email) && userData.role !== 'superadmin') {
               userData.role = 'superadmin';
-              await setDoc(doc(db, 'users', firebaseUser.uid), { role: 'superadmin' }, { merge: true });
+              try {
+                await setDoc(doc(db, 'users', firebaseUser.uid), { role: 'superadmin' }, { merge: true });
+              } catch (setErr) {
+                console.warn("No s'ha pogut actualitzar el rol a Firestore:", setErr);
+              }
             } else if (firebaseUser.email && ADMIN_EMAILS.includes(firebaseUser.email) && userData.role !== 'admin_compres' && userData.role !== 'superadmin') {
               userData.role = 'admin_compres';
-              await setDoc(doc(db, 'users', firebaseUser.uid), { role: 'admin_compres' }, { merge: true });
+              try {
+                await setDoc(doc(db, 'users', firebaseUser.uid), { role: 'admin_compres' }, { merge: true });
+              } catch (setErr) {
+                console.warn("No s'ha pogut actualitzar el rol a Firestore:", setErr);
+              }
             }
             
             setUser(userData);
@@ -108,11 +116,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString()
             };
-            await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
+            try {
+              await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
+            } catch (createErr) {
+              console.warn("No s'ha pogut crear el document d'usuari a Firestore:", createErr);
+            }
             setUser(newUser);
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error("Error al carregar l'usuari des de Firestore:", error);
+          toast.error(`Error en carregar les dades de l'usuari: ${error?.message || 'Error de connexió a Firestore'}`);
           setUser(null);
         }
       } else {
@@ -133,10 +146,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         tenant: '717c4e82-3759-464a-b048-b986492de4d6'
       });
       await signInWithPopup(auth, provider);
-      // No fem cap setDoc aquí, onAuthStateChanged s'encarrega de crear o actualitzar l'usuari a Firestore
-    } catch (error) {
+      // onAuthStateChanged s'encarrega de crear o actualitzar l'usuari a Firestore
+    } catch (error: any) {
       console.error("Error en el login amb Microsoft:", error);
       setLoading(false);
+
+      const errorCode = error?.code || '';
+      if (errorCode === 'auth/unauthorized-domain') {
+        toast.error("Domini no autoritzat a Firebase: Cal afegir el domini d'aquest web (a Vercel o hosting) a 'Authentication > Settings > Authorized domains' a la consola de Firebase.", { duration: 9000 });
+      } else if (errorCode === 'auth/popup-blocked') {
+        toast.error("El navegador ha bloquejat la finestra emergent. Si us plau, activa les finestres emergents per a aquest lloc.", { duration: 7000 });
+      } else if (errorCode === 'auth/popup-closed-by-user') {
+        toast("Inici de sessió cancel·lat.", { icon: 'ℹ️', duration: 4000 });
+      } else if (errorCode === 'auth/operation-not-allowed') {
+        toast.error("El proveïdor Microsoft no està habilitat a Firebase Console (Authentication > Sign-in method).", { duration: 9000 });
+      } else {
+        toast.error(`Error en iniciar sessió: ${error?.message || errorCode || 'Error desconegut'}`, { duration: 7000 });
+      }
     }
   };
 

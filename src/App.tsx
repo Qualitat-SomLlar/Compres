@@ -213,6 +213,14 @@ const AppLayout = ({ children, user }: { children: React.ReactNode, user: User }
           {children}
         </div>
       </main>
+    </div>
+  );
+};
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
       <Toaster 
         position="bottom-right" 
         toastOptions={{
@@ -223,14 +231,6 @@ const AppLayout = ({ children, user }: { children: React.ReactNode, user: User }
           }
         }}
       />
-    </div>
-  );
-};
-
-export default function App() {
-  return (
-    <AuthProvider>
-      <AppContent />
     </AuthProvider>
   );
 }
