@@ -194,7 +194,8 @@ export const NOTIFICATION_EVENTS = [
   { id: 'validada_direccio', name: 'Validada per direcció d\'àrea' },
   { id: 'enviada_finances', name: 'Enviada a finances' },
   { id: 'compra_aprovada', name: 'Compra aprovada' },
-  { id: 'compra_tramitada', name: 'Compra tramitada' },
+  { id: 'compra_tramitada', name: 'Compra tramitada / Comanda emesa' },
+  { id: 'compra_rebuda', name: 'Compra rebuda / Comanda entregada' },
   { id: 'incidencia', name: 'Incidència' },
   { id: 'compra_tancada', name: 'Compra tancada' }
 ];

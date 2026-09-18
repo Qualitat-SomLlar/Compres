@@ -2,55 +2,174 @@ import { useNotificationSettings } from './useNotificationSettings';
 import { useUsers } from './useUsers';
 import { emailService } from '../services/emailService';
 import { PurchaseRequest, RequestStatus } from '../types';
+import { normalizeAreaId } from '../constants';
 
 export function useEmailDispatcher() {
   const { settings } = useNotificationSettings();
   const { users } = useUsers();
 
-  const dispatchEmail = async (eventKey: string, request: PurchaseRequest) => {
+  const dispatchEmail = async (
+    eventKey: string, 
+    request: PurchaseRequest,
+    extra?: { comment?: string; previousStatus?: RequestStatus }
+  ) => {
     const setting = settings.find(s => s.eventKey === eventKey);
     
-    if (!setting || !setting.enabled) {
-      console.log(`🔕 Notificacions desactivades per a l'esdeveniment: ${eventKey}`);
+    // Si la configuració està explícitament desactivada a notificationSettings (i existeix)
+    if (setting && !setting.enabled) {
+      console.log(`🔕 Notificacions desactivades a la configuració per: ${eventKey}`);
       return;
     }
 
-    const recipients = new Set<string>();
+    const normArea = normalizeAreaId(request.areaId);
 
-    // 1. Afegir correus per rols (Contextuals a la sol·licitud)
-    if (setting.recipientRoles && setting.recipientRoles.length > 0) {
+    // 1. Identificar els correus del sol·licitant / creador de la compra
+    const requesterEmails = new Set<string>();
+    if (request.createdByUserEmail) requesterEmails.add(request.createdByUserEmail.toLowerCase().trim());
+    if (request.requestingTechnicianEmail) requesterEmails.add(request.requestingTechnicianEmail.toLowerCase().trim());
+    
+    // Assegurar que no estiguin desactivats
+    const validRequesterEmails = Array.from(requesterEmails).filter(email => {
+      const u = users.find(user => user.email.toLowerCase() === email);
+      return !u || u.active !== false;
+    });
+
+    // 2. Destinataris addicionals configurats per rol o llista directa
+    const additionalRecipients = new Set<string>();
+    if (setting?.recipientRoles && setting.recipientRoles.length > 0) {
       setting.recipientRoles.forEach(role => {
-        if (role === 'tecnic') {
-          // El tècnic que ha creat la sol·licitud
-          const creator = users.find(u => u.email === request.createdByUserEmail);
-          if (creator && creator.active !== false) recipients.add(creator.email);
-          // I el tècnic sol·licitant si és diferent i està actiu
-          const techUser = users.find(u => u.id === request.requestingTechnicianId);
-          if (techUser?.email && techUser.active !== false) recipients.add(techUser.email);
-        } else if (role === 'coordinacio' || role === 'direccio_area') {
-          // Aquests rols s'han de filtrar per l'ÀREA de la sol·licitud i estar actius
-          const areaUsers = users.filter(u => u.role === role && u.areaId === request.areaId && u.active !== false);
-          areaUsers.forEach(u => recipients.add(u.email));
+        if (role === 'coordinacio' || role === 'direccio_area') {
+          const areaUsers = users.filter(u => 
+            (u.role === role || (role === 'coordinacio' && u.hierarchyLevel === 2) || (role === 'direccio_area' && u.hierarchyLevel === 3)) &&
+            normalizeAreaId(u.areaId) === normArea &&
+            u.active !== false
+          );
+          areaUsers.forEach(u => additionalRecipients.add(u.email));
         } else {
-          // Rols globals (finances, admin_compres, etc.) que reben de totes les àrees i estan actius
-          const globalUsers = users.filter(u => u.role === role && u.active !== false);
-          globalUsers.forEach(u => recipients.add(u.email));
+          const globalUsers = users.filter(u => 
+            (u.role === role || (role === 'finances' && u.hierarchyLevel === 4) || (role === 'admin_compres' && u.hierarchyLevel === 5)) &&
+            u.active !== false
+          );
+          globalUsers.forEach(u => additionalRecipients.add(u.email));
         }
       });
     }
 
-    // 2. Afegir correus addicionals
-    if (setting.recipientEmails && setting.recipientEmails.length > 0) {
-      setting.recipientEmails.forEach(email => recipients.add(email));
+    if (setting?.recipientEmails && setting.recipientEmails.length > 0) {
+      setting.recipientEmails.forEach(email => additionalRecipients.add(email));
     }
 
-    // 3. Enviar a tots
-    const sendPromises = Array.from(recipients).map(email => 
-      emailService.sendApprovalNotification(request, email, request.status)
-    );
+    const sendPromises: Promise<void>[] = [];
+
+    // CAS A: Sol·licitud pendent d'aprovació (per a Coordinació, Direcció d'Àrea o Finances)
+    if (eventKey === 'solicitud_creada' || request.status === 'pendent_coordinacio') {
+      // Notificar a la Coordinació (N2) de l'àrea
+      const coordinators = users.filter(u => 
+        (u.hierarchyLevel === 2 || u.role === 'coordinacio') && 
+        normalizeAreaId(u.areaId) === normArea && 
+        u.active !== false
+      );
+      
+      const approverEmails = new Set<string>(coordinators.map(c => c.email));
+      additionalRecipients.forEach(e => approverEmails.add(e));
+
+      approverEmails.forEach(email => {
+        sendPromises.push(
+          emailService.sendPendingApprovalNotification(request, email, "Coordinació d'Àrea (N2)")
+        );
+      });
+
+      // Confirmació també per al sol·licitant que s'ha creat la demanda
+      validRequesterEmails.forEach(email => {
+        sendPromises.push(
+          emailService.sendStatusUpdateNotification(
+            request, 
+            email, 
+            request.status, 
+            extra?.comment || "La teva sol·licitud ha estat registrada i enviada a la Coordinació de la teva àrea per a la seva validació."
+          )
+        );
+      });
+    } 
+    else if (eventKey === 'validada_direccio' || request.status === 'pendent_direccio') {
+      // Notificar a la Direcció d'Àrea (N3) de l'àrea
+      const directors = users.filter(u => 
+        (u.hierarchyLevel === 3 || u.role === 'direccio_area') && 
+        normalizeAreaId(u.areaId) === normArea && 
+        u.active !== false
+      );
+
+      const approverEmails = new Set<string>(directors.map(d => d.email));
+      additionalRecipients.forEach(e => approverEmails.add(e));
+
+      approverEmails.forEach(email => {
+        sendPromises.push(
+          emailService.sendPendingApprovalNotification(request, email, "Direcció d'Àrea (N3)")
+        );
+      });
+
+      // Actualització al sol·licitant
+      validRequesterEmails.forEach(email => {
+        sendPromises.push(
+          emailService.sendStatusUpdateNotification(
+            request, 
+            email, 
+            request.status, 
+            extra?.comment || "Validada per la Coordinació d'Àrea. Pendent de la Direcció d'Àrea."
+          )
+        );
+      });
+    }
+    else if (eventKey === 'enviada_finances' || request.status === 'pendent_finances') {
+      // Notificar a Finances (N4)
+      const financeUsers = users.filter(u => 
+        (u.hierarchyLevel === 4 || u.role === 'finances') && 
+        u.active !== false
+      );
+
+      const approverEmails = new Set<string>(financeUsers.map(f => f.email));
+      additionalRecipients.forEach(e => approverEmails.add(e));
+
+      approverEmails.forEach(email => {
+        sendPromises.push(
+          emailService.sendPendingApprovalNotification(request, email, "Direcció ADM i Finances (N4)")
+        );
+      });
+
+      // Actualització al sol·licitant
+      validRequesterEmails.forEach(email => {
+        sendPromises.push(
+          emailService.sendStatusUpdateNotification(
+            request, 
+            email, 
+            request.status, 
+            extra?.comment || "Validada per la Direcció d'Àrea. Pendent d'aprovació pressupostària per Finances."
+          )
+        );
+      });
+    }
+    // CAS B: Canvis d'estat dirigits essencialment al sol·licitant
+    // (comanda emesa/realitzada, compra rebuda, aprovada, tancada, retornada, rebutjada)
+    else {
+      // Enviar notificació d'estat al sol·licitant
+      validRequesterEmails.forEach(email => {
+        sendPromises.push(
+          emailService.sendStatusUpdateNotification(request, email, request.status, extra?.comment)
+        );
+      });
+
+      // Enviar també a qualsevol altre receptor configurat al panell
+      additionalRecipients.forEach(email => {
+        if (!validRequesterEmails.includes(email)) {
+          sendPromises.push(
+            emailService.sendStatusUpdateNotification(request, email, request.status, extra?.comment)
+          );
+        }
+      });
+    }
 
     await Promise.all(sendPromises);
-    console.log(`📧 Despatxat correu per ${eventKey} a ${recipients.size} destinataris.`);
+    console.log(`📧 Despatxats ${sendPromises.length} correus per a l'esdeveniment [${eventKey}] de la sol·licitud ${request.code || request.id}`);
   };
 
   return { dispatchEmail };

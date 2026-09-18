@@ -186,11 +186,12 @@ export default function RequestDetail({ user }: { user: User }) {
       else if (newStatus === 'pendent_finances') eventKey = 'enviada_finances';
       else if (newStatus === 'pendent_direccio') eventKey = 'validada_direccio';
       else if (newStatus === 'comanda_emesa') eventKey = 'compra_tramitada';
+      else if (newStatus === 'rebuda') eventKey = 'compra_rebuda';
       else if (newStatus === 'tancada') eventKey = 'compra_tancada';
       else if (newStatus === 'incidencia') eventKey = 'incidencia';
 
       if (eventKey) {
-        await dispatchEmail(eventKey, { ...request, status: newStatus });
+        await dispatchEmail(eventKey, { ...request, status: newStatus }, { comment, previousStatus: request.status });
       }
 
       toast.success(`Acció realitzada: ${STATUS_LABELS[newStatus]?.label}`);
