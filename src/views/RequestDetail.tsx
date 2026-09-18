@@ -27,13 +27,14 @@ import {
   Users as UsersIcon
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { STATUS_LABELS, getAreaName, getHierarchyRole, normalizeAreaId } from '../constants';
+import { STATUS_LABELS, getHierarchyRole, normalizeAreaId } from '../constants';
 import { User, RequestStatus, AttachmentCategory, PurchaseRequest, Attachment, Quote } from '../types';
 import { cn } from '../lib/utils';
 import AttachmentList from '../components/AttachmentList';
 import FileUploader from '../components/FileUploader';
 import StatusBadge from '../components/StatusBadge';
 import { useRequests } from '../hooks/useRequests';
+import { useAreas } from '../hooks/useAreas';
 import { useNotifications } from '../hooks/useNotifications';
 import { useUsers } from '../hooks/useUsers';
 import { useSuppliers } from '../hooks/useSuppliers';
@@ -47,6 +48,7 @@ export default function RequestDetail({ user }: { user: User }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const { getRequestById, updateRequest, loading: loadingRequests } = useRequests();
+  const { getAreaName } = useAreas();
   const { addNotification } = useNotifications();
   const { dispatchEmail } = useEmailDispatcher();
   const { users, getUsersByRole } = useUsers();

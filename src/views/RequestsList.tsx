@@ -19,8 +19,9 @@ import {
 } from 'lucide-react';
 import StatusBadge from '../components/StatusBadge';
 import { useRequests } from '../hooks/useRequests';
+import { useAreas } from '../hooks/useAreas';
 import { useAuth } from '../contexts/AuthContext';
-import { AREAS, STATUS_LABELS, getAreaName, normalizeAreaId } from '../constants';
+import { STATUS_LABELS, normalizeAreaId } from '../constants';
 import { workflowService } from '../services/workflowService';
 import { User, RequestStatus } from '../types';
 import { cn } from '../lib/utils';
@@ -42,11 +43,12 @@ export default function RequestsList({ user: propUser }: RequestsListProps) {
   const [complianceFilter, setComplianceFilter] = useState<string>('all');
 
   const { requests } = useRequests();
+  const { areas, getAreaName } = useAreas();
 
   // Obtenir àrees presents al sistema
   const availableAreas = useMemo(() => {
     const map = new Map<string, string>();
-    AREAS.forEach(a => map.set(normalizeAreaId(a.id), a.name));
+    areas.forEach(a => map.set(normalizeAreaId(a.id), a.name));
     requests.forEach(r => {
       if (r.areaId) {
         const norm = normalizeAreaId(r.areaId);
@@ -56,7 +58,7 @@ export default function RequestsList({ user: propUser }: RequestsListProps) {
       }
     });
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-  }, [requests]);
+  }, [areas, requests, getAreaName]);
 
   // Comptadors per pestanya
   const counts = useMemo(() => {

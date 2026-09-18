@@ -69,10 +69,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Centers, Projects, Analytic Codes
+    // Centers, Projects, Analytic Codes, Areas, Hierarchy Levels
     match /centers/{id} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
     match /projects/{id} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
     match /analyticCodes/{id} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /areas/{id} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /hierarchyLevels/{id} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
 
     // Notification Settings
     match /notificationSettings/{id} {

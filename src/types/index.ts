@@ -7,6 +7,31 @@ export type HierarchyLevel = 1 | 2 | 3 | 4 | 5 | 6 | 99;
 
 export type UserRole = 'tecnic' | 'coordinacio' | 'direccio_area' | 'finances' | 'admin_compres' | 'comptabilitat' | 'gerencia' | 'superadmin';
 
+export interface AreaItem {
+  id: string;
+  name: string;
+  code?: string;
+  description?: string;
+  active?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface HierarchyRoleConfig {
+  id?: string;
+  key: string;
+  level: number;
+  code: string; // 'N1', 'N2', 'N3', 'N4', 'N5', 'N6', 'SUPER'
+  label: string;
+  shortLabel: string;
+  scope: 'area' | 'global';
+  description: string;
+  badgeColor: string;
+  active?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface User {
   id: string;
   name: string; // Nom complet

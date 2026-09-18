@@ -15,13 +15,14 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { User, Attachment, AttachmentCategory, RequestStatus, PurchaseRequest } from '../types';
-import { CATEGORIES, AREAS, getAreaName, normalizeAreaId } from '../constants';
+import { CATEGORIES, normalizeAreaId } from '../constants';
 import UserSelector from '../components/UserSelector';
 import CustomSelect from '../components/CustomSelect';
 import CustomDatePicker from '../components/CustomDatePicker';
 import FileUploader from '../components/FileUploader';
 import AttachmentList from '../components/AttachmentList';
 import { useRequests } from '../hooks/useRequests';
+import { useAreas } from '../hooks/useAreas';
 import { useNotifications } from '../hooks/useNotifications';
 import { useUsers } from '../hooks/useUsers';
 import { useAnalyticCodes } from '../hooks/useAnalyticCodes';
@@ -34,6 +35,7 @@ import { fileService } from '../services/fileService';
 export default function NewRequest({ user }: { user: User }) {
   const navigate = useNavigate();
   const { addRequest } = useRequests();
+  const { getAreaName } = useAreas();
   const { addNotification } = useNotifications();
   const { dispatchEmail } = useEmailDispatcher();
   const { getUsersByRole } = useUsers();

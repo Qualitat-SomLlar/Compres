@@ -2,9 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User as UserIcon, Search, Check, ChevronDown, UserPlus, Loader2, Building2 } from 'lucide-react';
 import { useUsers } from '../hooks/useUsers';
+import { useAreas } from '../hooks/useAreas';
+import { useHierarchyLevels } from '../hooks/useHierarchyLevels';
 import { User } from '../types';
 import { cn } from '../lib/utils';
-import { getAreaName, getHierarchyRole } from '../constants';
 
 interface UserSelectorProps {
   onSelect: (worker: User) => void;
@@ -16,6 +17,8 @@ interface UserSelectorProps {
 
 export default function UserSelector({ onSelect, selectedId, label, error, required }: UserSelectorProps) {
   const { users: workers, loading } = useUsers();
+  const { getAreaName } = useAreas();
+  const { getHierarchyRole } = useHierarchyLevels();
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const wrapperRef = useRef<HTMLDivElement>(null);

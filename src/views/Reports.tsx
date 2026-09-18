@@ -13,16 +13,18 @@ import {
   ArrowUpRight,
   ChevronDown
 } from 'lucide-react';
-import { STATUS_LABELS, CATEGORIES, AREAS, getAreaName } from '../constants';
+import { STATUS_LABELS, CATEGORIES, getAreaName as fallbackGetAreaName } from '../constants';
 import { cn } from '../lib/utils';
 import { importExportService } from '../services/importExportService';
 import { useRequests } from '../hooks/useRequests';
+import { useAreas } from '../hooks/useAreas';
 import { Loader2 } from 'lucide-react';
 
 import { calculateLeadTime } from '../lib/dateUtils';
 
 export default function Reports() {
   const { requests, loading } = useRequests();
+  const { areas, getAreaName } = useAreas();
   const [dateRange, setDateRange] = useState<'all' | '30d' | '90d' | 'year'>('all');
   const [selectedArea, setSelectedArea] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
@@ -199,7 +201,7 @@ export default function Reports() {
               onChange={(e) => setSelectedArea(e.target.value)}
             >
               <option value="all">Totes les Àrees</option>
-              {AREAS.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              {areas.filter(a => a.active !== false).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
 
             <select 
@@ -240,7 +242,7 @@ export default function Reports() {
                   </td>
                   <td className="px-8 py-6">
                     <div className="text-xs font-bold text-slate-300">{request.requestingTechnicianName || 'Tècnic/a'}</div>
-                    <div className="text-[10px] text-slate-500 uppercase tracking-widest">{request.areaId ? request.areaId.toUpperCase() : 'SENSE ÀREA'}</div>
+                    <div className="text-[10px] text-slate-500 uppercase tracking-widest">{request.areaId ? getAreaName(request.areaId) : 'SENSE ÀREA'}</div>
                   </td>
                   <td className="px-8 py-6">
                     <span className="text-xs font-black text-white">{((request.finalAmount ?? request.estimatedAmount) || 0).toLocaleString()} €</span>
