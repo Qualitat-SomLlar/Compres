@@ -68,9 +68,9 @@ export default function UserSelector({ onSelect, selectedId, label, error, requi
                 <p className="text-xs font-bold text-white truncate">{selectedWorker.name}</p>
                 <span className={cn(
                   "text-[8px] font-black uppercase px-1.5 py-0.5 rounded border shrink-0",
-                  getHierarchyRole(selectedWorker.role).badgeColor
+                  getHierarchyRole(selectedWorker.hierarchyLevel ?? selectedWorker.role).badgeColor
                 )}>
-                  {getHierarchyRole(selectedWorker.role).shortLabel}
+                  {getHierarchyRole(selectedWorker.hierarchyLevel ?? selectedWorker.role).shortLabel}
                 </span>
               </div>
               <div className="flex items-center gap-2 text-[9px] text-slate-400 mt-0.5">
@@ -116,7 +116,7 @@ export default function UserSelector({ onSelect, selectedId, label, error, requi
               </div>
             ) : (
               filteredWorkers.map(worker => {
-                const roleConfig = getHierarchyRole(worker.role);
+                const roleConfig = getHierarchyRole(worker.hierarchyLevel ?? worker.role);
                 const areaName = getAreaName(worker.areaId);
 
                 return (

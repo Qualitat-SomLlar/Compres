@@ -44,6 +44,7 @@ export const ROLE_LABELS: Record<string, string> = {
 export interface HierarchyRoleConfig {
   key: string;
   level: number;
+  code: string; // 'N1', 'N2', 'N3', 'N4', 'N5', 'N6', 'SUPER'
   label: string;
   shortLabel: string;
   scope: 'area' | 'global';
@@ -55,51 +56,57 @@ export const HIERARCHY_ROLES: HierarchyRoleConfig[] = [
   {
     key: 'tecnic',
     level: 1,
+    code: 'N1',
     label: 'Tècnic/a Sol·licitant',
     shortLabel: 'N1 · Tècnic/a',
     scope: 'area',
-    description: 'Genera peticions de compra vinculades a la seva àrea i projectes.',
+    description: 'Genera peticions de compra vinculades a la seva àrea. No té potestat d\'aprovació.',
     badgeColor: 'bg-blue-500/10 text-blue-400 border-blue-500/20'
   },
   {
     key: 'coordinacio',
     level: 2,
+    code: 'N2',
     label: 'Coordinació d\'Àrea',
     shortLabel: 'N2 · Coordinació',
     scope: 'area',
-    description: 'Primer nivell d\'aprovació (vistiplau tècnic de l\'àrea de la compra).',
+    description: '1r Nivell d\'aprovació: vàlida tècnicament les compres exclusivament de la seva mateixa àrea.',
     badgeColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20'
   },
   {
     key: 'direccio_area',
     level: 3,
+    code: 'N3',
     label: 'Direcció d\'Àrea',
     shortLabel: 'N3 · Direcció Àrea',
     scope: 'area',
-    description: 'Segon nivell d\'aprovació (validació pressupostària i estratègica d\'àrea).',
+    description: '2n Nivell d\'aprovació: validació pressupostària d\'àrea exclusivament de la seva mateixa àrea.',
     badgeColor: 'bg-orange-500/10 text-orange-400 border-orange-500/20'
   },
   {
     key: 'finances',
     level: 4,
+    code: 'N4',
     label: 'Direcció ADM i Finances',
     shortLabel: 'N4 · Finances',
     scope: 'global',
-    description: 'Tercer nivell d\'aprovació (control fiscal, tresoreria i autorització global).',
+    description: '3r Nivell d\'aprovació: control fiscal, tresoreria i autorització global de la fundació.',
     badgeColor: 'bg-purple-500/10 text-purple-400 border-purple-500/20'
   },
   {
     key: 'admin_compres',
     level: 5,
-    label: 'Administració de Compres',
-    shortLabel: 'N5 · Admin Compres',
+    code: 'N5',
+    label: 'Administració de Compres / Facturació',
+    shortLabel: 'N5 · Compres / Facturació',
     scope: 'global',
-    description: 'Tramitació i emissió operativa de comandes formals a proveïdors.',
+    description: 'Tramitació i emissió operativa de comandes formals i conformitat de factures.',
     badgeColor: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20'
   },
   {
     key: 'comptabilitat',
     level: 5,
+    code: 'N5',
     label: 'Comptabilitat',
     shortLabel: 'N5 · Comptabilitat',
     scope: 'global',
@@ -109,6 +116,7 @@ export const HIERARCHY_ROLES: HierarchyRoleConfig[] = [
   {
     key: 'gerencia',
     level: 6,
+    code: 'N6',
     label: 'Gerència / Direcció General',
     shortLabel: 'N6 · Gerència',
     scope: 'global',
@@ -118,6 +126,7 @@ export const HIERARCHY_ROLES: HierarchyRoleConfig[] = [
   {
     key: 'superadmin',
     level: 99,
+    code: 'SUPER',
     label: 'Superadministrador',
     shortLabel: 'Superadmin',
     scope: 'global',
@@ -126,34 +135,42 @@ export const HIERARCHY_ROLES: HierarchyRoleConfig[] = [
   }
 ];
 
-export const getHierarchyRole = (roleKey?: string): HierarchyRoleConfig => {
-  const normKey = (roleKey || '').toLowerCase().trim();
-  const mappedKey = 
-    normKey === 'gerencia' ? 'gerencia' :
-    normKey === 'responsablearea' || normKey === 'direccio' || normKey === 'direccio_area' ? 'direccio_area' :
-    normKey === 'coordinacio' || normKey === 'coordinador' ? 'coordinacio' :
-    normKey === 'finances' || normKey === 'finanzas' || normKey === 'administracio' ? 'finances' :
-    normKey === 'admin' || normKey === 'superadmin' ? 'superadmin' :
-    normKey === 'admin_compres' ? 'admin_compres' :
-    normKey === 'comptabilitat' ? 'comptabilitat' :
-    normKey === 'tecnico' || normKey === 'tecnic' ? 'tecnic' :
-    normKey;
+export const getHierarchyRole = (roleOrLevel?: string | number): HierarchyRoleConfig => {
+  if (typeof roleOrLevel === 'number') {
+    const found = HIERARCHY_ROLES.find(r => r.level === roleOrLevel);
+    if (found) return found;
+  }
+  const str = String(roleOrLevel || '').toLowerCase().trim();
+  if (str === '1' || str === 'n1' || str === 'tecnic' || str === 'tecnico') return HIERARCHY_ROLES[0];
+  if (str === '2' || str === 'n2' || str === 'coordinacio' || str === 'coordinador') return HIERARCHY_ROLES[1];
+  if (str === '3' || str === 'n3' || str === 'direccio_area' || str === 'direccio' || str === 'responsablearea') return HIERARCHY_ROLES[2];
+  if (str === '4' || str === 'n4' || str === 'finances' || str === 'finanzas' || str === 'administracio') return HIERARCHY_ROLES[3];
+  if (str === '5' || str === 'n5' || str === 'admin_compres') return HIERARCHY_ROLES[4];
+  if (str === 'comptabilitat') return HIERARCHY_ROLES[5];
+  if (str === '6' || str === 'n6' || str === 'gerencia') return HIERARCHY_ROLES[6];
+  if (str === '99' || str === 'superadmin' || str === 'admin') return HIERARCHY_ROLES[7];
 
-  return HIERARCHY_ROLES.find(r => r.key === mappedKey) || {
-    key: roleKey || 'tecnic',
-    level: 0,
-    label: ROLE_LABELS[mappedKey] || (roleKey ? (ROLE_LABELS[roleKey] || roleKey) : 'Treballador/a'),
-    shortLabel: ROLE_LABELS[mappedKey] || (roleKey ? (ROLE_LABELS[roleKey] || roleKey) : 'Treballador/a'),
-    scope: 'global',
-    description: 'Rol assignat al treballador',
-    badgeColor: 'bg-slate-500/10 text-slate-400 border-slate-500/20'
-  };
+  return HIERARCHY_ROLES.find(r => r.key === str) || HIERARCHY_ROLES[0];
+};
+
+export const normalizeAreaId = (areaId?: string): string => {
+  if (!areaId) return 'social';
+  const id = areaId.toLowerCase().trim();
+  if (id === 'tics' || id === 'it' || id === 'tic' || id === 'sistemes' || id.includes('digitalitzaci')) return 'tics';
+  if (id === 'social' || id === 'area_social' || id.includes('social')) return 'social';
+  if (id === 'admin' || id === 'admin_finances' || id === 'finances' || id === 'administracio') return 'admin_finances';
+  if (id === 'habitatge') return 'habitatge';
+  if (id === 'comunicacio' || id.includes('comunicaci')) return 'comunicacio';
+  if (id === 'logistica' || id === 'manteniment' || id.includes('log')) return 'logistica';
+  if (id === 'general' || id === 'direccio_general' || id === 'direccio') return 'direccio_general';
+  return id;
 };
 
 export const getAreaName = (areaId?: string): string => {
   if (!areaId) return 'Sense Àrea';
-  const found = AREAS.find(a => a.id.toLowerCase() === areaId.toLowerCase());
-  return found ? found.name : areaId.toUpperCase();
+  const norm = normalizeAreaId(areaId);
+  const found = AREAS.find(a => a.id.toLowerCase() === norm);
+  return found ? found.name : areaId;
 };
 
 export const ATTACHMENT_CATEGORIES = [
@@ -182,9 +199,11 @@ export const NOTIFICATION_EVENTS = [
 ];
 
 export const AREAS = [
+  { id: 'tics', name: 'Digitalització i TICs' },
   { id: 'social', name: 'Àrea Social' },
-  { id: 'admin', name: 'Administració' },
-  { id: 'logistica', name: 'Logística' },
-  { id: 'it', name: 'Sistemes i IT' },
-  { id: 'formacio', name: 'Formació' }
+  { id: 'admin_finances', name: 'Administració i Finances' },
+  { id: 'habitatge', name: 'Habitatge' },
+  { id: 'comunicacio', name: 'Comunicació' },
+  { id: 'logistica', name: 'Logística i Manteniment' },
+  { id: 'direccio_general', name: 'Direcció General' }
 ];

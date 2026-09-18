@@ -20,7 +20,7 @@ import {
 import StatusBadge from '../components/StatusBadge';
 import { useRequests } from '../hooks/useRequests';
 import { useAuth } from '../contexts/AuthContext';
-import { AREAS, STATUS_LABELS, getAreaName } from '../constants';
+import { AREAS, STATUS_LABELS, getAreaName, normalizeAreaId } from '../constants';
 import { workflowService } from '../services/workflowService';
 import { User, RequestStatus } from '../types';
 import { cn } from '../lib/utils';
@@ -46,10 +46,13 @@ export default function RequestsList({ user: propUser }: RequestsListProps) {
   // Obtenir àrees presents al sistema
   const availableAreas = useMemo(() => {
     const map = new Map<string, string>();
-    AREAS.forEach(a => map.set(a.id, a.name));
+    AREAS.forEach(a => map.set(normalizeAreaId(a.id), a.name));
     requests.forEach(r => {
-      if (r.areaId && !map.has(r.areaId)) {
-        map.set(r.areaId, getAreaName(r.areaId));
+      if (r.areaId) {
+        const norm = normalizeAreaId(r.areaId);
+        if (!map.has(norm)) {
+          map.set(norm, getAreaName(norm));
+        }
       }
     });
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
@@ -109,7 +112,7 @@ export default function RequestsList({ user: propUser }: RequestsListProps) {
       }
 
       // 2. Filtre per Àrea
-      if (areaFilter !== 'all' && (r.areaId || '').toLowerCase() !== areaFilter.toLowerCase()) {
+      if (areaFilter !== 'all' && normalizeAreaId(r.areaId) !== normalizeAreaId(areaFilter)) {
         return false;
       }
 

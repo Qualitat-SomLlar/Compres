@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+export type HierarchyLevel = 1 | 2 | 3 | 4 | 5 | 6 | 99;
+
 export type UserRole = 'tecnic' | 'coordinacio' | 'direccio_area' | 'finances' | 'admin_compres' | 'comptabilitat' | 'gerencia' | 'superadmin';
 
 export interface User {
@@ -11,10 +13,10 @@ export interface User {
   firstName?: string;
   lastName?: string;
   email: string;
-  role: UserRole;
-  areaId: string;
+  hierarchyLevel?: HierarchyLevel; // 1 (N1), 2 (N2), 3 (N3), 4 (N4), 5 (N5), 6 (N6), 99 (Superadmin)
+  role: UserRole; // Conservat per compatibilitat amb l'esquema de rols
+  areaId: string; // Àrea o departament al qual pertany (ex: 'tics', 'social', 'admin_finances', etc.)
   areaName?: string;
-  hierarchyLevel?: number;
   active: boolean;
   notificationsEnabled: boolean;
   createdAt?: string;

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, where, doc, updateDoc, deleteDoc, addDoc, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { User, UserRole } from '../types';
+import { User, UserRole, HierarchyLevel } from '../types';
+import { getHierarchyRole, normalizeAreaId, getAreaName } from '../constants';
 import toast from 'react-hot-toast';
 
 export function useUsers() {
@@ -30,14 +31,26 @@ export function useUsers() {
         const raw = doc.data() as any;
         const role = normalizeRole(raw.role);
         const name = raw.name || raw.displayName || (raw.email ? raw.email.split('@')[0] : '') || 'Treballador/a';
-        const areaId = raw.areaId || (role === 'gerencia' || role === 'superadmin' || role === 'finances' ? 'general' : 'social');
+        
+        // Determinar el nivell jeràrquic (1..6, 99)
+        let hierarchyLevel: HierarchyLevel = 1;
+        if (typeof raw.hierarchyLevel === 'number') {
+          hierarchyLevel = raw.hierarchyLevel as HierarchyLevel;
+        } else {
+          hierarchyLevel = (getHierarchyRole(role).level as HierarchyLevel) || 1;
+        }
+
+        const areaId = normalizeAreaId(raw.areaId || (hierarchyLevel >= 4 ? 'direccio_general' : 'social'));
+        const areaName = raw.areaName || getAreaName(areaId);
         
         return {
           id: doc.id,
           ...raw,
           name,
           role,
+          hierarchyLevel,
           areaId,
+          areaName,
           active: raw.active !== false,
           notificationsEnabled: raw.notificationsEnabled !== false,
         } as User;
@@ -53,18 +66,32 @@ export function useUsers() {
     return () => unsubscribe();
   }, []);
 
-  const getUsersByRole = (role: UserRole, areaId?: string) => {
+  const getUsersByRole = (roleOrLevel: UserRole | HierarchyLevel | number, areaId?: string) => {
     return users.filter(u => {
-      const roleMatch = u.role === role;
-      const areaMatch = areaId ? u.areaId === areaId : true;
+      let roleMatch = false;
+      if (typeof roleOrLevel === 'number') {
+        roleMatch = u.hierarchyLevel === roleOrLevel;
+      } else {
+        const roleConfig = getHierarchyRole(roleOrLevel);
+        roleMatch = u.role === roleOrLevel || u.hierarchyLevel === roleConfig.level;
+      }
+      
+      const areaMatch = areaId ? normalizeAreaId(u.areaId) === normalizeAreaId(areaId) : true;
       return roleMatch && areaMatch;
     });
   };
 
   const addUser = async (userData: Omit<User, 'id'>) => {
     const now = new Date().toISOString();
+    const areaId = normalizeAreaId(userData.areaId);
+    const areaName = userData.areaName || getAreaName(areaId);
+    const hierarchyLevel = userData.hierarchyLevel || getHierarchyRole(userData.role).level;
+
     await addDoc(collection(db, 'users'), {
       ...userData,
+      areaId,
+      areaName,
+      hierarchyLevel,
       createdAt: now,
       updatedAt: now
     });
@@ -72,10 +99,22 @@ export function useUsers() {
 
   const updateUser = async (id: string, data: Partial<User>) => {
     const docRef = doc(db, 'users', id);
-    await updateDoc(docRef, {
+    const updatePayload: any = {
       ...data,
       updatedAt: new Date().toISOString()
-    });
+    };
+
+    if (data.areaId) {
+      updatePayload.areaId = normalizeAreaId(data.areaId);
+      updatePayload.areaName = data.areaName || getAreaName(updatePayload.areaId);
+    }
+    if (data.hierarchyLevel && !data.role) {
+      updatePayload.role = getHierarchyRole(data.hierarchyLevel).key;
+    } else if (data.role && !data.hierarchyLevel) {
+      updatePayload.hierarchyLevel = getHierarchyRole(data.role).level;
+    }
+
+    await updateDoc(docRef, updatePayload);
   };
 
   const deleteUser = async (id: string) => {

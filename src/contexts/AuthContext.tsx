@@ -2,7 +2,8 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db } from '../lib/firebase';
 import { onAuthStateChanged, User as FirebaseUser, signInWithPopup, signInWithRedirect, getRedirectResult, OAuthProvider } from 'firebase/auth';
 import { doc, getDoc, setDoc, query, where, collection, getDocs, deleteDoc } from 'firebase/firestore';
-import { User, UserRole } from '../types';
+import { User, UserRole, HierarchyLevel } from '../types';
+import { getHierarchyRole } from '../constants';
 import toast from 'react-hot-toast';
 
 interface AuthContextType {
@@ -97,12 +98,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
             const calculatedName = rawData.name || rawData.displayName || firebaseUser.displayName || (userEmail ? userEmail.split('@')[0] : '') || 'Usuari Som Llar';
             const calculatedAreaId = rawData.areaId || (calculatedRole === 'gerencia' || calculatedRole === 'superadmin' || calculatedRole === 'finances' ? 'general' : 'social');
+            const calculatedLevel = (typeof rawData.hierarchyLevel === 'number' ? rawData.hierarchyLevel : getHierarchyRole(calculatedRole).level) as HierarchyLevel;
 
             userData = {
               id: firebaseUser.uid,
               ...rawData,
               name: calculatedName,
               role: calculatedRole,
+              hierarchyLevel: calculatedLevel,
               areaId: calculatedAreaId,
               active: rawData.active !== false,
               notificationsEnabled: rawData.notificationsEnabled !== false,
@@ -118,11 +121,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             }
 
             // Si cal persistir dades netes a Firestore
-            if (rawData.role !== calculatedRole || !rawData.name || !rawData.areaId) {
+            if (rawData.role !== calculatedRole || !rawData.name || !rawData.areaId || !rawData.hierarchyLevel) {
               try {
                 await setDoc(doc(db, 'users', firebaseUser.uid), {
                   name: calculatedName,
                   role: calculatedRole,
+                  hierarchyLevel: calculatedLevel,
                   areaId: calculatedAreaId
                 }, { merge: true });
               } catch (setErr) {
@@ -135,11 +139,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             // Si és el primer cop i no estava pre-creat, creem el document
             const isSuperAdmin = SUPERADMIN_EMAILS.includes(userEmail);
             const isAdmin = ADMIN_EMAILS.includes(userEmail);
+            const role: UserRole = isSuperAdmin ? 'superadmin' : isAdmin ? 'admin_compres' : 'tecnic';
             const newUser: User = {
               id: firebaseUser.uid,
               name: firebaseUser.displayName || 'Usuari Som Llar',
               email: userEmail,
-              role: isSuperAdmin ? 'superadmin' : isAdmin ? 'admin_compres' : 'tecnic',
+              role,
+              hierarchyLevel: getHierarchyRole(role).level as HierarchyLevel,
               areaId: 'social',
               active: true,
               notificationsEnabled: true,
@@ -158,11 +164,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           // Fallback segur: crear sessió en memòria perquè l'usuari validat per Microsoft mai es quedi congelat a 'Carregant...'
           const fallbackEmail = (firebaseUser.email || firebaseUser.providerData?.[0]?.email || '').toLowerCase().trim();
           const isSuperAdmin = SUPERADMIN_EMAILS.includes(fallbackEmail);
+          const fbRole: UserRole = isSuperAdmin ? 'superadmin' : 'tecnic';
           const fallbackUser: User = {
             id: firebaseUser.uid,
             name: firebaseUser.displayName || 'Usuari Som Llar',
             email: fallbackEmail,
-            role: isSuperAdmin ? 'superadmin' : 'tecnic',
+            role: fbRole,
+            hierarchyLevel: getHierarchyRole(fbRole).level as HierarchyLevel,
             areaId: 'social',
             active: true,
             notificationsEnabled: true,

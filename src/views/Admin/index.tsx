@@ -30,7 +30,8 @@ import { useUsers } from '../../hooks/useUsers';
 import { useProjects } from '../../hooks/useProjects';
 import toast from 'react-hot-toast';
 import { cn } from '../../lib/utils';
-import { ROLE_LABELS, ATTACHMENT_CATEGORIES, NOTIFICATION_EVENTS, AREAS, HIERARCHY_ROLES, getHierarchyRole, getAreaName } from '../../constants';
+import { ROLE_LABELS, ATTACHMENT_CATEGORIES, NOTIFICATION_EVENTS, AREAS, HIERARCHY_ROLES, getHierarchyRole, getAreaName, normalizeAreaId } from '../../constants';
+import { HierarchyLevel } from '../../types';
 import { importExportService } from '../../services/importExportService';
 import { useNotificationSettings } from '../../hooks/useNotificationSettings';
 import { useCenters } from '../../hooks/useCenters';
@@ -147,42 +148,58 @@ function UsersManager() {
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [areaFilter, setAreaFilter] = useState('all');
-  const [roleFilter, setRoleFilter] = useState('all');
+  const [levelFilter, setLevelFilter] = useState('all');
   
-  // Per a la previsualització interactiva al modal
-  const [formRole, setFormRole] = useState('tecnic');
+  // Dues dades completament independents per al formulari
+  const [formAreaId, setFormAreaId] = useState('tics');
+  const [formLevel, setFormLevel] = useState<HierarchyLevel>(1);
+
+  const DISTINCT_LEVELS: { level: HierarchyLevel; code: string; label: string; roleKey: string }[] = [
+    { level: 1, code: 'N1', label: 'Tècnic/a Sol·licitant', roleKey: 'tecnic' },
+    { level: 2, code: 'N2', label: 'Coordinació d\'Àrea (1r Nivell Aprovació)', roleKey: 'coordinacio' },
+    { level: 3, code: 'N3', label: 'Direcció d\'Àrea (2n Nivell Aprovació)', roleKey: 'direccio_area' },
+    { level: 4, code: 'N4', label: 'Direcció ADM i Finances (3r Nivell Global)', roleKey: 'finances' },
+    { level: 5, code: 'N5', label: 'Administració de Compres / Facturació', roleKey: 'admin_compres' },
+    { level: 6, code: 'N6', label: 'Gerència / Direcció General', roleKey: 'gerencia' },
+    { level: 99, code: 'SUPER', label: 'Superadministrador', roleKey: 'superadmin' },
+  ];
 
   useEffect(() => {
     if (selectedUser) {
-      setFormRole(selectedUser.role || 'tecnic');
+      setFormAreaId(normalizeAreaId(selectedUser.areaId || 'tics'));
+      const lvl = (selectedUser.hierarchyLevel || getHierarchyRole(selectedUser.role).level) as HierarchyLevel;
+      setFormLevel(lvl || 1);
     } else {
-      setFormRole('tecnic');
+      setFormAreaId('tics');
+      setFormLevel(1);
     }
   }, [selectedUser, isModalOpen]);
 
   const filteredUsers = users.filter(u => {
     const matchSearch = (u.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                         (u.email || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchArea = areaFilter === 'all' || (u.areaId || '').toLowerCase() === areaFilter.toLowerCase();
-    const matchRole = roleFilter === 'all' || u.role === roleFilter;
-    return matchSearch && matchArea && matchRole;
+    const userNormArea = normalizeAreaId(u.areaId);
+    const matchArea = areaFilter === 'all' || userNormArea === normalizeAreaId(areaFilter);
+    const userLevel = u.hierarchyLevel || getHierarchyRole(u.role).level;
+    const matchLevel = levelFilter === 'all' || String(userLevel) === String(levelFilter);
+    return matchSearch && matchArea && matchLevel;
   });
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSaving(true);
     const formData = new FormData(e.currentTarget);
-    const selectedAreaId = formData.get('areaId') as string;
-    const selectedRoleKey = formData.get('role') as string;
-    const roleConfig = getHierarchyRole(selectedRoleKey);
+    const selectedAreaId = normalizeAreaId(formData.get('areaId') as string);
+    const selectedLevel = Number(formData.get('hierarchyLevel')) as HierarchyLevel;
+    const matchedLevelConfig = DISTINCT_LEVELS.find(l => l.level === selectedLevel) || DISTINCT_LEVELS[0];
 
     const data = {
       name: formData.get('name') as string,
       email: formData.get('email') as string,
       areaId: selectedAreaId,
       areaName: getAreaName(selectedAreaId),
-      role: selectedRoleKey as any,
-      hierarchyLevel: roleConfig.level,
+      role: matchedLevelConfig.roleKey as any,
+      hierarchyLevel: selectedLevel,
       active: formData.get('active') === 'on',
       notificationsEnabled: formData.get('notificationsEnabled') === 'on',
       firstName: (formData.get('name') as string).split(' ')[0],
@@ -216,9 +233,9 @@ function UsersManager() {
   }
 
   const activeUsersCount = users.filter(u => u.active !== false).length;
-  const coordinatorsCount = users.filter(u => u.role === 'coordinacio' && u.active !== false).length;
-  const directorsCount = users.filter(u => u.role === 'direccio_area' && u.active !== false).length;
-  const financesCount = users.filter(u => u.role === 'finances' && u.active !== false).length;
+  const coordinatorsCount = users.filter(u => (u.hierarchyLevel === 2 || u.role === 'coordinacio') && u.active !== false).length;
+  const directorsCount = users.filter(u => (u.hierarchyLevel === 3 || u.role === 'direccio_area') && u.active !== false).length;
+  const financesCount = users.filter(u => (u.hierarchyLevel === 4 || u.role === 'finances') && u.active !== false).length;
 
   return (
     <div className="p-8 space-y-8">
@@ -280,13 +297,13 @@ function UsersManager() {
             </select>
 
             <select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
+              value={levelFilter}
+              onChange={(e) => setLevelFilter(e.target.value)}
               className="input-field text-xs py-2"
             >
-              <option value="all">Tots els Rols i Nivells</option>
-              {HIERARCHY_ROLES.map(r => (
-                <option key={r.key} value={r.key}>{r.shortLabel} ({r.label})</option>
+              <option value="all">Tots els Nivells Jeràrquics</option>
+              {DISTINCT_LEVELS.map(l => (
+                <option key={l.level} value={String(l.level)}>{l.code} - {l.label}</option>
               ))}
             </select>
           </div>
@@ -307,9 +324,9 @@ function UsersManager() {
           <thead>
             <tr className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-white/[0.05]">
               <th className="pb-4">Treballador/a</th>
-              <th className="pb-4">Àrea d'Adscripció</th>
-              <th className="pb-4">Jerarquia i Rol</th>
-              <th className="pb-4">Facultat en el Flux</th>
+              <th className="pb-4">Dada 1: Àrea d'Adscripció</th>
+              <th className="pb-4">Dada 2: Nivell Jeràrquic</th>
+              <th className="pb-4">Àmbit d'Autorització al Circuit</th>
               <th className="pb-4 text-center">Estat</th>
               <th className="pb-4 text-right">Accions</th>
             </tr>
@@ -323,7 +340,8 @@ function UsersManager() {
               </tr>
             ) : (
               filteredUsers.map(u => {
-                const roleConfig = getHierarchyRole(u.role);
+                const userLevel = u.hierarchyLevel || getHierarchyRole(u.role).level;
+                const roleConfig = getHierarchyRole(userLevel);
                 const areaName = getAreaName(u.areaId);
 
                 return (
@@ -350,13 +368,19 @@ function UsersManager() {
                         "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black tracking-wide border",
                         roleConfig.badgeColor
                       )}>
-                        {roleConfig.shortLabel}
+                        <span className="font-mono bg-white/10 px-1 py-0.5 rounded text-[9px]">{roleConfig.code}</span>
+                        <span>{roleConfig.label}</span>
                       </span>
                     </td>
                     <td className="py-4 max-w-xs">
-                      <p className="text-[10px] text-slate-400 line-clamp-1 italic">
-                        {roleConfig.description}
-                      </p>
+                      <div className="space-y-0.5">
+                        <p className="text-[10px] font-bold text-slate-300">
+                          {roleConfig.scope === 'area' ? `Només ${areaName}` : 'Àmbit Global (Som Llar)'}
+                        </p>
+                        <p className="text-[9px] text-slate-500 line-clamp-1 italic">
+                          {roleConfig.description}
+                        </p>
+                      </div>
                     </td>
                     <td className="py-4 text-center">
                       <span className={cn(
@@ -400,13 +424,13 @@ function UsersManager() {
       {/* Modal Crear / Editar Treballador/a */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-[#0f172a] border border-white/10 rounded-3xl w-full max-w-lg overflow-hidden animate-in zoom-in duration-300 shadow-2xl">
+          <div className="bg-[#0f172a] border border-white/10 rounded-3xl w-full max-w-xl overflow-hidden animate-in zoom-in duration-300 shadow-2xl">
             <div className="p-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
               <div>
                 <h3 className="text-sm font-black text-white uppercase tracking-widest">
-                  {selectedUser ? 'Editar Treballador/a i Jerarquia' : 'Nou Treballador/a'}
+                  {selectedUser ? 'Editar Treballador/a' : 'Nou Treballador/a'}
                 </h3>
-                <p className="text-[10px] text-slate-500 mt-1">Assigna l'àrea i el rol d'autorització del circuit de compres</p>
+                <p className="text-[10px] text-slate-500 mt-1">Configura per separat l'àrea d'adscripció i el nivell jeràrquic d'aprovació</p>
               </div>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-500 hover:text-white transition-colors">
                 <X size={20} />
@@ -414,71 +438,137 @@ function UsersManager() {
             </div>
 
             <form onSubmit={handleSubmit} className="p-8 space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Nom Complet</label>
-                <input 
-                  name="name" 
-                  defaultValue={selectedUser?.name} 
-                  required 
-                  className="input-field text-xs" 
-                  placeholder="Ex: Marta Soler Vidal" 
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Correu Electrònic Corporatiu</label>
-                <input 
-                  name="email" 
-                  type="email" 
-                  defaultValue={selectedUser?.email} 
-                  required 
-                  className="input-field text-xs" 
-                  placeholder="msoler@somllar.cat" 
-                />
-                <p className="text-[9px] text-slate-500 italic">Només es permeten comptes del domini @somllar.cat</p>
-              </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Àrea d'Adscripció</label>
-                  <select name="areaId" defaultValue={selectedUser?.areaId || 'social'} className="input-field text-xs">
-                    {AREAS.map(area => (
-                      <option key={area.id} value={area.id}>{area.name}</option>
-                    ))}
-                  </select>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Nom Complet</label>
+                  <input 
+                    name="name" 
+                    defaultValue={selectedUser?.name} 
+                    required 
+                    className="input-field text-xs" 
+                    placeholder="Ex: Marta Soler Vidal" 
+                  />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Nivell Jeràrquic / Rol</label>
-                  <select 
-                    name="role" 
-                    value={formRole}
-                    onChange={(e) => setFormRole(e.target.value)}
-                    className="input-field text-xs"
-                  >
-                    {HIERARCHY_ROLES.map(r => (
-                      <option key={r.key} value={r.key}>{r.shortLabel} - {r.label}</option>
-                    ))}
-                  </select>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Correu Electrònic Corporatiu</label>
+                  <input 
+                    name="email" 
+                    type="email" 
+                    defaultValue={selectedUser?.email} 
+                    required 
+                    className="input-field text-xs" 
+                    placeholder="msoler@somllar.cat" 
+                  />
                 </div>
               </div>
 
-              {/* Informació explicativa del nivell seleccionat */}
+              {/* DUES DADES INDEPENDENTS */}
+              <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 space-y-5">
+                <div className="flex items-center gap-2 text-[10px] font-black text-brand-primary uppercase tracking-widest">
+                  <ShieldCheck size={14} />
+                  <span>Assignació Operativa i Jeràrquica</span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Dada 1: Àrea d'Adscripció */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                      <Building2 size={12} className="text-brand-primary" />
+                      1. Àrea d'Adscripció
+                    </label>
+                    <select 
+                      name="areaId" 
+                      value={formAreaId} 
+                      onChange={(e) => setFormAreaId(e.target.value)}
+                      className="input-field text-xs"
+                    >
+                      {AREAS.map(area => (
+                        <option key={area.id} value={area.id}>{area.name}</option>
+                      ))}
+                    </select>
+                    <p className="text-[9px] text-slate-500 italic">Departament al qual pertany el treballador/a</p>
+                  </div>
+
+                  {/* Dada 2: Nivell Jeràrquic */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                      <ShieldCheck size={12} className="text-amber-400" />
+                      2. Nivell Jeràrquic
+                    </label>
+                    <select 
+                      name="hierarchyLevel" 
+                      value={formLevel}
+                      onChange={(e) => setFormLevel(Number(e.target.value) as HierarchyLevel)}
+                      className="input-field text-xs font-bold"
+                    >
+                      {DISTINCT_LEVELS.map(l => (
+                        <option key={l.level} value={l.level}>{l.code} - {l.label}</option>
+                      ))}
+                    </select>
+                    <p className="text-[9px] text-slate-500 italic">Funció i potestat en el circuit de compres</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Previsualització en temps real del circuit resultant */}
               {(() => {
-                const config = getHierarchyRole(formRole);
+                const config = getHierarchyRole(formLevel);
+                const selectedAreaName = getAreaName(formAreaId);
                 return (
-                  <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2">
+                  <div className="p-4 rounded-2xl bg-brand-primary/[0.04] border border-brand-primary/20 space-y-2.5 animate-in fade-in duration-200">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-black text-brand-primary uppercase tracking-widest flex items-center gap-1.5">
-                        <Info size={12} /> Facultat d'Aprovació ({config.shortLabel})
+                        <Info size={13} /> Circuit resultant: {config.code} · {config.label}
                       </span>
-                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">
-                        Àmbit: {config.scope === 'area' ? "Àrea d'adscripció" : "Global de Som Llar"}
+                      <span className={cn("text-[9px] font-black uppercase px-2 py-0.5 rounded border", config.badgeColor)}>
+                        {config.code}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-300 leading-relaxed font-medium">
-                      {config.description}
-                    </p>
+
+                    <div className="text-xs text-slate-300 leading-relaxed font-medium space-y-1.5">
+                      <p className="text-[11px] text-slate-400">
+                        <strong className="text-white">Departament:</strong> <span className="text-brand-primary font-bold">{selectedAreaName}</span> · <strong className="text-white">Àmbit de Signatura:</strong> {config.scope === 'area' ? `Exclusivament l'àrea ${selectedAreaName}` : 'Global de Som Llar'}
+                      </p>
+                      
+                      <div className="p-3 bg-black/40 rounded-xl border border-white/5 text-[11px] text-slate-300">
+                        {formLevel === 1 && (
+                          <span>
+                            Com a <strong>Tècnic/a (N1)</strong> de <strong>{selectedAreaName}</strong>, generarà sol·licituds vinculades a aquesta àrea. El primer que haurà d'aprovar-les serà el <strong>Coordinador/a (N2)</strong> de <strong>{selectedAreaName}</strong>.
+                          </span>
+                        )}
+                        {formLevel === 2 && (
+                          <span>
+                            Com a <strong>Coordinació (N2)</strong> de <strong>{selectedAreaName}</strong>, serà el <strong>1r aprovador</strong> de totes les demandes fetes pels tècnics (N1) exclusivament de <strong>{selectedAreaName}</strong>. No rebrà sol·licituds d'altres àrees.
+                          </span>
+                        )}
+                        {formLevel === 3 && (
+                          <span>
+                            Com a <strong>Direcció (N3)</strong> de <strong>{selectedAreaName}</strong>, serà el <strong>2n aprovador</strong> de les despeses de <strong>{selectedAreaName}</strong> un cop validades pel seu coordinador/a.
+                          </span>
+                        )}
+                        {formLevel === 4 && (
+                          <span>
+                            Com a <strong>Direcció ADM i Finances (N4)</strong>, revisarà i aprovarà les compres autoritzades per les direccions d'àrea, amb control fiscal i pressupostari global.
+                          </span>
+                        )}
+                        {formLevel === 5 && (
+                          <span>
+                            Com a <strong>Administració de Compres / Facturació (N5)</strong>, tramitarà les comandes formals i la conformitat de factures per a tota la fundació.
+                          </span>
+                        )}
+                        {formLevel === 6 && (
+                          <span>
+                            Com a <strong>Gerència (N6)</strong>, disposa de supervisió executiva institucional sobre tots els expedients de la fundació.
+                          </span>
+                        )}
+                        {formLevel === 99 && (
+                          <span>
+                            Com a <strong>Superadministrador</strong>, té accés de configuració total al sistema.
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 );
               })()}
@@ -768,13 +858,18 @@ function ImportsManager() {
       for (const row of dataRows) {
         try {
           if (entityId === 'user') {
+            const rawRole = row['Rol Flux'] || 'tecnic';
+            const roleCfg = getHierarchyRole(rawRole);
+            const rawArea = normalizeAreaId(row['Àrea'] || 'social');
             await addUser({
               name: `${row['Nom'] || ''} ${row['Cognoms'] || ''}`.trim(),
               firstName: row['Nom'] || '',
               lastName: row['Cognoms'] || '',
               email: row['Email'] || '',
-              areaId: (row['Àrea'] || 'social').toLowerCase(),
-              role: row['Rol Flux'] || 'tecnic',
+              areaId: rawArea,
+              areaName: getAreaName(rawArea),
+              role: roleCfg.key as any,
+              hierarchyLevel: roleCfg.level as HierarchyLevel,
               active: (row['Actiu'] || 'Si').toLowerCase() === 'si',
               notificationsEnabled: (row['Notificacions'] || 'Si').toLowerCase() === 'si'
             });

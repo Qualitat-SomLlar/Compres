@@ -1,4 +1,5 @@
 import { User, PurchaseRequest, RequestStatus, UserRole } from '../types';
+import { normalizeAreaId, getAreaName, getHierarchyRole } from '../constants';
 
 export const workflowService = {
   /**
@@ -35,40 +36,47 @@ export const workflowService = {
   canUserApprove(user?: User, request?: PurchaseRequest): boolean {
     if (!user || !request) return false;
     const { status } = request;
-    const { role } = user;
+    const userLevel = user.hierarchyLevel || getHierarchyRole(user.role).level;
+    const userRole = user.role;
+    const requestArea = normalizeAreaId(request.areaId);
+    const userArea = normalizeAreaId(user.areaId);
 
-    // Admins, Superadmins and Gerència can manage anything
-    if (role === 'admin_compres' || role === 'superadmin' || role === 'gerencia') return true;
+    // Superadmins (99), Gerència (6) i Admin Compres tenen facultat de supervisió global
+    if (userLevel === 99 || userLevel === 6 || userRole === 'superadmin' || userRole === 'gerencia' || userRole === 'admin_compres') {
+      return true;
+    }
 
     switch (status) {
       case 'esborrany':
       case 'retornada':
-        // Only the creator can send it
-        return request.createdByUserId === user.id;
+        // Només el creador o tècnic pot tramitar la sol·licitud
+        return request.createdByUserId === user.id || request.requestingTechnicianId === user.id;
       
       case 'pendent_coordinacio':
-        return role === 'coordinacio' && request.areaId === user.areaId;
+        // 1r PAS D'APROVACIÓ: Només N2 (Coordinació) de la mateixa àrea que la compra
+        return (userLevel === 2 || userRole === 'coordinacio') && requestArea === userArea;
       
       case 'pendent_direccio':
-        return role === 'direccio_area' && request.areaId === user.areaId;
+        // 2n PAS D'APROVACIÓ: Només N3 (Direcció d'Àrea) de la mateixa àrea que la compra
+        return (userLevel === 3 || userRole === 'direccio_area') && requestArea === userArea;
       
       case 'pendent_finances':
-        return role === 'finances';
+        // 3r PAS D'APROVACIÓ: N4 Finances a nivell institucional
+        return userLevel === 4 || userRole === 'finances';
       
       case 'aprovada':
-        // Typically Admin or Finance emits the order
-        return role === 'finances';
+        // Emissió formal de comanda: Finances o Administració de Compres
+        return userLevel >= 4 || userRole === 'finances';
 
       case 'comanda_emesa':
-        // Technician, Creator or Receiver confirms reception
-        return role === 'tecnic' || 
-               role === 'finances' || 
-               request.requestingTechnicianId === user.id ||
-               request.createdByUserId === user.id;
+        // Conformitat de recepció de béns / serveis: Tècnic, creador o compres
+        return request.requestingTechnicianId === user.id || 
+               request.createdByUserId === user.id ||
+               userLevel >= 4;
 
       case 'rebuda':
-        // Finance or Accounting closes the request
-        return role === 'finances' || role === 'comptabilitat';
+        // Conformitat de factura i tancament comptable
+        return userLevel >= 4 || userRole === 'finances' || userRole === 'comptabilitat';
 
       default:
         return false;
@@ -96,7 +104,7 @@ export const workflowService = {
 
   /**
    * Identifica les persones i equips concrets amb facultat d'aprovació per a una sol·licitud
-   * basant-se en l'àrea d'adscripció i el nivell jeràrquic del treballador.
+   * basant-se estrictament en l'àrea d'adscripció i el nivell jeràrquic del treballador.
    */
   getEligibleApprovers(request: PurchaseRequest, allUsers: User[]): {
     roleName: string;
@@ -106,33 +114,45 @@ export const workflowService = {
     levelNumber: number;
   } | null {
     const activeUsers = (allUsers || []).filter(u => u.active !== false);
-    const areaId = request?.areaId || 'social';
+    const requestArea = normalizeAreaId(request?.areaId);
+    const areaName = getAreaName(request?.areaId);
 
     switch (request?.status) {
       case 'pendent_coordinacio': {
-        const matching = activeUsers.filter(u => u.role === 'coordinacio' && u.areaId === areaId);
+        const matching = activeUsers.filter(u => {
+          const uLevel = u.hierarchyLevel || getHierarchyRole(u.role).level;
+          const uArea = normalizeAreaId(u.areaId);
+          return (uLevel === 2 || u.role === 'coordinacio') && uArea === requestArea;
+        });
         return {
-          roleName: `Coordinació d'Àrea`,
-          scopeDescription: `Coordinadors/es adscrits a l'àrea de la compra (${areaId.toUpperCase()})`,
+          roleName: `Coordinació (N2) · ${areaName}`,
+          scopeDescription: `Coordinadors/es de Nivell 2 adscrits a ${areaName}`,
           users: matching,
           hasCover: matching.length > 0,
           levelNumber: 2
         };
       }
       case 'pendent_direccio': {
-        const matching = activeUsers.filter(u => u.role === 'direccio_area' && u.areaId === areaId);
+        const matching = activeUsers.filter(u => {
+          const uLevel = u.hierarchyLevel || getHierarchyRole(u.role).level;
+          const uArea = normalizeAreaId(u.areaId);
+          return (uLevel === 3 || u.role === 'direccio_area') && uArea === requestArea;
+        });
         return {
-          roleName: `Direcció d'Àrea`,
-          scopeDescription: `Directors/es adscrits a l'àrea de la compra (${areaId.toUpperCase()})`,
+          roleName: `Direcció d'Àrea (N3) · ${areaName}`,
+          scopeDescription: `Directors/es de Nivell 3 adscrits a ${areaName}`,
           users: matching,
           hasCover: matching.length > 0,
           levelNumber: 3
         };
       }
       case 'pendent_finances': {
-        const matching = activeUsers.filter(u => u.role === 'finances');
+        const matching = activeUsers.filter(u => {
+          const uLevel = u.hierarchyLevel || getHierarchyRole(u.role).level;
+          return uLevel === 4 || u.role === 'finances';
+        });
         return {
-          roleName: `Direcció ADM i Finances`,
+          roleName: `Direcció ADM i Finances (N4)`,
           scopeDescription: `Equip directiu de Finances i Administració General`,
           users: matching,
           hasCover: matching.length > 0,
@@ -140,9 +160,12 @@ export const workflowService = {
         };
       }
       case 'aprovada': {
-        const matching = activeUsers.filter(u => u.role === 'finances' || u.role === 'admin_compres');
+        const matching = activeUsers.filter(u => {
+          const uLevel = u.hierarchyLevel || getHierarchyRole(u.role).level;
+          return uLevel >= 4 || u.role === 'finances' || u.role === 'admin_compres';
+        });
         return {
-          roleName: `Administració de Compres / Finances`,
+          roleName: `Administració de Compres / Finances (N4-N5)`,
           scopeDescription: `Responsables de tramitació i emissió de comandes formals`,
           users: matching,
           hasCover: matching.length > 0,

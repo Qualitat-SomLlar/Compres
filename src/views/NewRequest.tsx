@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { User, Attachment, AttachmentCategory, RequestStatus, PurchaseRequest } from '../types';
-import { CATEGORIES, AREAS, getAreaName } from '../constants';
+import { CATEGORIES, AREAS, getAreaName, normalizeAreaId } from '../constants';
 import UserSelector from '../components/UserSelector';
 import CustomSelect from '../components/CustomSelect';
 import CustomDatePicker from '../components/CustomDatePicker';
@@ -69,7 +69,7 @@ export default function NewRequest({ user }: { user: User }) {
       requestingTechnicianId: worker.id,
       requestingTechnicianName: worker.name,
       requestingTechnicianEmail: worker.email,
-      areaId: worker.areaId || prev.areaId
+      areaId: normalizeAreaId(worker.areaId || prev.areaId)
     }));
   };
 
@@ -149,7 +149,7 @@ export default function NewRequest({ user }: { user: User }) {
       // Determinar l'àrea d'imputació (prioritat: treballador triat -> centre -> codi analític -> usuari)
       const selectedCenter = centers.find(c => c.id === formData.destinationCenterId);
       const selectedAnalytic = analyticCodes.find(ac => ac.code === formData.analyticCode);
-      const requestAreaId = (formData.areaId || selectedCenter?.area || selectedAnalytic?.area || user.areaId || 'social').toLowerCase();
+      const requestAreaId = normalizeAreaId(formData.areaId || selectedCenter?.area || selectedAnalytic?.area || user.areaId || 'social');
 
       // 1. Crear el document a Firestore
       const newRequest = await addRequest({
@@ -262,7 +262,7 @@ export default function NewRequest({ user }: { user: User }) {
                   <Building2 size={12} className="text-brand-primary shrink-0" />
                   <span>Àrea d'adscripció: <strong className="text-white">{getAreaName(formData.areaId)}</strong></span>
                   <span className="text-slate-600">•</span>
-                  <span className="text-slate-500">Circuit assignat a la Coordinació i Direcció d'aquesta àrea</span>
+                  <span className="text-slate-400">Circuit assignat a la Coordinació (N2) i Direcció (N3) de <strong className="text-white">{getAreaName(formData.areaId)}</strong></span>
                 </div>
               )}
             </div>

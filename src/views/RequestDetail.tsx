@@ -27,7 +27,7 @@ import {
   Users as UsersIcon
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { STATUS_LABELS, getAreaName, getHierarchyRole } from '../constants';
+import { STATUS_LABELS, getAreaName, getHierarchyRole, normalizeAreaId } from '../constants';
 import { User, RequestStatus, AttachmentCategory, PurchaseRequest, Attachment, Quote } from '../types';
 import { cn } from '../lib/utils';
 import AttachmentList from '../components/AttachmentList';
@@ -368,17 +368,17 @@ export default function RequestDetail({ user }: { user: User }) {
   const eligibleApprovers = request ? workflowService.getEligibleApprovers(request, users) : null;
   const isCurrentUserApprover = eligibleApprovers?.users.some(u => u.id === user.id);
 
-  const areaCoordinators = users.filter(u => u.active !== false && u.role === 'coordinacio' && u.areaId === request?.areaId);
+  const areaCoordinators = users.filter(u => u.active !== false && (u.hierarchyLevel === 2 || u.role === 'coordinacio') && normalizeAreaId(u.areaId) === normalizeAreaId(request?.areaId));
   const areaCoordinatorsLabel = areaCoordinators.length > 0 
     ? areaCoordinators.map(u => u.name).join(', ') 
     : `Coordinació (${request ? getAreaName(request.areaId) : ''})`;
 
-  const areaDirectors = users.filter(u => u.active !== false && u.role === 'direccio_area' && u.areaId === request?.areaId);
+  const areaDirectors = users.filter(u => u.active !== false && (u.hierarchyLevel === 3 || u.role === 'direccio_area') && normalizeAreaId(u.areaId) === normalizeAreaId(request?.areaId));
   const areaDirectorsLabel = areaDirectors.length > 0 
     ? areaDirectors.map(u => u.name).join(', ') 
     : `Direcció (${request ? getAreaName(request.areaId) : ''})`;
 
-  const financeUsers = users.filter(u => u.active !== false && u.role === 'finances');
+  const financeUsers = users.filter(u => u.active !== false && (u.hierarchyLevel === 4 || u.role === 'finances'));
   const financeLabel = financeUsers.length > 0 
     ? financeUsers.map(u => u.name).join(', ') 
     : "Direcció ADM i Finances";
@@ -421,7 +421,7 @@ export default function RequestDetail({ user }: { user: User }) {
                   <h1 className="text-4xl font-black text-white tracking-tighter leading-tight max-w-lg">{request.itemDescription || 'Sol·licitud de compra'}</h1>
                   <div className="flex flex-wrap gap-4">
                     <p className="text-slate-500 font-black uppercase text-[10px] tracking-[0.3em]">Codi: <span className="text-brand-primary">{request.code || request.id}</span></p>
-                    <p className="text-slate-500 font-black uppercase text-[10px] tracking-[0.3em]">Àrea: <span className="text-white">{request.areaId ? request.areaId.toUpperCase() : 'SENSE ÀREA'}</span></p>
+                    <p className="text-slate-500 font-black uppercase text-[10px] tracking-[0.3em]">Àrea: <span className="text-white">{request.areaId ? getAreaName(request.areaId) : 'SENSE ÀREA'}</span></p>
                   </div>
                 </div>
                 <div className="text-left md:text-right shrink-0">
@@ -773,7 +773,7 @@ export default function RequestDetail({ user }: { user: User }) {
                             </div>
                             {approver.areaId && (
                               <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-white/5 text-slate-400 uppercase tracking-wider shrink-0 ml-2">
-                                {approver.areaId}
+                                {getAreaName(approver.areaId)}
                               </span>
                             )}
                           </div>
