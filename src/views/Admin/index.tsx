@@ -25,7 +25,8 @@ import {
   ChevronRight,
   Info,
   Layers,
-  Sparkles
+  Sparkles,
+  Mail
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUsers } from '../../hooks/useUsers';
@@ -162,7 +163,7 @@ function TabButton({ active, onClick, icon, label }: TabButtonProps) {
 }
 
 function UsersManager() {
-  const { users, loading: loadingUsers, addUser, updateUser, deleteUser } = useUsers();
+  const { users, loading: loadingUsers, addUser, updateUser, deleteUser, sendWelcomeEmail } = useUsers();
   const { areas, loading: loadingAreas, getAreaName: dynamicGetAreaName } = useAreas();
   const { hierarchyLevels, loading: loadingLevels, getHierarchyRole: dynamicGetHierarchyRole } = useHierarchyLevels();
 
@@ -205,6 +206,7 @@ function UsersManager() {
     const selectedAreaId = normalizeAreaId(formData.get('areaId') as string);
     const selectedLevel = Number(formData.get('hierarchyLevel')) as HierarchyLevel;
     const matchedLevelConfig = hierarchyLevels.find(l => l.level === selectedLevel) || dynamicGetHierarchyRole(selectedLevel);
+    const shouldSendWelcome = formData.get('sendWelcomeEmail') === 'on';
 
     const data = {
       name: formData.get('name') as string,
@@ -224,8 +226,12 @@ function UsersManager() {
         await updateUser(selectedUser.id, data);
         toast.success("Treballador/a actualitzat correctament");
       } else {
-        await addUser(data);
-        toast.success("Treballador/a creat correctament");
+        await addUser(data, { sendWelcomeEmail: shouldSendWelcome });
+        if (shouldSendWelcome) {
+          toast.success("Treballador/a creat i correu d'accés enviat!");
+        } else {
+          toast.success("Treballador/a creat correctament");
+        }
       }
       setIsModalOpen(false);
     } catch (err) {
@@ -405,6 +411,22 @@ function UsersManager() {
                     </td>
                     <td className="py-4 text-right">
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={async () => {
+                            try {
+                              toast.loading(`Enviant correu d'accés a ${u.email}...`, { id: `send-mail-${u.id}` });
+                              await sendWelcomeEmail(u);
+                              toast.success(`Correu d'accés enviat a ${u.email}!`, { id: `send-mail-${u.id}` });
+                            } catch (err) {
+                              console.error(err);
+                              toast.error(`Error al enviar el correu`, { id: `send-mail-${u.id}` });
+                            }
+                          }}
+                          className="p-2 hover:bg-emerald-500/10 rounded-lg text-slate-400 hover:text-emerald-400 transition-colors"
+                          title="Reenviar correu de benvinguda amb enllaç d'accés"
+                        >
+                          <Mail size={14} />
+                        </button>
                         <button 
                           onClick={() => { setSelectedUser(u); setIsModalOpen(true); }}
                           className="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-brand-primary transition-colors"
@@ -611,6 +633,52 @@ function UsersManager() {
                   <span className="text-xs text-slate-300 font-bold">Rebre Notificacions per Correu</span>
                 </label>
               </div>
+
+              {!selectedUser ? (
+                <div className="p-4 rounded-2xl bg-emerald-500/[0.08] border border-emerald-500/20 space-y-1.5">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      name="sendWelcomeEmail" 
+                      defaultChecked 
+                      className="w-4 h-4 rounded border-emerald-500/30 bg-white/5 text-brand-primary focus:ring-0" 
+                    />
+                    <span className="text-xs text-white font-bold flex items-center gap-1.5">
+                      <Mail size={14} className="text-brand-primary" />
+                      Enviar correu de benvinguda amb l'enllaç d'accés a la plataforma
+                    </span>
+                  </label>
+                  <p className="text-[10px] text-slate-400 pl-7 leading-relaxed">
+                    El treballador rebrà una notificació automàtica per correu electrònic amb la seva àrea, rol assignat i un botó directe per accedir a la plataforma amb el seu compte de Microsoft (@somllar.cat).
+                  </p>
+                </div>
+              ) : (
+                <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <Mail size={13} className="text-brand-primary" /> Correu d'Accés
+                    </p>
+                    <p className="text-[10px] text-slate-400">Reenviar les dades i el botó d'accés a {selectedUser.email}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        toast.loading(`Enviant correu a ${selectedUser.email}...`, { id: `send-welcome-${selectedUser.id}` });
+                        await sendWelcomeEmail(selectedUser);
+                        toast.success(`Correu d'accés enviat a ${selectedUser.email}!`, { id: `send-welcome-${selectedUser.id}` });
+                      } catch (err) {
+                        console.error(err);
+                        toast.error("Error al enviar el correu", { id: `send-welcome-${selectedUser.id}` });
+                      }
+                    }}
+                    className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all"
+                  >
+                    <Mail size={12} />
+                    Enviar correu ara
+                  </button>
+                </div>
+              )}
 
               <div className="flex gap-4 pt-2">
                 <button 

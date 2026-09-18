@@ -187,6 +187,7 @@ export const ATTACHMENT_CATEGORIES = [
 ];
 
 export const NOTIFICATION_EVENTS = [
+  { id: 'alta_treballador', name: 'Alta de nou treballador/a (Benvinguda i accés)' },
   { id: 'solicitud_creada', name: 'Sol·licitud creada' },
   { id: 'retornada_esmena', name: 'Retornada per esmena' },
   { id: 'rebutjada', name: 'Rebutjada' },

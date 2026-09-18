@@ -23,6 +23,7 @@ export interface HierarchyRoleConfig {
   level: number;
   code: string; // 'N1', 'N2', 'N3', 'N4', 'N5', 'N6', 'SUPER'
   label: string;
+  name?: string;
   shortLabel: string;
   scope: 'area' | 'global';
   description: string;

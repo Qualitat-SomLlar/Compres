@@ -3,6 +3,7 @@ import { collection, onSnapshot, query, doc, updateDoc, deleteDoc, addDoc } from
 import { db } from '../lib/firebase';
 import { User, UserRole, HierarchyLevel } from '../types';
 import { getHierarchyRole, normalizeAreaId, getAreaName } from '../constants';
+import { emailService } from '../services/emailService';
 import toast from 'react-hot-toast';
 
 export function useUsers() {
@@ -81,19 +82,49 @@ export function useUsers() {
     });
   };
 
-  const addUser = async (userData: Omit<User, 'id'>) => {
+  const addUser = async (userData: Omit<User, 'id'>, options?: { sendWelcomeEmail?: boolean }) => {
     const now = new Date().toISOString();
     const areaId = normalizeAreaId(userData.areaId);
     const areaName = userData.areaName || getAreaName(areaId);
     const hierarchyLevel = userData.hierarchyLevel || getHierarchyRole(userData.role).level;
+    const roleConfig = getHierarchyRole(hierarchyLevel || userData.role);
 
-    await addDoc(collection(db, 'users'), {
+    const docRef = await addDoc(collection(db, 'users'), {
       ...userData,
       areaId,
       areaName,
       hierarchyLevel,
       createdAt: now,
       updatedAt: now
+    });
+
+    // Enviar correu automàtic de benvinguda i accés
+    if (options?.sendWelcomeEmail !== false && userData.email) {
+      try {
+        await emailService.sendWelcomeNotification({
+          name: userData.name,
+          email: userData.email,
+          areaName,
+          roleName: roleConfig.label,
+          hierarchyCode: roleConfig.code
+        });
+      } catch (err) {
+        console.error("Error enviant correu de benvinguda:", err);
+      }
+    }
+
+    return docRef;
+  };
+
+  const sendWelcomeEmail = async (user: User) => {
+    const roleConfig = getHierarchyRole(user.hierarchyLevel || user.role);
+    const areaName = user.areaName || getAreaName(user.areaId);
+    await emailService.sendWelcomeNotification({
+      name: user.name,
+      email: user.email,
+      areaName,
+      roleName: roleConfig.label,
+      hierarchyCode: roleConfig.code
     });
   };
 
@@ -122,5 +153,5 @@ export function useUsers() {
     await deleteDoc(docRef);
   };
 
-  return { users, loading, getUsersByRole, addUser, updateUser, deleteUser };
+  return { users, loading, getUsersByRole, addUser, updateUser, deleteUser, sendWelcomeEmail };
 }
