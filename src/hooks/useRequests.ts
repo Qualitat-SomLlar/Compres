@@ -29,8 +29,8 @@ export function useRequests() {
           const final = raw.finalAmount !== undefined && raw.finalAmount !== null ? Number(raw.finalAmount) : undefined;
           
           return {
-            id: doc.id,
             ...raw,
+            id: String(doc.id),
             code: raw.code || `PR-${doc.id.slice(0, 6).toUpperCase()}`,
             itemDescription: raw.itemDescription || raw.detalles || raw.description || 'Sol·licitud de compra',
             estimatedAmount: isNaN(estimated) ? 0 : estimated,

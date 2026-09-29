@@ -203,7 +203,7 @@ function UsersManager() {
     if (!userToDelete) return;
     setIsDeleting(true);
     try {
-      await deleteUser(userToDelete.id);
+      await deleteUser(userToDelete.id, userToDelete.email);
       toast.success(`Treballador/a "${userToDelete.name}" eliminat/da correctament`);
       if (selectedUser?.id === userToDelete.id) {
         setIsModalOpen(false);

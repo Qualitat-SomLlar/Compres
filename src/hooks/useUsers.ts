@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, doc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, updateDoc, deleteDoc, addDoc, getDocs, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { User, UserRole, HierarchyLevel } from '../types';
 import { getHierarchyRole, normalizeAreaId, getAreaName } from '../constants';
@@ -45,8 +45,8 @@ export function useUsers() {
         const areaName = raw.areaName || getAreaName(areaId);
         
         return {
-          id: doc.id,
           ...raw,
+          id: String(doc.id),
           name,
           role,
           hierarchyLevel,
@@ -129,7 +129,11 @@ export function useUsers() {
   };
 
   const updateUser = async (id: string, data: Partial<User>) => {
-    const docRef = doc(db, 'users', id);
+    const cleanId = String(id || '').trim();
+    if (!cleanId) {
+      throw new Error("L'identificador d'usuari no és vàlid.");
+    }
+    const docRef = doc(db, 'users', cleanId);
     const updatePayload: any = {
       ...data,
       updatedAt: new Date().toISOString()
@@ -148,9 +152,30 @@ export function useUsers() {
     await updateDoc(docRef, updatePayload);
   };
 
-  const deleteUser = async (id: string) => {
-    const docRef = doc(db, 'users', id);
+  const deleteUser = async (id: string, userEmail?: string) => {
+    const cleanId = String(id || '').trim();
+    if (!cleanId) {
+      throw new Error("L'identificador d'usuari no és vàlid.");
+    }
+    
+    // 1. Eliminar pel document ID principal
+    const docRef = doc(db, 'users', cleanId);
     await deleteDoc(docRef);
+
+    // 2. Si es proporciona email o queden duplicats/registres antics, netejar-los també
+    if (userEmail) {
+      try {
+        const q = query(collection(db, 'users'), where('email', '==', userEmail.toLowerCase().trim()));
+        const snap = await getDocs(q);
+        for (const d of snap.docs) {
+          if (d.id !== cleanId) {
+            await deleteDoc(d.ref);
+          }
+        }
+      } catch (e) {
+        console.warn("No s'han pogut netejar documents secundaris per correu:", e);
+      }
+    }
   };
 
   return { users, loading, getUsersByRole, addUser, updateUser, deleteUser, sendWelcomeEmail };
