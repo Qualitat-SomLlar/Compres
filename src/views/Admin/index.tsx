@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Users, 
   GitMerge, 
@@ -11,6 +11,8 @@ import {
   Download, 
   CheckCircle,
   AlertCircle,
+  AlertTriangle,
+  UserX,
   FileSpreadsheet,
   X,
   Save,
@@ -33,10 +35,11 @@ import { useUsers } from '../../hooks/useUsers';
 import { useAreas } from '../../hooks/useAreas';
 import { useHierarchyLevels } from '../../hooks/useHierarchyLevels';
 import { useProjects } from '../../hooks/useProjects';
+import { useRequests } from '../../hooks/useRequests';
 import toast from 'react-hot-toast';
 import { cn } from '../../lib/utils';
 import { ROLE_LABELS, ATTACHMENT_CATEGORIES, NOTIFICATION_EVENTS, AREAS, HIERARCHY_ROLES, getHierarchyRole, getAreaName, normalizeAreaId } from '../../constants';
-import { HierarchyLevel, AreaItem, HierarchyRoleConfig } from '../../types';
+import { HierarchyLevel, AreaItem, HierarchyRoleConfig, User } from '../../types';
 import { importExportService } from '../../services/importExportService';
 import { useNotificationSettings } from '../../hooks/useNotificationSettings';
 import { useCenters } from '../../hooks/useCenters';
@@ -163,16 +166,75 @@ function TabButton({ active, onClick, icon, label }: TabButtonProps) {
 }
 
 function UsersManager() {
+  const { user: currentUser } = useAuth();
   const { users, loading: loadingUsers, addUser, updateUser, deleteUser, sendWelcomeEmail } = useUsers();
   const { areas, loading: loadingAreas, getAreaName: dynamicGetAreaName } = useAreas();
   const { hierarchyLevels, loading: loadingLevels, getHierarchyRole: dynamicGetHierarchyRole } = useHierarchyLevels();
+  const { requests } = useRequests();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [areaFilter, setAreaFilter] = useState('all');
   const [levelFilter, setLevelFilter] = useState('all');
+
+  const linkedRequests = useMemo(() => {
+    if (!userToDelete) return [];
+    return requests.filter(r => 
+      r.createdByUserId === userToDelete.id || 
+      r.requestingTechnicianId === userToDelete.id ||
+      (r.requestingTechnician && r.requestingTechnician.toLowerCase() === userToDelete.name?.toLowerCase()) ||
+      (r.createdBy && r.createdBy.toLowerCase() === userToDelete.name?.toLowerCase())
+    );
+  }, [requests, userToDelete]);
+
+  const handleInitiateDelete = (targetUser: User) => {
+    if (currentUser?.id === targetUser.id || (currentUser?.email && targetUser.email && currentUser.email.toLowerCase() === targetUser.email.toLowerCase())) {
+      toast.error("No pots eliminar el teu propi compte d'usuari.");
+      return;
+    }
+    setUserToDelete(targetUser);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!userToDelete) return;
+    setIsDeleting(true);
+    try {
+      await deleteUser(userToDelete.id);
+      toast.success(`Treballador/a "${userToDelete.name}" eliminat/da correctament`);
+      if (selectedUser?.id === userToDelete.id) {
+        setIsModalOpen(false);
+        setSelectedUser(null);
+      }
+      setUserToDelete(null);
+    } catch (err: any) {
+      console.error("Error eliminant usuari:", err);
+      toast.error(`Error al eliminar: ${err?.message || 'Permisos insuficients o error del servidor'}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeactivateInstead = async () => {
+    if (!userToDelete) return;
+    setIsDeleting(true);
+    try {
+      await updateUser(userToDelete.id, { active: false });
+      toast.success(`Compte de "${userToDelete.name}" desactivat correctament`);
+      if (selectedUser?.id === userToDelete.id) {
+        setSelectedUser((prev: any) => prev ? { ...prev, active: false } : null);
+      }
+      setUserToDelete(null);
+    } catch (err: any) {
+      console.error("Error desactivant usuari:", err);
+      toast.error(`Error al desactivar: ${err?.message || 'Error del servidor'}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
   
   // Dues dades completament independents per al formulari
   const [formAreaId, setFormAreaId] = useState('tics');
@@ -435,13 +497,8 @@ function UsersManager() {
                           <Edit2 size={14} />
                         </button>
                         <button 
-                          onClick={async () => {
-                            if (confirm(`Estàs segur que vols eliminar el registre de ${u.name}?`)) {
-                              await deleteUser(u.id);
-                              toast.success("Treballador/a eliminat correctament");
-                            }
-                          }}
-                          className="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-red-400 transition-colors"
+                          onClick={() => handleInitiateDelete(u)}
+                          className="p-2 hover:bg-red-500/10 rounded-lg text-slate-400 hover:text-red-400 transition-colors"
                           title="Eliminar treballador/a"
                         >
                           <Trash2 size={14} />
@@ -680,7 +737,18 @@ function UsersManager() {
                 </div>
               )}
 
-              <div className="flex gap-4 pt-2">
+              <div className="flex items-center gap-3 pt-2">
+                {selectedUser && (
+                  <button 
+                    type="button" 
+                    onClick={() => handleInitiateDelete(selectedUser)}
+                    className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all"
+                    title="Eliminar aquest treballador/a"
+                  >
+                    <Trash2 size={14} />
+                    <span>Eliminar</span>
+                  </button>
+                )}
                 <button 
                   type="button" 
                   onClick={() => setIsModalOpen(false)}
@@ -698,6 +766,124 @@ function UsersManager() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Confirmació d'Eliminació */}
+      {userToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-[#0f172a] border border-red-500/20 rounded-3xl w-full max-w-lg overflow-hidden animate-in zoom-in duration-300 shadow-2xl">
+            <div className="p-6 border-b border-white/5 flex items-center justify-between bg-red-500/[0.05]">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400">
+                  <AlertTriangle size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white uppercase tracking-widest">
+                    Eliminar Treballador/a
+                  </h3>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    Confirmació d'acció destructiva sobre el compte
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setUserToDelete(null)} 
+                disabled={isDeleting}
+                className="text-slate-500 hover:text-white transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Fitxa resum del treballador */}
+              <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center text-sm font-bold text-brand-primary shrink-0">
+                  {(userToDelete.name || 'U').charAt(0)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-bold text-white truncate">{userToDelete.name}</h4>
+                  <p className="text-xs text-slate-400 truncate">{userToDelete.email}</p>
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold bg-white/5 text-slate-300">
+                      <Building2 size={10} className="text-brand-primary" />
+                      {dynamicGetAreaName(userToDelete.areaId)}
+                    </span>
+                    <span className={cn(
+                      "inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold border",
+                      dynamicGetHierarchyRole(userToDelete.hierarchyLevel || userToDelete.role).badgeColor
+                    )}>
+                      {dynamicGetHierarchyRole(userToDelete.hierarchyLevel || userToDelete.role).code} · {dynamicGetHierarchyRole(userToDelete.hierarchyLevel || userToDelete.role).label}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cas de Sol·licituds Vinculades */}
+              {linkedRequests.length > 0 ? (
+                <div className="p-4 rounded-2xl bg-amber-500/[0.08] border border-amber-500/20 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle size={18} className="text-amber-400 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-amber-200">
+                        Aquest treballador té {linkedRequests.length} {linkedRequests.length === 1 ? 'sol·licitud de compra vinculada' : 'sol·licituds de compra vinculades'}
+                      </p>
+                      <p className="text-[11px] text-slate-300 leading-relaxed">
+                        Si elimines el registre definitivament de la base de dades, es podria perdre la referència de l'autor en els informes històrics d'aquestes compres.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t border-amber-500/20 text-[11px] text-slate-300 leading-relaxed">
+                    Et recomanem <strong>desactivar el compte</strong> en lloc d'eliminar-lo: el treballador no podrà accedir ni crear sol·licituds noves, però es mantindrà l'historial intacte.
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2">
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Estàs a punt d'eliminar de forma permanent el registre de <strong>{userToDelete.name}</strong> ({userToDelete.email}).
+                  </p>
+                  <p className="text-[11px] text-red-400 font-bold">
+                    Aquesta acció no es pot desfer i s'eliminaran els seus permisos i dades d'adscripció.
+                  </p>
+                </div>
+              )}
+
+              {/* Accions */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setUserToDelete(null)}
+                  disabled={isDeleting}
+                  className="btn-secondary flex-1 py-3 text-xs font-black uppercase tracking-widest order-3 sm:order-1"
+                >
+                  Cancel·lar
+                </button>
+
+                {linkedRequests.length > 0 && userToDelete.active !== false && (
+                  <button
+                    type="button"
+                    onClick={handleDeactivateInstead}
+                    disabled={isDeleting}
+                    className="flex-1 py-3 px-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all order-2"
+                  >
+                    {isDeleting ? <Loader2 size={15} className="animate-spin" /> : <UserX size={15} />}
+                    <span>Desactivar Compte</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleConfirmDelete}
+                  disabled={isDeleting}
+                  className="flex-1 py-3 px-4 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-red-500/20 transition-all order-1 sm:order-3"
+                >
+                  {isDeleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                  <span>Eliminar Definitivament</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

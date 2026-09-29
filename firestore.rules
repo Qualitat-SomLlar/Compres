@@ -8,10 +8,41 @@ service cloud.firestore {
 
     // Helpers
     function isAuthenticated() { return request.auth != null; }
-    function getUserData() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
-    function hasRole(role) { return isAuthenticated() && getUserData().role == role; }
-    function isSuperAdmin() { return hasRole('superadmin'); }
-    function isAdmin() { return isSuperAdmin() || hasRole('admin_compres') || hasRole('finances'); }
+    function userDocExists() { return exists(/databases/$(database)/documents/users/$(request.auth.uid)); }
+    function getUserData() { return userDocExists() ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data : {}; }
+    function hasRole(role) { 
+      return isAuthenticated() && (
+        (userDocExists() && getUserData().role == role) ||
+        (role == 'superadmin' && userDocExists() && getUserData().role == 'admin')
+      ); 
+    }
+    function isSuperAdminEmail() {
+      return isAuthenticated() && (
+        request.auth.token.email in [
+          'secretaria@somllar.cat',
+          'secretariadq@somllar.cat',
+          'lito@somllar.cat',
+          'admin@somllar.cat',
+          'secretariadq@prohabitatge.org'
+        ] || 
+        request.auth.token.email.matches('admin.*') ||
+        request.auth.token.email.matches('secretaria.*')
+      );
+    }
+    function isSuperAdmin() { 
+      return isSuperAdminEmail() || 
+             hasRole('superadmin') || 
+             (userDocExists() && getUserData().hierarchyLevel == 99); 
+    }
+    function isAdmin() { 
+      return isSuperAdmin() || 
+             hasRole('admin_compres') || 
+             hasRole('finances') || 
+             hasRole('gerencia') ||
+             hasRole('admin') ||
+             (userDocExists() && getUserData().hierarchyLevel in [4, 5, 6, 99]) ||
+             (isAuthenticated() && request.auth.token.email in ['finances@somllar.cat', 'compres@somllar.cat', 'administracio@somllar.cat']); 
+    }
 
     match /{allPaths=**} {
       allow read, write: if isSuperAdmin();
@@ -25,7 +56,7 @@ service cloud.firestore {
         isAdmin() || 
         (request.auth.uid == userId && request.resource.data.role == resource.data.role && request.resource.data.active == resource.data.active)
       );
-      allow delete: if isAdmin();
+      allow delete: if isAuthenticated() && (isAdmin() || isSuperAdmin());
     }
 
     // Purchase Requests
