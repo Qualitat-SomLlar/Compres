@@ -5,6 +5,7 @@ import { doc, getDoc, setDoc, query, where, collection, getDocs, deleteDoc } fro
 import { User, UserRole, HierarchyLevel } from '../types';
 import { getHierarchyRole } from '../constants';
 import toast from 'react-hot-toast';
+import { activityService } from '../services/activityService';
 
 interface AuthContextType {
   user: User | null;
@@ -135,6 +136,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             }
             
             setUser(userData);
+            // Registrar log d'inici de sessió un cop per sessió de navegador
+            const sessionKey = `somllar_login_logged_${userData.id}`;
+            if (!sessionStorage.getItem(sessionKey)) {
+              sessionStorage.setItem(sessionKey, 'true');
+              activityService.logLogin(userData);
+            }
           } else {
             // Si és el primer cop i no estava pre-creat, creem el document
             const isSuperAdmin = SUPERADMIN_EMAILS.includes(userEmail);
@@ -158,6 +165,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               console.warn("No s'ha pogut crear el document d'usuari a Firestore:", createErr);
             }
             setUser(newUser);
+            const sessionKey = `somllar_login_logged_${newUser.id}`;
+            if (!sessionStorage.getItem(sessionKey)) {
+              sessionStorage.setItem(sessionKey, 'true');
+              activityService.logLogin(newUser);
+            }
           }
         } catch (error: any) {
           console.error("Error al carregar l'usuari des de Firestore:", error);
@@ -178,6 +190,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             updatedAt: new Date().toISOString()
           };
           setUser(fallbackUser);
+          const sessionKey = `somllar_login_logged_${fallbackUser.id}`;
+          if (!sessionStorage.getItem(sessionKey)) {
+            sessionStorage.setItem(sessionKey, 'true');
+            activityService.logLogin(fallbackUser);
+          }
           toast.error(`Connexió directa: no s'ha pogut sincronitzar el perfil complet des de la base de dades (${error?.message || 'timeout'}).`);
         }
       } else {
@@ -250,6 +267,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const logout = async () => {
+    if (user) {
+      try {
+        sessionStorage.removeItem(`somllar_login_logged_${user.id}`);
+        await activityService.logLogout(user);
+      } catch (e) {
+        console.warn("Error registrant log de sortida:", e);
+      }
+    }
     await auth.signOut();
   };
 

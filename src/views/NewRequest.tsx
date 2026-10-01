@@ -31,6 +31,7 @@ import { useProjects } from '../hooks/useProjects';
 import { useEmailDispatcher } from '../hooks/useEmailDispatcher';
 import { emailService } from '../services/emailService';
 import { fileService } from '../services/fileService';
+import { activityService } from '../services/activityService';
 
 export default function NewRequest({ user }: { user: User }) {
   const navigate = useNavigate();
@@ -193,6 +194,24 @@ export default function NewRequest({ user }: { user: User }) {
       } else {
         toast.success(`Esborrany ${newRequest.code || newRequest.id} desat correctament!`, { id: loadingToast });
       }
+
+      // 4. Registre d'activitat i auditoria
+      activityService.logRequestAction(
+        user,
+        targetStatus === 'pendent_coordinacio' ? 'request_created' : 'request_updated',
+        targetStatus === 'pendent_coordinacio' ? 'Nova Sol·licitud Creada' : 'Esborrany Desat',
+        newRequest,
+        targetStatus === 'pendent_coordinacio'
+          ? `L'usuari ha enviat una nova sol·licitud de compra per valor de ${newRequest.estimatedAmount}€.`
+          : `L'usuari ha desat un esborrany de sol·licitud.`,
+        {
+          targetStatus,
+          estimatedAmount: newRequest.estimatedAmount,
+          itemDescription: newRequest.itemDescription,
+          destinationCenterName: newRequest.destinationCenterName,
+          filesUploaded: filesQueue.length
+        }
+      );
 
       navigate('/compres');
     } catch (error) {

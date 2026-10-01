@@ -289,3 +289,48 @@ export interface AppNotification {
   read: boolean;
   createdAt: string;
 }
+
+export type ActivityType = 
+  | 'login'
+  | 'logout'
+  | 'request_created'
+  | 'request_updated'
+  | 'request_approved'
+  | 'request_returned'
+  | 'request_rejected'
+  | 'order_issued'
+  | 'order_received'
+  | 'order_closed'
+  | 'quote_added'
+  | 'quote_selected'
+  | 'file_uploaded'
+  | 'file_deleted'
+  | 'user_created'
+  | 'user_updated'
+  | 'user_deleted'
+  | 'user_deactivated'
+  | 'area_created'
+  | 'area_updated'
+  | 'area_deleted'
+  | 'hierarchy_updated'
+  | 'settings_updated'
+  | 'system_config_updated';
+
+export interface ActivityLog {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userRole?: string;
+  hierarchyLevel?: number;
+  areaId?: string;
+  areaName?: string;
+  type: ActivityType;
+  action: string;
+  details: string;
+  requestId?: string;
+  requestCode?: string;
+  metadata?: Record<string, any>;
+  device?: string;
+  createdAt: string;
+}

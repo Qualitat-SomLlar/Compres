@@ -41,6 +41,7 @@ import { useSuppliers } from '../hooks/useSuppliers';
 import { useEmailDispatcher } from '../hooks/useEmailDispatcher';
 import { workflowService } from '../services/workflowService';
 import { fileService } from '../services/fileService';
+import { activityService } from '../services/activityService';
 import { collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
@@ -203,6 +204,41 @@ export default function RequestDetail({ user }: { user: User }) {
         );
       }
 
+      // Registre d'activitat i auditoria
+      const logType = action === 'approve' 
+        ? 'request_approved' 
+        : action === 'reject' 
+          ? 'request_rejected' 
+          : action === 'return' 
+            ? 'request_returned' 
+            : 'request_updated';
+
+      const actionTitle = action === 'approve'
+        ? `Aprovació / Canvi a ${STATUS_LABELS[newStatus]?.label || newStatus}`
+        : action === 'reject'
+          ? 'Sol·licitud Rebutjada'
+          : action === 'return'
+            ? 'Retornada per Esmena'
+            : `Actualitzada a ${STATUS_LABELS[newStatus]?.label || newStatus}`;
+
+      const actionDetails = comment 
+        ? `Estat actualitzat a "${STATUS_LABELS[newStatus]?.label || newStatus}". Observació: ${comment}`
+        : `Estat actualitzat a "${STATUS_LABELS[newStatus]?.label || newStatus}".`;
+
+      activityService.logRequestAction(
+        user,
+        logType,
+        actionTitle,
+        { ...request, status: newStatus },
+        actionDetails,
+        {
+          action,
+          previousStatus: request.status,
+          newStatus,
+          comment: comment || undefined
+        }
+      );
+
       toast.success(`Acció realitzada: ${STATUS_LABELS[newStatus]?.label}`);
       setComment('');
     } catch (error) {
@@ -232,6 +268,18 @@ export default function RequestDetail({ user }: { user: User }) {
       await updateRequest(request.id, {
         attachmentsCount: attachments.length + uploadedList.length
       });
+      activityService.logRequestAction(
+        user,
+        'file_uploaded',
+        'Pujada de Documents',
+        request,
+        `S'han adjuntat ${files.length} fitxer(s) a l'expedient (${category}).`,
+        {
+          filesCount: files.length,
+          category,
+          fileNames: files.map(f => f.name)
+        }
+      );
       toast.success(`${files.length} document(s) desat(s) a l'expedient`);
       setShowUploadModal(false);
     } catch (err) {
@@ -248,6 +296,17 @@ export default function RequestDetail({ user }: { user: User }) {
       const att = attachments.find(a => a.id === attachmentId);
       await fileService.deleteFile(attachmentId, att?.storagePath);
       setAttachments(prev => prev.filter(a => a.id !== attachmentId));
+      activityService.logRequestAction(
+        user,
+        'file_deleted',
+        'Eliminació de Document',
+        request,
+        `S'ha eliminat el fitxer "${att?.name || attachmentId}" de l'expedient.`,
+        {
+          attachmentId,
+          fileName: att?.name
+        }
+      );
       await updateRequest(request.id, {
         attachmentsCount: Math.max(0, attachments.length - 1)
       });

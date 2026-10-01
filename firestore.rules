@@ -120,7 +120,13 @@ service cloud.firestore {
       allow update: if isAuthenticated() && request.auth.uid == resource.data.userId;
     }
 
-    // Audit Logs
+    // Activity Logs & Audit Logs
+    match /activityLogs/{logId} {
+      allow read: if isAuthenticated() && (isAdmin() || isSuperAdmin());
+      allow create: if isAuthenticated();
+      allow update, delete: if isSuperAdmin();
+    }
+
     match /auditLogs/{logId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
