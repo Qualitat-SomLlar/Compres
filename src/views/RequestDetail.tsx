@@ -138,9 +138,13 @@ export default function RequestDetail({ user }: { user: User }) {
     try {
       const newStatus = workflowService.getNextStatus(request.status, action);
       
+      const newObservations = comment 
+        ? (request.observations ? `${request.observations}\n\n[${new Date().toLocaleDateString('ca-ES')} - ${user.name}]: ${comment}` : comment) 
+        : (request.observations || '');
+
       const updateData: Partial<PurchaseRequest> = {
         status: newStatus,
-        observations: comment ? (request.observations ? `${request.observations}\n\n[${new Date().toLocaleDateString('ca-ES')} - ${user.name}]: ${comment}` : comment) : request.observations
+        observations: newObservations
       };
 
       // Afegir timestamps d'aprovació segons la fase

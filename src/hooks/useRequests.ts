@@ -101,10 +101,16 @@ export function useRequests() {
 
   const updateRequest = async (id: string, data: Partial<PurchaseRequest>) => {
     const docRef = doc(db, 'purchaseRequests', id);
-    await updateDoc(docRef, {
-      ...data,
+    // Sanitize data to remove any undefined fields before sending to Firestore
+    const cleanData: Record<string, any> = {
       updatedAt: new Date().toISOString()
-    });
+    };
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined) {
+        cleanData[key] = value;
+      }
+    }
+    await updateDoc(docRef, cleanData);
   };
 
   // KPIs i càlculs
