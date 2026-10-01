@@ -405,6 +405,19 @@ export default function RequestDetail({ user }: { user: User }) {
         finalAmount: quote.amount
       });
 
+      activityService.logRequestAction(
+        user,
+        'quote_selected',
+        'Adjudicació de Pressupost',
+        { ...request, supplierName: quote.supplierName, finalAmount: quote.amount },
+        `S'ha adjudicat la compra al proveïdor "${quote.supplierName}" per un import de ${quote.amount}€.`,
+        {
+          quoteId: quote.id,
+          supplierName: quote.supplierName,
+          amount: quote.amount
+        }
+      );
+
       toast.success(`Oferta de "${quote.supplierName}" adjudicada amb èxit!`);
     } catch (err) {
       console.error("Error adjudicant oferta:", err);
