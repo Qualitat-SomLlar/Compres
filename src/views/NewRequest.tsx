@@ -188,7 +188,7 @@ export default function NewRequest({ user }: { user: User }) {
             requestId: newRequest.id
           });
         }
-        await dispatchEmail('solicitud_creada', newRequest);
+        await dispatchEmail('solicitud_creada', newRequest, { actorName: user.name, actorRole: user.role });
         toast.success(`Sol·licitud ${newRequest.code || newRequest.id} enviada correctament!`, { id: loadingToast });
       } else {
         toast.success(`Esborrany ${newRequest.code || newRequest.id} desat correctament!`, { id: loadingToast });

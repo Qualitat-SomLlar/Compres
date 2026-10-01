@@ -11,7 +11,12 @@ export function useEmailDispatcher() {
   const dispatchEmail = async (
     eventKey: string, 
     request: PurchaseRequest,
-    extra?: { comment?: string; previousStatus?: RequestStatus }
+    extra?: { 
+      comment?: string; 
+      previousStatus?: RequestStatus;
+      actorName?: string;
+      actorRole?: string;
+    }
   ) => {
     const setting = settings.find(s => s.eventKey === eventKey);
     
@@ -75,7 +80,13 @@ export function useEmailDispatcher() {
 
       approverEmails.forEach(email => {
         sendPromises.push(
-          emailService.sendPendingApprovalNotification(request, email, "Coordinació d'Àrea (N2)")
+          emailService.sendPendingApprovalNotification(
+            request, 
+            email, 
+            "Coordinació d'Àrea (N2)",
+            undefined,
+            { actorName: extra?.actorName, comment: extra?.comment }
+          )
         );
       });
 
@@ -86,7 +97,9 @@ export function useEmailDispatcher() {
             request, 
             email, 
             request.status, 
-            extra?.comment || "La teva sol·licitud ha estat registrada i enviada a la Coordinació de la teva àrea per a la seva validació."
+            extra?.comment || "La teva sol·licitud ha estat registrada i enviada a la Coordinació de la teva àrea per a la seva validació.",
+            undefined,
+            { actorName: extra?.actorName, actorRole: extra?.actorRole, previousStatus: extra?.previousStatus }
           )
         );
       });
@@ -104,7 +117,13 @@ export function useEmailDispatcher() {
 
       approverEmails.forEach(email => {
         sendPromises.push(
-          emailService.sendPendingApprovalNotification(request, email, "Direcció d'Àrea (N3)")
+          emailService.sendPendingApprovalNotification(
+            request, 
+            email, 
+            "Direcció d'Àrea (N3)",
+            undefined,
+            { actorName: extra?.actorName, comment: extra?.comment }
+          )
         );
       });
 
@@ -115,7 +134,9 @@ export function useEmailDispatcher() {
             request, 
             email, 
             request.status, 
-            extra?.comment || "Validada per la Coordinació d'Àrea. Pendent de la Direcció d'Àrea."
+            extra?.comment || "Validada per la Coordinació d'Àrea. Pendent de la Direcció d'Àrea.",
+            undefined,
+            { actorName: extra?.actorName, actorRole: extra?.actorRole, previousStatus: extra?.previousStatus }
           )
         );
       });
@@ -132,7 +153,13 @@ export function useEmailDispatcher() {
 
       approverEmails.forEach(email => {
         sendPromises.push(
-          emailService.sendPendingApprovalNotification(request, email, "Direcció ADM i Finances (N4)")
+          emailService.sendPendingApprovalNotification(
+            request, 
+            email, 
+            "Direcció ADM i Finances (N4)",
+            undefined,
+            { actorName: extra?.actorName, comment: extra?.comment }
+          )
         );
       });
 
@@ -143,7 +170,9 @@ export function useEmailDispatcher() {
             request, 
             email, 
             request.status, 
-            extra?.comment || "Validada per la Direcció d'Àrea. Pendent d'aprovació pressupostària per Finances."
+            extra?.comment || "Validada per la Direcció d'Àrea. Pendent d'aprovació pressupostària per Finances.",
+            undefined,
+            { actorName: extra?.actorName, actorRole: extra?.actorRole, previousStatus: extra?.previousStatus }
           )
         );
       });
@@ -154,7 +183,14 @@ export function useEmailDispatcher() {
       // Enviar notificació d'estat al sol·licitant
       validRequesterEmails.forEach(email => {
         sendPromises.push(
-          emailService.sendStatusUpdateNotification(request, email, request.status, extra?.comment)
+          emailService.sendStatusUpdateNotification(
+            request, 
+            email, 
+            request.status, 
+            extra?.comment,
+            undefined,
+            { actorName: extra?.actorName, actorRole: extra?.actorRole, previousStatus: extra?.previousStatus }
+          )
         );
       });
 
@@ -162,7 +198,14 @@ export function useEmailDispatcher() {
       additionalRecipients.forEach(email => {
         if (!validRequesterEmails.includes(email)) {
           sendPromises.push(
-            emailService.sendStatusUpdateNotification(request, email, request.status, extra?.comment)
+            emailService.sendStatusUpdateNotification(
+              request, 
+              email, 
+              request.status, 
+              extra?.comment,
+              undefined,
+              { actorName: extra?.actorName, actorRole: extra?.actorRole, previousStatus: extra?.previousStatus }
+            )
           );
         }
       });

@@ -191,7 +191,16 @@ export default function RequestDetail({ user }: { user: User }) {
       else if (newStatus === 'incidencia') eventKey = 'incidencia';
 
       if (eventKey) {
-        await dispatchEmail(eventKey, { ...request, status: newStatus }, { comment, previousStatus: request.status });
+        await dispatchEmail(
+          eventKey, 
+          { ...request, status: newStatus }, 
+          { 
+            comment, 
+            previousStatus: request.status,
+            actorName: user?.name,
+            actorRole: user?.role
+          }
+        );
       }
 
       toast.success(`Acció realitzada: ${STATUS_LABELS[newStatus]?.label}`);
