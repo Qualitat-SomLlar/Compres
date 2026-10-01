@@ -48,11 +48,34 @@ export const activityService = {
       const now = new Date().toISOString();
       const device = getDeviceSummary();
 
-      await addDoc(collection(db, 'activityLogs'), {
-        ...params,
+      // Neteja de valors undefined perquè Firestore no admet valors undefined
+      const cleanData: Record<string, any> = {
+        userId: params.userId || '',
+        userName: params.userName || '',
+        userEmail: params.userEmail || '',
+        userRole: params.userRole || '',
+        hierarchyLevel: typeof params.hierarchyLevel === 'number' ? params.hierarchyLevel : null,
+        areaId: params.areaId || '',
+        areaName: params.areaName || '',
+        type: params.type,
+        action: params.action || '',
+        details: params.details || '',
         device,
         createdAt: now
-      });
+      };
+
+      if (params.requestId) cleanData.requestId = params.requestId;
+      if (params.requestCode) cleanData.requestCode = params.requestCode;
+      if (params.metadata) {
+        // Netejar també camps undefined dins de metadata
+        const cleanMeta: Record<string, any> = {};
+        for (const [key, val] of Object.entries(params.metadata)) {
+          if (val !== undefined) cleanMeta[key] = val;
+        }
+        cleanData.metadata = cleanMeta;
+      }
+
+      await addDoc(collection(db, 'activityLogs'), cleanData);
       console.log(`📝 Log d'activitat [${params.type}]: ${params.action} - ${params.userName}`);
     } catch (err) {
       // No bloqueja mai l'operació principal de l'usuari si falla el log

@@ -158,8 +158,8 @@ export default function Dashboard() {
             <h4 className="text-lg font-bold">Import per Categoria de Compra</h4>
             <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-white/5 px-3 py-1 rounded-full">DADES REALS</div>
           </div>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-80 w-full min-h-[320px]">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <BarChart data={categoryData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
                 <XAxis dataKey="name" fontSize={11} tickLine={false} axisLine={false} stroke="#64748b" />
@@ -177,8 +177,8 @@ export default function Dashboard() {
         {/* Estat de les sol·licituds */}
         <div className="card p-8">
           <h4 className="text-lg font-bold mb-10">Estat de les Sol·licituds</h4>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-64 w-full min-h-[256px]">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <PieChart>
                 <Pie
                   data={statusData}
