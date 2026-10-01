@@ -186,11 +186,11 @@ export default function RequestsList({ user: propUser }: RequestsListProps) {
       </div>
 
       {/* Pestanyes de Vistes Ràpides */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-white/5">
+      <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-white/5 no-scrollbar">
         <button
           onClick={() => setActiveTab('all')}
           className={cn(
-            "flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all shrink-0",
+            "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
             activeTab === 'all' 
               ? "bg-brand-primary text-black shadow-lg shadow-brand-primary/20" 
               : "bg-white/[0.02] text-slate-400 hover:text-white hover:bg-white/5"
@@ -206,7 +206,7 @@ export default function RequestsList({ user: propUser }: RequestsListProps) {
         <button
           onClick={() => setActiveTab('my_turn')}
           className={cn(
-            "flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all shrink-0 relative",
+            "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all relative",
             activeTab === 'my_turn' 
               ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" 
               : "bg-white/[0.02] text-slate-400 hover:text-white hover:bg-white/5",
@@ -214,7 +214,7 @@ export default function RequestsList({ user: propUser }: RequestsListProps) {
           )}
         >
           <Sparkles size={14} />
-          <span>El Meu Torn de Validar</span>
+          <span>El Meu Torn</span>
           <span className={cn(
             "text-[10px] px-2 py-0.5 rounded-full font-black",
             activeTab === 'my_turn' 
@@ -230,7 +230,7 @@ export default function RequestsList({ user: propUser }: RequestsListProps) {
         <button
           onClick={() => setActiveTab('my_requests')}
           className={cn(
-            "flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all shrink-0",
+            "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
             activeTab === 'my_requests' 
               ? "bg-brand-primary text-black shadow-lg shadow-brand-primary/20" 
               : "bg-white/[0.02] text-slate-400 hover:text-white hover:bg-white/5"
@@ -246,7 +246,7 @@ export default function RequestsList({ user: propUser }: RequestsListProps) {
         <button
           onClick={() => setActiveTab('pending')}
           className={cn(
-            "flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all shrink-0",
+            "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
             activeTab === 'pending' 
               ? "bg-amber-500 text-black shadow-lg shadow-amber-500/20" 
               : "bg-white/[0.02] text-slate-400 hover:text-white hover:bg-white/5"
@@ -262,7 +262,7 @@ export default function RequestsList({ user: propUser }: RequestsListProps) {
         <button
           onClick={() => setActiveTab('closed')}
           className={cn(
-            "flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all shrink-0",
+            "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
             activeTab === 'closed' 
               ? "bg-blue-500 text-white shadow-lg shadow-blue-500/20" 
               : "bg-white/[0.02] text-slate-400 hover:text-white hover:bg-white/5"
