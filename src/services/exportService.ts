@@ -34,7 +34,7 @@ export const exportService = {
     doc.setFontSize(9);
     doc.setTextColor(lightSlate[0], lightSlate[1], lightSlate[2]);
     doc.setFont('helvetica', 'normal');
-    doc.text("ASSOCIACIÓ PROHABITATGE - GESTIÓ INTEGRAL DE COMPRES", 15, 26);
+    doc.text("ASSOCIACIÓ SOM LLAR - GESTIÓ INTEGRAL DE COMPRES", 15, 26);
     doc.text("CIF: G-63024823 | www.somllar.cat", 15, 31);
 
     // Codi d'expedient destacat
@@ -234,7 +234,7 @@ export const exportService = {
     // Peu de pàgina
     doc.setFontSize(7);
     doc.setTextColor(148, 163, 184);
-    doc.text("Document oficial generat automàticament des del Portal de Compres Som Llar. Propietat de l'Associació ProHabitatge.", 105, 287, { align: 'center' });
+    doc.text("Document oficial generat automàticament des del Portal de Compres Som Llar. Propietat de l'Associació Som Llar.", 105, 287, { align: 'center' });
 
     // Descarregar PDF
     const fileName = `Comanda_${(request.code || request.id).replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
