@@ -170,5 +170,28 @@ export const activityService = {
       details,
       metadata
     });
+  },
+
+  /**
+   * Obté tots els logs d'activitat associats a un expedient de compra concret.
+   */
+  async getLogsByRequestId(requestId: string): Promise<ActivityLog[]> {
+    try {
+      const q = query(
+        collection(db, 'activityLogs'),
+        where('requestId', '==', requestId)
+      );
+      const snapshot = await getDocs(q);
+      const logs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as ActivityLog));
+
+      // Ordenar cronològicament (més recents primer)
+      return logs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } catch (err) {
+      console.warn("No s'han pogut carregar els logs de la sol·licitud:", err);
+      return [];
+    }
   }
 };

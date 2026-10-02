@@ -1,5 +1,5 @@
 import React from 'react';
-import { File, FileText, ImageIcon, Download, Trash2, Clock, User, HardDrive } from 'lucide-react';
+import { File, FileText, ImageIcon, Download, Trash2, Clock, User, HardDrive, ExternalLink } from 'lucide-react';
 import { Attachment } from '../types';
 import { ATTACHMENT_CATEGORIES } from '../constants';
 import { cn } from '../lib/utils';
@@ -11,13 +11,17 @@ interface AttachmentListProps {
 }
 
 export default function AttachmentList({ attachments, onDelete, readOnly }: AttachmentListProps) {
-  const getIcon = (mimeType: string) => {
+  const isLink = (url: string) => url.startsWith('http://') || url.startsWith('https://');
+
+  const getIcon = (mimeType: string, url: string) => {
+    if (isLink(url) && !url.startsWith('data:')) return <ExternalLink size={20} />;
     if (mimeType.startsWith('image/')) return <ImageIcon size={20} />;
     if (mimeType.includes('pdf')) return <FileText size={20} />;
     return <File size={20} />;
   };
 
-  const formatSize = (bytes: number) => {
+  const formatSize = (bytes: number, url: string) => {
+    if (isLink(url) && !url.startsWith('data:')) return 'Enllaç';
     if (bytes === 0) return '0 B';
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB'];
@@ -42,7 +46,7 @@ export default function AttachmentList({ attachments, onDelete, readOnly }: Atta
           className="group flex items-start gap-4 p-5 bg-white/[0.01] border border-white/5 rounded-2xl hover:bg-white/[0.02] hover:border-white/10 transition-all duration-300"
         >
           <div className="p-3 bg-brand-primary/10 rounded-xl text-brand-primary group-hover:scale-110 transition-transform">
-            {getIcon(file.mimeType)}
+            {getIcon(file.mimeType, file.downloadURL)}
           </div>
 
           <div className="flex-1 min-w-0">
@@ -50,7 +54,7 @@ export default function AttachmentList({ attachments, onDelete, readOnly }: Atta
               <span className="text-[9px] font-black text-brand-primary uppercase tracking-[0.1em]">
                 {ATTACHMENT_CATEGORIES.find(c => c.id === file.category)?.name || 'Document'}
               </span>
-              <span className="text-[9px] text-slate-600 font-black tabular-nums">{formatSize(file.size)}</span>
+              <span className="text-[9px] text-slate-600 font-black tabular-nums">{formatSize(file.size, file.downloadURL)}</span>
             </div>
             
             <h4 className="text-xs font-bold text-white truncate mb-2">{file.fileName}</h4>

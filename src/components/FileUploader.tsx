@@ -42,24 +42,84 @@ export default function FileUploader({ onUpload, maxSizeMB = 0.75 }: FileUploade
     }
   };
 
-  const validateAndUpload = (files: File[]) => {
-    setError(null);
-    const validFiles = files.filter(file => {
-      const sizeMB = file.size / (1024 * 1024);
-      if (sizeMB > maxSizeMB) {
-        setError(`El fitxer "${file.name}" supera el límit (${Math.round(file.size / 1024)} KB). El màxim permès és de 750 KB per document.`);
-        return false;
-      }
-      return true;
-    });
+  // Funció per comprimir imatges en client via Canvas
+  const compressImageIfNeeded = async (file: File): Promise<File> => {
+    if (!file.type.startsWith('image/')) return file;
+    // Si la imatge ja és inferior a 400KB, no cal recomprimir
+    if (file.size <= 400 * 1024) return file;
 
-    if (validFiles.length > 0) {
-      setUploading(true);
-      // Simulem càrrega
-      setTimeout(() => {
-        onUpload(validFiles, selectedCategory);
-        setUploading(false);
-      }, 500);
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const maxDimension = 1600;
+
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const compressedFile = new globalThis.File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), {
+                  type: 'image/jpeg',
+                  lastModified: Date.now()
+                });
+                resolve(compressedFile);
+              } else {
+                resolve(file);
+              }
+            },
+            'image/jpeg',
+            0.75
+          );
+        } else {
+          resolve(file);
+        }
+      };
+      img.onerror = () => resolve(file);
+    });
+  };
+
+  const validateAndUpload = async (files: File[]) => {
+    setError(null);
+    setUploading(true);
+
+    try {
+      const processedFiles: File[] = [];
+      for (const file of files) {
+        const optimized = await compressImageIfNeeded(file);
+        const sizeMB = optimized.size / (1024 * 1024);
+        if (sizeMB > maxSizeMB) {
+          setError(`El fitxer "${file.name}" supera el límit (${Math.round(optimized.size / 1024)} KB). El màxim permès és de 750 KB per document.`);
+          setUploading(false);
+          return;
+        }
+        processedFiles.push(optimized);
+      }
+
+      if (processedFiles.length > 0) {
+        onUpload(processedFiles, selectedCategory);
+      }
+    } catch (err) {
+      console.error("Error optimitzant fitxers:", err);
+      setError("Error processant els documents.");
+    } finally {
+      setUploading(false);
     }
   };
 

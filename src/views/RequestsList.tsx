@@ -15,7 +15,8 @@ import {
   X,
   Layers,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  Download
 } from 'lucide-react';
 import StatusBadge from '../components/StatusBadge';
 import { useRequests } from '../hooks/useRequests';
@@ -23,8 +24,10 @@ import { useAreas } from '../hooks/useAreas';
 import { useAuth } from '../contexts/AuthContext';
 import { STATUS_LABELS, normalizeAreaId } from '../constants';
 import { workflowService } from '../services/workflowService';
+import { exportService } from '../services/exportService';
 import { User, RequestStatus } from '../types';
 import { cn } from '../lib/utils';
+import toast from 'react-hot-toast';
 
 type TabView = 'all' | 'my_turn' | 'my_requests' | 'pending' | 'closed';
 
@@ -178,6 +181,22 @@ export default function RequestsList({ user: propUser }: RequestsListProps) {
         </div>
         
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              if (filteredRequests.length === 0) {
+                toast.error("No hi ha expedients per exportar");
+                return;
+              }
+              exportService.exportRequestsToExcel(filteredRequests);
+              toast.success(`Exportats ${filteredRequests.length} expedients a Excel`);
+            }}
+            className="btn-secondary flex items-center gap-2 py-3 px-4 text-xs font-black tracking-widest uppercase hover:border-emerald-500 hover:text-emerald-400"
+            title="Exportar la selecció actual a Excel"
+          >
+            <Download size={15} />
+            <span>Exportar Excel</span>
+          </button>
+
           <Link to="/compres/nova" className="btn-primary flex items-center gap-2.5 py-3 px-6 text-xs font-black tracking-widest uppercase shadow-xl shadow-brand-primary/10">
             <Plus size={16} />
             <span>Nova Sol·licitud</span>
@@ -397,8 +416,29 @@ export default function RequestsList({ user: propUser }: RequestsListProps) {
                           </span>
                         )}
                       </div>
-                      <div className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter mt-1">
-                        {new Date(request.createdAt).toLocaleDateString('ca-ES')}
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">
+                          {new Date(request.createdAt).toLocaleDateString('ca-ES')}
+                        </span>
+                        {/* SLA / Temps d'espera si està pendent */}
+                        {request.status.startsWith('pendent_') && (() => {
+                          const daysWaiting = Math.floor((Date.now() - new Date(request.updatedAt || request.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+                          if (daysWaiting >= 5) {
+                            return (
+                              <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30 uppercase tracking-wider flex items-center gap-1" title="Més de 5 dies en aquesta fase">
+                                <Clock size={9} /> {daysWaiting}d espera
+                              </span>
+                            );
+                          }
+                          if (daysWaiting >= 2) {
+                            return (
+                              <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase tracking-wider flex items-center gap-1" title="Més de 48h en aquesta fase">
+                                <Clock size={9} /> {daysWaiting}d espera
+                              </span>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
                     </td>
 

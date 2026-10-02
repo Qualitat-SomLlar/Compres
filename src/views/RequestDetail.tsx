@@ -24,11 +24,14 @@ import {
   Upload,
   X,
   FileCheck,
-  Users as UsersIcon
+  Users as UsersIcon,
+  Download,
+  Link2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { exportService } from '../services/exportService';
 import { STATUS_LABELS, getHierarchyRole, normalizeAreaId } from '../constants';
-import { User, RequestStatus, AttachmentCategory, PurchaseRequest, Attachment, Quote } from '../types';
+import { User, RequestStatus, AttachmentCategory, PurchaseRequest, Attachment, Quote, ActivityLog } from '../types';
 import { cn } from '../lib/utils';
 import AttachmentList from '../components/AttachmentList';
 import FileUploader from '../components/FileUploader';
@@ -59,10 +62,17 @@ export default function RequestDetail({ user }: { user: User }) {
   const [comment, setComment] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Gestió de Documents Adjunts Reals
+  // Gestió de Documents Adjunts Reals i Enllaços OneDrive
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [loadingAttachments, setLoadingAttachments] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showAddLinkModal, setShowAddLinkModal] = useState(false);
+  const [linkForm, setLinkForm] = useState({
+    title: '',
+    url: '',
+    category: 'altres' as AttachmentCategory
+  });
+  const [isSubmittingLink, setIsSubmittingLink] = useState(false);
 
   // Gestió de 3 Pressupostos Reals
   const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -78,6 +88,10 @@ export default function RequestDetail({ user }: { user: User }) {
   const [quoteFile, setQuoteFile] = useState<File | null>(null);
   const [isSubmittingQuote, setIsSubmittingQuote] = useState(false);
 
+  // Historial d'Auditoria de la Sol·licitud
+  const [requestLogs, setRequestLogs] = useState<ActivityLog[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+
   // Carregar documents i pressupostos en temps real
   useEffect(() => {
     if (!request?.id) return;
@@ -90,6 +104,16 @@ export default function RequestDetail({ user }: { user: User }) {
     }).catch(err => {
       console.error("Error carregant adjunts:", err);
       setLoadingAttachments(false);
+    });
+
+    // Carregar logs d'auditoria de l'expedient
+    setLoadingLogs(true);
+    activityService.getLogsByRequestId(request.id).then(logs => {
+      setRequestLogs(logs);
+      setLoadingLogs(false);
+    }).catch(err => {
+      console.warn("Error carregant historial de logs:", err);
+      setLoadingLogs(false);
     });
 
     // Subscripció en temps real als pressupostos
@@ -289,6 +313,65 @@ export default function RequestDetail({ user }: { user: User }) {
     } catch (err) {
       console.error("Error pujant fitxers:", err);
       toast.error("Error pujant els documents");
+    }
+  };
+
+  // Afegir enllaç extern (OneDrive / SharePoint / Teams)
+  const handleAddExternalLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!request) return;
+    if (!linkForm.url.trim().startsWith('http://') && !linkForm.url.trim().startsWith('https://')) {
+      toast.error("L'enllaç ha de començar per https://");
+      return;
+    }
+    if (!linkForm.title.trim()) {
+      toast.error("Indica un nom o descripció per a l'enllaç");
+      return;
+    }
+
+    setIsSubmittingLink(true);
+    try {
+      const linkAttachment: Omit<Attachment, 'id'> = {
+        purchaseRequestId: request.id,
+        fileName: `🔗 ${linkForm.title.trim()}`,
+        storagePath: linkForm.url.trim(),
+        downloadURL: linkForm.url.trim(),
+        mimeType: 'text/uri-list',
+        size: 0,
+        category: linkForm.category,
+        uploadedByUserId: user.id,
+        uploadedByUserName: user.name,
+        createdAt: new Date().toISOString(),
+        status: 'completed'
+      };
+
+      const docRef = await addDoc(collection(db, 'attachments'), linkAttachment);
+      const newAtt = { id: docRef.id, ...linkAttachment };
+      setAttachments(prev => [newAtt, ...prev]);
+      await updateRequest(request.id, {
+        attachmentsCount: attachments.length + 1
+      });
+
+      activityService.logRequestAction(
+        user,
+        'file_uploaded',
+        'Enllaç Extern Vinculat',
+        request,
+        `S'ha vinculat l'enllaç de OneDrive/SharePoint: "${linkForm.title.trim()}".`,
+        {
+          url: linkForm.url.trim(),
+          category: linkForm.category
+        }
+      );
+
+      toast.success("Enllaç de OneDrive vinculat correctament!");
+      setShowAddLinkModal(false);
+      setLinkForm({ title: '', url: '', category: 'altres' });
+    } catch (err) {
+      console.error("Error vinculant enllaç:", err);
+      toast.error("Error vinculant l'enllaç extern");
+    } finally {
+      setIsSubmittingLink(false);
     }
   };
 
@@ -494,6 +577,22 @@ export default function RequestDetail({ user }: { user: User }) {
         </button>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              try {
+                exportService.generatePurchaseOrderPDF(request, quotes, attachments);
+                toast.success('Filla de Comanda oficial generada en PDF');
+              } catch (err) {
+                console.error(err);
+                toast.error('Error generant el document PDF');
+              }
+            }}
+            className="btn-secondary py-2 px-4 rounded-xl text-[10px] font-black tracking-widest uppercase flex items-center gap-2 border-brand-primary/30 text-brand-primary hover:bg-brand-primary/10 transition-all shadow-lg"
+            title="Descarregar Filla de Comanda Oficial en PDF amb signatures"
+          >
+            <Download size={14} />
+            <span>Filla de Comanda (PDF)</span>
+          </button>
           <StatusBadge status={request.status} className="px-6 py-2 rounded-xl text-[10px] font-black tracking-[0.2em] shadow-2xl border text-base" />
         </div>
       </div>
@@ -578,18 +677,106 @@ export default function RequestDetail({ user }: { user: User }) {
 
           {/* Documents Adjunts Reals */}
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-4">
               <h3 className="text-xs font-black text-slate-500 uppercase tracking-[0.3em] flex items-center gap-3">
                 <FileText size={18} className="text-brand-primary" /> Documentació de l'Expedient ({attachments.length})
               </h3>
-              <button 
-                onClick={() => setShowUploadModal(!showUploadModal)}
-                className="btn-secondary flex items-center gap-2 py-2 px-4 text-[10px] font-black uppercase tracking-widest border-brand-primary/30 text-brand-primary hover:bg-brand-primary/10"
-              >
-                {showUploadModal ? <X size={14} /> : <Plus size={14} />}
-                <span>{showUploadModal ? 'Tancar Càrrega' : '+ Adjuntar Document'}</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => {
+                    setShowAddLinkModal(!showAddLinkModal);
+                    setShowUploadModal(false);
+                  }}
+                  className="btn-secondary flex items-center gap-2 py-2 px-3 text-[10px] font-black uppercase tracking-widest border-white/10 text-slate-300 hover:border-brand-primary/40 hover:text-white"
+                  title="Enllaçar carpeta o document des de OneDrive o Microsoft Teams"
+                >
+                  <Link2 size={14} className="text-sky-400" />
+                  <span>{showAddLinkModal ? 'Tancar Enllaç' : '+ Enllaç OneDrive'}</span>
+                </button>
+
+                <button 
+                  onClick={() => {
+                    setShowUploadModal(!showUploadModal);
+                    setShowAddLinkModal(false);
+                  }}
+                  className="btn-secondary flex items-center gap-2 py-2 px-3 text-[10px] font-black uppercase tracking-widest border-brand-primary/30 text-brand-primary hover:bg-brand-primary/10"
+                >
+                  {showUploadModal ? <X size={14} /> : <Plus size={14} />}
+                  <span>{showUploadModal ? 'Tancar Càrrega' : '+ Adjuntar Fitxer'}</span>
+                </button>
+              </div>
             </div>
+
+            {/* Modal / Panell per afegir enllaç de OneDrive / SharePoint */}
+            {showAddLinkModal && (
+              <form onSubmit={handleAddExternalLink} className="card p-6 border-sky-500/30 bg-sky-500/[0.02] animate-in fade-in space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                  <span className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
+                    <Link2 size={16} className="text-sky-400" /> Vincular Carpeta o Fitxer de OneDrive / SharePoint
+                  </span>
+                  <button type="button" onClick={() => setShowAddLinkModal(false)} className="text-slate-500 hover:text-white">
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">Títol o Nom del Document *</label>
+                    <input 
+                      type="text" 
+                      placeholder="Ex: Contracte Signat Som Llar o Carpeta Pressupostos"
+                      value={linkForm.title}
+                      onChange={(e) => setLinkForm(prev => ({ ...prev, title: e.target.value }))}
+                      required
+                      className="input-field text-xs py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">Tipus de Document</label>
+                    <select
+                      value={linkForm.category}
+                      onChange={(e) => setLinkForm(prev => ({ ...prev, category: e.target.value as AttachmentCategory }))}
+                      className="input-field text-xs py-2"
+                    >
+                      <option value="pressupost">Pressupost</option>
+                      <option value="contracte">Contracte</option>
+                      <option value="factura">Factura</option>
+                      <option value="albara">Albarà</option>
+                      <option value="justificacio">Memòria / Justificació</option>
+                      <option value="altres">Carpeta General / Altres</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">Enllaç Compartit de OneDrive / Teams (URL) *</label>
+                  <input 
+                    type="url" 
+                    placeholder="https://somllar-my.sharepoint.com/:f:/g/personal/..."
+                    value={linkForm.url}
+                    onChange={(e) => setLinkForm(prev => ({ ...prev, url: e.target.value }))}
+                    required
+                    className="input-field text-xs py-2 font-mono"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">Enganxa l'enllaç d'accés creat des de OneDrive o Microsoft Teams corporatiu.</p>
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button 
+                    type="button" 
+                    onClick={() => setShowAddLinkModal(false)}
+                    className="btn-secondary py-1.5 px-3 text-xs"
+                  >
+                    Cancel·lar
+                  </button>
+                  <button 
+                    type="submit" 
+                    disabled={isSubmittingLink}
+                    className="btn-primary py-1.5 px-4 text-xs font-black uppercase tracking-wider flex items-center gap-2"
+                  >
+                    {isSubmittingLink ? <Loader2 size={14} className="animate-spin" /> : <Link2 size={14} />}
+                    <span>Desar Enllaç</span>
+                  </button>
+                </div>
+              </form>
+            )}
 
             {showUploadModal && (
               <div className="card p-8 border-brand-primary/30 bg-brand-primary/[0.02] animate-in fade-in duration-300">
@@ -739,6 +926,59 @@ export default function RequestDetail({ user }: { user: User }) {
               </div>
             </div>
           )}
+
+          {/* Historial d'Auditoria i Traçabilitat de la Sol·licitud */}
+          <div className="card p-8 space-y-6">
+            <div className="flex items-center justify-between border-b border-white/5 pb-4">
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-3">
+                <History size={18} className="text-brand-primary" /> Historial de Canvis i Traçabilitat ({requestLogs.length})
+              </h3>
+              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                Registre Inmutable
+              </span>
+            </div>
+
+            {loadingLogs ? (
+              <div className="py-8 flex items-center justify-center gap-3 text-slate-500 text-xs">
+                <Loader2 size={16} className="animate-spin text-brand-primary" />
+                <span>Carregant línia de temps d'auditoria...</span>
+              </div>
+            ) : requestLogs.length === 0 ? (
+              <div className="py-8 text-center border border-dashed border-white/5 rounded-2xl">
+                <p className="text-xs text-slate-500">Sense canvis posteriors registrats en aquest expedient.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {requestLogs.map((log) => (
+                  <div key={log.id} className="p-4 rounded-2xl bg-white/[0.01] border border-white/5 hover:border-white/10 transition-colors flex items-start justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-white">{log.action}</span>
+                        <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-brand-primary/10 text-brand-primary uppercase tracking-wider">
+                          {log.userName}
+                        </span>
+                        {log.userRole && (
+                          <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-white/5 text-slate-400 uppercase">
+                            {log.userRole}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-400">{log.details}</p>
+                    </div>
+                    <span className="text-[9px] font-medium text-slate-500 whitespace-nowrap tabular-nums">
+                      {new Date(log.createdAt).toLocaleString('ca-ES', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Barra Lateral */}
