@@ -1,37 +1,49 @@
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { collection, addDoc, getDocs, query, where, deleteDoc, doc } from 'firebase/firestore';
-import { storage, db } from '../lib/firebase';
+import { db } from '../lib/firebase';
 import { Attachment, AttachmentCategory } from '../types';
 
 /**
- * Servei per gestionar fitxers amb Firebase Storage i registre documental a Firestore.
- * Dissenyat amb interfície modular preparada per a futura connexió amb Microsoft Graph / SharePoint.
+ * Funció auxiliar per convertir un File a Base64 data URL
+ */
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+  });
+};
+
+/**
+ * Servei per gestionar fitxers directament a Cloud Firestore (compatible 100% amb el Pla Spark gratuït).
+ * Els documents (PDF, imatges, etc.) es guarden en format DataURL (Base64) a la col·lecció 'attachments'.
  */
 export const fileService = {
   /**
-   * Puja un fitxer físic a Firebase Storage i guarda la referència a Firestore.
+   * Puja un fitxer convertint-lo a DataURL i emmagatzemant-lo a Firestore.
    */
   async uploadFile(
     file: File, 
     purchaseRequestId: string, 
     category: AttachmentCategory, 
-    userId: string,
+    userId: string, 
     userName: string
   ): Promise<Attachment> {
-    const timestamp = Date.now();
-    const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const storagePath = `purchaseRequests/${purchaseRequestId}/${timestamp}_${cleanFileName}`;
-    const storageRef = ref(storage, storagePath);
+    // Límit recomanat per a documents en Firestore (Firestore admet documents de fins a 1MB)
+    const MAX_FILE_SIZE = 750 * 1024; // 750 KB
+    if (file.size > MAX_FILE_SIZE) {
+      const sizeKB = Math.round(file.size / 1024);
+      throw new Error(`El fitxer "${file.name}" és massa pesat (${sizeKB} KB). El límit per document al sistema és de 750 KB. Si us plau, comprimeix el PDF o la imatge.`);
+    }
 
-    // Pujada a Firebase Storage
-    const snapshot = await uploadBytes(storageRef, file);
-    const downloadURL = await getDownloadURL(snapshot.ref);
+    const base64Data = await fileToBase64(file);
+    const storagePath = `firestore://attachments/${purchaseRequestId}/${file.name}`;
 
     const attachmentData: Omit<Attachment, 'id'> = {
       purchaseRequestId,
       fileName: file.name,
       storagePath,
-      downloadURL,
+      downloadURL: base64Data, // DataURL directament descarregable / visualitzable
       mimeType: file.type || 'application/octet-stream',
       size: file.size,
       category,
@@ -50,7 +62,7 @@ export const fileService = {
   },
 
   /**
-   * Obté tots els adjunts associats a un expedient de compra.
+   * Obté tots els adjunts associats a un expedient de compra des de Firestore.
    */
   async getAttachments(purchaseRequestId: string): Promise<Attachment[]> {
     try {
@@ -64,27 +76,16 @@ export const fileService = {
         id: String(doc.id)
       } as Attachment));
     } catch (error) {
-      console.error("Error carregant fitxers adjunts:", error);
+      console.error("Error carregant fitxers adjunts des de Firestore:", error);
       return [];
     }
   },
 
   /**
-   * Elimina un fitxer tant de Firebase Storage com de Firestore.
+   * Elimina un fitxer de Firestore.
    */
-  async deleteFile(attachmentId: string, storagePath?: string): Promise<void> {
+  async deleteFile(attachmentId: string, _storagePath?: string): Promise<void> {
     try {
-      // 1. Esborrar de Storage si tenim la ruta
-      if (storagePath) {
-        try {
-          const fileRef = ref(storage, storagePath);
-          await deleteObject(fileRef);
-        } catch (storageErr) {
-          console.warn("No s'ha pogut esborrar el fitxer de Storage:", storageErr);
-        }
-      }
-
-      // 2. Esborrar de Firestore
       const docRef = doc(db, 'attachments', attachmentId);
       await deleteDoc(docRef);
     } catch (err) {
@@ -93,3 +94,4 @@ export const fileService = {
     }
   }
 };
+

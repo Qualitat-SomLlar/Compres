@@ -67,12 +67,13 @@ export default function AttachmentList({ attachments, onDelete, readOnly }: Atta
             <div className="flex items-center gap-2 mt-4 opacity-0 group-hover:opacity-100 transition-all">
               <a 
                 href={file.downloadURL} 
+                download={file.fileName}
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 px-3 py-1.5 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
               >
                 <Download size={12} />
-                <span>Descarregar</span>
+                <span>Descarregar / Veure</span>
               </a>
               {!readOnly && onDelete && (
                 <button 

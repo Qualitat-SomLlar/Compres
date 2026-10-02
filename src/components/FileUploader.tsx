@@ -10,7 +10,7 @@ interface FileUploaderProps {
   maxSizeMB?: number;
 }
 
-export default function FileUploader({ onUpload, maxSizeMB = 10 }: FileUploaderProps) {
+export default function FileUploader({ onUpload, maxSizeMB = 0.75 }: FileUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<AttachmentCategory>('pressupost');
   const [uploading, setUploading] = useState(false);
@@ -47,7 +47,7 @@ export default function FileUploader({ onUpload, maxSizeMB = 10 }: FileUploaderP
     const validFiles = files.filter(file => {
       const sizeMB = file.size / (1024 * 1024);
       if (sizeMB > maxSizeMB) {
-        setError(`El fitxer ${file.name} supera els ${maxSizeMB}MB`);
+        setError(`El fitxer "${file.name}" supera el límit (${Math.round(file.size / 1024)} KB). El màxim permès és de 750 KB per document.`);
         return false;
       }
       return true;
@@ -59,7 +59,7 @@ export default function FileUploader({ onUpload, maxSizeMB = 10 }: FileUploaderP
       setTimeout(() => {
         onUpload(validFiles, selectedCategory);
         setUploading(false);
-      }, 1500);
+      }, 500);
     }
   };
 
@@ -107,7 +107,7 @@ export default function FileUploader({ onUpload, maxSizeMB = 10 }: FileUploaderP
             {uploading ? 'Pujant documents...' : 'Arrossega fitxers o fes clic per buscar'}
           </p>
           <p className="text-[10px] text-slate-500 font-medium uppercase tracking-widest">
-            Màxim {maxSizeMB}MB per fitxer (PDF, DOCX, XLS, JPG, PNG)
+            Màxim 750 KB per fitxer (PDF, JPG, PNG, documents de factura o pressupost)
           </p>
         </div>
 
