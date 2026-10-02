@@ -11,7 +11,9 @@ import {
   Menu, 
   X,
   PlusCircle,
-  Bell
+  Bell,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -28,8 +30,9 @@ import AdminPanel from './views/Admin';
 import NotFound from './views/NotFound';
 import NotificationBell from './components/NotificationBell';
 
-// Auth and Types
+// Contexts and Types
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { User } from './types';
 import { cn } from './lib/utils';
 
@@ -59,6 +62,7 @@ const AppLayout = ({ children, user }: { children: React.ReactNode, user: User }
   const [isProfileModalOpen, setProfileModalOpen] = useState(false);
   const location = useLocation();
   const { logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   // Tancar sidebar en mòbil al canviar de ruta
   const handleNavClick = () => {
@@ -198,7 +202,21 @@ const AppLayout = ({ children, user }: { children: React.ReactNode, user: User }
             {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {/* Botó commutador de Tema (Clar / Fosc) */}
+            <button
+              onClick={toggleTheme}
+              className="p-2.5 rounded-xl border border-dashboard-border hover:bg-white/5 transition-all text-slate-400 hover:text-white"
+              title={theme === 'dark' ? "Canviar a Mode Clar" : "Canviar a Mode Fosc"}
+              aria-label="Canviar tema visual"
+            >
+              {theme === 'dark' ? (
+                <Sun size={18} className="text-amber-400 animate-in spin-in-90 duration-300" />
+              ) : (
+                <Moon size={18} className="text-sky-500 animate-in spin-in-90 duration-300" />
+              )}
+            </button>
+
             <NotificationBell user={user} />
             
             <Link to="/compres/nova" className="btn-primary flex items-center gap-2 text-sm py-2">
@@ -219,19 +237,21 @@ const AppLayout = ({ children, user }: { children: React.ReactNode, user: User }
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-      <Toaster 
-        position="bottom-right" 
-        toastOptions={{
-          style: {
-            background: '#1e293b',
-            color: '#fff',
-            border: '1px solid rgba(255,255,255,0.1)',
-          }
-        }}
-      />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+        <Toaster 
+          position="bottom-right" 
+          toastOptions={{
+            style: {
+              background: '#1e293b',
+              color: '#fff',
+              border: '1px solid rgba(255,255,255,0.1)',
+            }
+          }}
+        />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

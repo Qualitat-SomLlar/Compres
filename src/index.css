@@ -17,27 +17,72 @@
   --color-text-dim: #9ca3af;
 }
 
+:root {
+  --dashboard-bg: #0b0f19;
+  --dashboard-card: #151c2c;
+  --dashboard-border: rgba(255, 255, 255, 0.08);
+  --text-main: #f3f4f6;
+  --text-dim: #9ca3af;
+  --input-bg: rgba(15, 23, 42, 0.6);
+  --sidebar-bg: #0b0f19;
+  --table-th-bg: rgba(255, 255, 255, 0.02);
+  --table-border: rgba(255, 255, 255, 0.05);
+}
+
+html.light-theme {
+  --dashboard-bg: #f8fafc;
+  --dashboard-card: #ffffff;
+  --dashboard-border: rgba(0, 0, 0, 0.08);
+  --text-main: #0f172a;
+  --text-dim: #64748b;
+  --input-bg: #ffffff;
+  --sidebar-bg: #ffffff;
+  --table-th-bg: #f1f5f9;
+  --table-border: rgba(0, 0, 0, 0.06);
+}
+
 @layer base {
   body {
-    @apply bg-dashboard-bg text-text-main antialiased font-sans min-h-screen overflow-x-hidden;
+    background-color: var(--dashboard-bg);
+    color: var(--text-main);
+    @apply antialiased font-sans min-h-screen overflow-x-hidden;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  html.dark-theme body {
     background: radial-gradient(circle at top right, #1e293b55, transparent), #0b0f19;
+  }
+
+  html.light-theme body {
+    background: radial-gradient(circle at top right, #e2e8f055, transparent), #f8fafc;
   }
   
   h1, h2, h3, h4 {
-    @apply font-display font-semibold tracking-tight text-white;
+    @apply font-display font-semibold tracking-tight;
+    color: var(--text-main);
   }
 }
 
 .sidebar-link-active {
-  @apply bg-emerald-500/10 text-white border-l-3 border-brand-primary;
+  @apply bg-emerald-500/10 border-l-3 border-brand-primary;
+  color: var(--text-main) !important;
 }
 
 .card {
-  @apply bg-dashboard-card rounded-2xl shadow-xl border border-dashboard-border overflow-hidden transition-all duration-300;
+  background-color: var(--dashboard-card);
+  border-color: var(--dashboard-border);
+  @apply rounded-2xl shadow-xl border overflow-hidden transition-all duration-300;
+}
+
+html.light-theme .card {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
 }
 
 .input-field {
-  @apply w-full px-4 py-3 rounded-xl border border-dashboard-border bg-slate-900/50 text-white text-xs font-bold focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary outline-none transition-all placeholder:text-slate-600 placeholder:font-medium placeholder:italic;
+  background-color: var(--input-bg);
+  border-color: var(--dashboard-border);
+  color: var(--text-main);
+  @apply w-full px-4 py-3 rounded-xl border text-xs font-bold focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary outline-none transition-all placeholder:text-slate-400 placeholder:font-medium placeholder:italic;
 }
 
 .input-search {
@@ -49,7 +94,88 @@
 }
 
 .btn-secondary {
-  @apply border border-dashboard-border bg-slate-900/50 text-slate-300 px-5 py-2.5 rounded-xl font-bold hover:bg-slate-800 transition-all;
+  border-color: var(--dashboard-border);
+  background-color: var(--input-bg);
+  color: var(--text-main);
+  @apply border px-5 py-2.5 rounded-xl font-bold transition-all;
+}
+
+html.dark-theme .btn-secondary:hover {
+  @apply bg-slate-800 text-white;
+}
+
+html.light-theme .btn-secondary:hover {
+  @apply bg-slate-100 text-slate-900;
+}
+
+/* Overrides per a mode clar en elements d'UI comuns */
+html.light-theme aside {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light-theme header {
+  background-color: rgba(255, 255, 255, 0.85) !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light-theme .text-white {
+  color: #0f172a;
+}
+
+html.light-theme .text-slate-300 {
+  color: #334155;
+}
+
+html.light-theme .text-slate-400 {
+  color: #475569;
+}
+
+html.light-theme .bg-slate-900\/50,
+html.light-theme .bg-slate-800 {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+html.light-theme .border-white\/5,
+html.light-theme .border-white\/10,
+html.light-theme .border-white\/\[0\.05\],
+html.light-theme .border-white\/\[0\.03\],
+html.light-theme .border-white\/\[0\.02\] {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+html.light-theme .bg-white\/\[0\.01\],
+html.light-theme .bg-white\/\[0\.02\],
+html.light-theme .bg-white\/\[0\.03\] {
+  background-color: rgba(0, 0, 0, 0.02) !important;
+}
+
+html.light-theme table tr:hover {
+  background-color: rgba(0, 0, 0, 0.02) !important;
+}
+
+html.light-theme table td {
+  color: #1e293b;
+  border-color: #f1f5f9;
+}
+
+html.light-theme table th {
+  background-color: #f8fafc;
+  color: #64748b;
+  border-color: #e2e8f0;
+}
+
+html.light-theme select,
+html.light-theme option {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+html.light-theme .bg-\[\#151c2c\],
+html.light-theme .bg-\[\#0b0f19\] {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
 }
 
 /* Specific Immersive Styles */
