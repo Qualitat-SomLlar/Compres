@@ -30,6 +30,7 @@ import { useUsers } from '../hooks/useUsers';
 import { useAnalyticCodes } from '../hooks/useAnalyticCodes';
 import { useCenters } from '../hooks/useCenters';
 import { useProjects } from '../hooks/useProjects';
+import { useSuppliers } from '../hooks/useSuppliers';
 import { useEmailDispatcher } from '../hooks/useEmailDispatcher';
 import { emailService } from '../services/emailService';
 import { activityService } from '../services/activityService';
@@ -44,6 +45,7 @@ export default function NewRequest({ user }: { user: User }) {
   const { analyticCodes } = useAnalyticCodes();
   const { centers } = useCenters();
   const { projects } = useProjects();
+  const { suppliers } = useSuppliers();
   const { updateRequest } = useRequests();
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [newDocForm, setNewDocForm] = useState<{
@@ -68,6 +70,9 @@ export default function NewRequest({ user }: { user: User }) {
     destinationCenterName: '',
     itemDescription: '',
     justification: '',
+    supplierId: '',
+    supplierName: '',
+    productUrl: '',
     urgency: 'mitjana' as 'baixa' | 'mitjana' | 'alta' | 'critica',
     deadline: '',
     estimatedAmount: 0,
@@ -422,6 +427,50 @@ export default function NewRequest({ user }: { user: User }) {
                 value={formData.justification}
                 onChange={e => setFormData({...formData, justification: e.target.value})}
               />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 pt-4 border-t border-white/[0.05]">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-between">
+                  <span>Proveïdor proposat (Opcional)</span>
+                </label>
+                <input 
+                  type="text" 
+                  list="suppliers-list-suggestions"
+                  placeholder="Ex: Amazon, Nom de l'empresa o proveïdor..." 
+                  className="input-field" 
+                  value={formData.supplierName}
+                  onChange={e => {
+                    const val = e.target.value;
+                    const matched = suppliers.find(s => s.name.toLowerCase() === val.toLowerCase());
+                    setFormData({
+                      ...formData, 
+                      supplierName: val,
+                      supplierId: matched ? matched.id : ''
+                    });
+                  }}
+                />
+                <datalist id="suppliers-list-suggestions">
+                  {suppliers.map(s => (
+                    <option key={s.id} value={s.name} />
+                  ))}
+                </datalist>
+                <p className="text-[10px] text-slate-500">Pots indicar un proveïdor orientatiu. Serà obligatori confirmar-lo en el moment d'emetre la comanda.</p>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                  Enllaç web del producte o catàleg (Opcional)
+                </label>
+                <input 
+                  type="url" 
+                  placeholder="https://... URL directa de compra o fitxa" 
+                  className="input-field font-mono text-xs" 
+                  value={formData.productUrl}
+                  onChange={e => setFormData({...formData, productUrl: e.target.value})}
+                />
+                <p className="text-[10px] text-slate-500">Enllaç directe per facilitar la revisió o comanda del bé o servei.</p>
+              </div>
             </div>
           </div>
         </section>

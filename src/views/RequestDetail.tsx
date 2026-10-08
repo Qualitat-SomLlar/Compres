@@ -26,7 +26,8 @@ import {
   FileCheck,
   Users as UsersIcon,
   Download,
-  Link2
+  Link2,
+  ExternalLink
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { exportService } from '../services/exportService';
@@ -34,7 +35,6 @@ import { STATUS_LABELS, getHierarchyRole, normalizeAreaId } from '../constants';
 import { User, RequestStatus, AttachmentCategory, PurchaseRequest, Attachment, Quote, ActivityLog } from '../types';
 import { cn } from '../lib/utils';
 import AttachmentList from '../components/AttachmentList';
-import FileUploader from '../components/FileUploader';
 import StatusBadge from '../components/StatusBadge';
 import { useRequests } from '../hooks/useRequests';
 import { useAreas } from '../hooks/useAreas';
@@ -62,10 +62,9 @@ export default function RequestDetail({ user }: { user: User }) {
   const [comment, setComment] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Gestió de Documents Adjunts Reals i Enllaços OneDrive
+  // Gestió de Documents Adjunts Reals i Enllaços OneDrive / SharePoint
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [loadingAttachments, setLoadingAttachments] = useState(true);
-  const [showUploadModal, setShowUploadModal] = useState(false);
   const [showAddLinkModal, setShowAddLinkModal] = useState(false);
   const [linkForm, setLinkForm] = useState({
     title: '',
@@ -73,6 +72,14 @@ export default function RequestDetail({ user }: { user: User }) {
     category: 'altres' as AttachmentCategory
   });
   const [isSubmittingLink, setIsSubmittingLink] = useState(false);
+
+  // Gestió d'Emissió Formal de Comanda
+  const [showEmitOrderModal, setShowEmitOrderModal] = useState(false);
+  const [orderSupplierName, setOrderSupplierName] = useState('');
+  const [orderSupplierId, setOrderSupplierId] = useState('');
+  const [orderProductUrl, setOrderProductUrl] = useState('');
+  const [orderFinalAmount, setOrderFinalAmount] = useState<number | string>('');
+  const [orderNotes, setOrderNotes] = useState('');
 
   // Gestió de 3 Pressupostos Reals
   const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -85,7 +92,7 @@ export default function RequestDetail({ user }: { user: User }) {
     technicalScore: 8,
     justification: ''
   });
-  const [quoteFile, setQuoteFile] = useState<File | null>(null);
+  const [quoteUrl, setQuoteUrl] = useState('');
   const [isSubmittingQuote, setIsSubmittingQuote] = useState(false);
 
   // Historial d'Auditoria de la Sol·licitud
@@ -155,8 +162,117 @@ export default function RequestDetail({ user }: { user: User }) {
     );
   }
 
+  const handleOpenEmitOrderModal = () => {
+    if (!request) return;
+    setOrderSupplierName(request.supplierName || '');
+    setOrderSupplierId(request.supplierId || '');
+    setOrderProductUrl(request.productUrl || '');
+    setOrderFinalAmount(request.finalAmount !== undefined ? request.finalAmount : (request.estimatedAmount || 0));
+    setOrderNotes(comment || '');
+    setShowEmitOrderModal(true);
+  };
+
+  const handleConfirmEmitOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!request) return;
+
+    if (!orderSupplierName.trim()) {
+      toast.error('El proveïdor és obligatori per emetre la comanda');
+      return;
+    }
+
+    let formattedProductUrl = orderProductUrl.trim();
+    if (formattedProductUrl && !formattedProductUrl.startsWith('http://') && !formattedProductUrl.startsWith('https://')) {
+      formattedProductUrl = 'https://' + formattedProductUrl;
+    }
+
+    const numFinal = parseFloat(String(orderFinalAmount));
+    const finalAmount = isNaN(numFinal) || numFinal <= 0 ? request.estimatedAmount : numFinal;
+
+    setIsProcessing(true);
+    try {
+      const newObservations = (orderNotes || comment).trim()
+        ? (request.observations 
+            ? `${request.observations}\n\n[Comanda ${new Date().toLocaleDateString('ca-ES')} - ${user.name}]: ${(orderNotes || comment).trim()}` 
+            : (orderNotes || comment).trim())
+        : (request.observations || '');
+
+      const updateData: Partial<PurchaseRequest> = {
+        status: 'comanda_emesa',
+        supplierName: orderSupplierName.trim(),
+        supplierId: orderSupplierId || '',
+        productUrl: formattedProductUrl || '',
+        finalAmount: finalAmount,
+        observations: newObservations
+      };
+
+      await updateRequest(request.id, updateData);
+
+      // Notificació al creador
+      await addNotification({
+        userId: request.createdByUserId,
+        title: `Comanda Emesa: ${request.code || request.id}`,
+        message: `S'ha emès formalment la comanda al proveïdor ${orderSupplierName.trim()}.`,
+        type: 'success',
+        requestId: request.id
+      });
+
+      if (request.requestingTechnicianId && request.requestingTechnicianId !== request.createdByUserId) {
+        await addNotification({
+          userId: request.requestingTechnicianId,
+          title: `Comanda Emesa: ${request.code || request.id}`,
+          message: `S'ha emès formalment la comanda al proveïdor ${orderSupplierName.trim()}.`,
+          type: 'success',
+          requestId: request.id
+        });
+      }
+
+      // Notificacions Email (Dispatcher)
+      await dispatchEmail(
+        'compra_tramitada', 
+        { ...request, ...updateData }, 
+        { 
+          comment: orderNotes || comment, 
+          previousStatus: request.status,
+          actorName: user?.name,
+          actorRole: user?.role
+        }
+      );
+
+      // Auditoria
+      activityService.logRequestAction(
+        user,
+        'request_updated',
+        'Emissió Formal de Comanda',
+        request,
+        `S'ha emès formalment la comanda al proveïdor "${orderSupplierName.trim()}" per import de ${finalAmount}€.${formattedProductUrl ? ` Enllaç del producte: ${formattedProductUrl}` : ''}`,
+        {
+          supplierName: orderSupplierName.trim(),
+          productUrl: formattedProductUrl,
+          finalAmount: finalAmount
+        }
+      );
+
+      toast.success('Comanda emesa correctament amb el proveïdor assignat!');
+      setShowEmitOrderModal(false);
+      setComment('');
+    } catch (err) {
+      console.error("Error emetent comanda:", err);
+      toast.error("Error al tramitar l'emissió de la comanda");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleAction = async (action: 'approve' | 'return' | 'reject') => {
     if (!request) return;
+
+    // Si estem aprovant a la fase de comanda, és obligatori assignar proveïdor mitjançant el modal
+    if (action === 'approve' && request.status === 'aprovada') {
+      handleOpenEmitOrderModal();
+      return;
+    }
+
     setIsProcessing(true);
     
     try {
@@ -277,45 +393,6 @@ export default function RequestDetail({ user }: { user: User }) {
     }
   };
 
-  // Pujada de fitxers adjunts des del detall
-  const handleUploadFiles = async (files: File[], category: AttachmentCategory) => {
-    if (!request) return;
-    try {
-      const uploadedList: Attachment[] = [];
-      for (const file of files) {
-        const att = await fileService.uploadFile(
-          file,
-          request.id,
-          category,
-          user.id,
-          user.name
-        );
-        uploadedList.push(att);
-      }
-      setAttachments(prev => [...uploadedList, ...prev]);
-      await updateRequest(request.id, {
-        attachmentsCount: attachments.length + uploadedList.length
-      });
-      activityService.logRequestAction(
-        user,
-        'file_uploaded',
-        'Pujada de Documents',
-        request,
-        `S'han adjuntat ${files.length} fitxer(s) a l'expedient (${category}).`,
-        {
-          filesCount: files.length,
-          category,
-          fileNames: files.map(f => f.name)
-        }
-      );
-      toast.success(`${files.length} document(s) desat(s) a l'expedient`);
-      setShowUploadModal(false);
-    } catch (err) {
-      console.error("Error pujant fitxers:", err);
-      toast.error("Error pujant els documents");
-    }
-  };
-
   // Afegir enllaç extern (OneDrive / SharePoint / Teams)
   const handleAddExternalLink = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -420,15 +497,29 @@ export default function RequestDetail({ user }: { user: User }) {
 
     setIsSubmittingQuote(true);
     try {
-      if (quoteFile) {
-        const uploaded = await fileService.uploadFile(
-          quoteFile,
-          request.id,
-          'pressupost',
-          user.id,
-          user.name
-        );
-        setAttachments(prev => [uploaded, ...prev]);
+      if (quoteUrl.trim()) {
+        let formattedQuoteUrl = quoteUrl.trim();
+        if (!formattedQuoteUrl.startsWith('http://') && !formattedQuoteUrl.startsWith('https://')) {
+          formattedQuoteUrl = 'https://' + formattedQuoteUrl;
+        }
+        const linkAttachment: Omit<Attachment, 'id'> = {
+          purchaseRequestId: request.id,
+          fileName: `🔗 Oferta - ${quoteForm.supplierName.trim()}`,
+          storagePath: formattedQuoteUrl,
+          downloadURL: formattedQuoteUrl,
+          mimeType: 'text/uri-list',
+          size: 0,
+          category: 'pressupost',
+          uploadedByUserId: user.id,
+          uploadedByUserName: user.name,
+          createdAt: new Date().toISOString(),
+          status: 'completed'
+        };
+        const docRef = await addDoc(collection(db, 'attachments'), linkAttachment);
+        setAttachments(prev => [{ id: docRef.id, ...linkAttachment }, ...prev]);
+        await updateRequest(request.id, {
+          attachmentsCount: attachments.length + 1
+        });
       }
 
       const newQuoteData: Omit<Quote, 'id'> = {
@@ -461,7 +552,7 @@ export default function RequestDetail({ user }: { user: User }) {
         technicalScore: 8,
         justification: ''
       });
-      setQuoteFile(null);
+      setQuoteUrl('');
     } catch (err) {
       console.error("Error guardant pressupost:", err);
       toast.error("Error en guardar l'oferta");
@@ -624,6 +715,19 @@ export default function RequestDetail({ user }: { user: User }) {
                       <span className="text-xs font-bold text-brand-primary truncate max-w-xs">{request.supplierName}</span>
                     </div>
                   )}
+                  {request.productUrl && (
+                    <div className="flex items-center md:justify-end gap-2 mt-1">
+                      <ExternalLink size={12} className="text-sky-400" />
+                      <a 
+                        href={request.productUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-xs font-bold text-sky-400 hover:underline truncate max-w-xs"
+                      >
+                        Enllaç del producte
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -683,26 +787,12 @@ export default function RequestDetail({ user }: { user: User }) {
               </h3>
               <div className="flex items-center gap-2">
                 <button 
-                  onClick={() => {
-                    setShowAddLinkModal(!showAddLinkModal);
-                    setShowUploadModal(false);
-                  }}
-                  className="btn-secondary flex items-center gap-2 py-2 px-3 text-[10px] font-black uppercase tracking-widest border-white/10 text-slate-300 hover:border-brand-primary/40 hover:text-white"
-                  title="Enllaçar carpeta o document des de OneDrive o Microsoft Teams"
-                >
-                  <Link2 size={14} className="text-sky-400" />
-                  <span>{showAddLinkModal ? 'Tancar Enllaç' : '+ Enllaç OneDrive'}</span>
-                </button>
-
-                <button 
-                  onClick={() => {
-                    setShowUploadModal(!showUploadModal);
-                    setShowAddLinkModal(false);
-                  }}
+                  onClick={() => setShowAddLinkModal(!showAddLinkModal)}
                   className="btn-secondary flex items-center gap-2 py-2 px-3 text-[10px] font-black uppercase tracking-widest border-brand-primary/30 text-brand-primary hover:bg-brand-primary/10"
+                  title="Enllaçar carpeta o document des de OneDrive, SharePoint o Web"
                 >
-                  {showUploadModal ? <X size={14} /> : <Plus size={14} />}
-                  <span>{showUploadModal ? 'Tancar Càrrega' : '+ Adjuntar Fitxer'}</span>
+                  <Link2 size={14} />
+                  <span>{showAddLinkModal ? 'Tancar' : '+ Afegir Document (URL)'}</span>
                 </button>
               </div>
             </div>
@@ -778,11 +868,6 @@ export default function RequestDetail({ user }: { user: User }) {
               </form>
             )}
 
-            {showUploadModal && (
-              <div className="card p-8 border-brand-primary/30 bg-brand-primary/[0.02] animate-in fade-in duration-300">
-                <FileUploader onUpload={handleUploadFiles} />
-              </div>
-            )}
 
             <div className="card p-8">
               {loadingAttachments ? (
@@ -1287,13 +1372,16 @@ export default function RequestDetail({ user }: { user: User }) {
 
               <div>
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">
-                  Adjuntar Document de l'Oferta (Opcional)
+                  Enllaç del Document de l'Oferta (Opcional)
                 </label>
                 <input 
-                  type="file"
-                  className="text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-brand-primary/10 file:text-brand-primary hover:file:bg-brand-primary/20"
-                  onChange={(e) => setQuoteFile(e.target.files ? e.target.files[0] : null)}
+                  type="url"
+                  placeholder="https://somllar-my.sharepoint.com/... o enllaç web"
+                  className="input-field text-xs font-mono"
+                  value={quoteUrl}
+                  onChange={(e) => setQuoteUrl(e.target.value)}
                 />
+                <p className="text-[10px] text-slate-500 mt-1">Enllaç a SharePoint, OneDrive o web de l'oferta.</p>
               </div>
 
               <div className="flex gap-4 pt-4">
@@ -1311,6 +1399,117 @@ export default function RequestDetail({ user }: { user: User }) {
                 >
                   {isSubmittingQuote && <Loader2 size={16} className="animate-spin" />}
                   <span>Guardar Oferta</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Emissió Formal de Comanda */}
+      {showEmitOrderModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+          <div className="card max-w-lg w-full p-8 border-brand-primary/30 shadow-2xl relative">
+            <button 
+              onClick={() => setShowEmitOrderModal(false)}
+              className="absolute top-6 right-6 text-slate-500 hover:text-white"
+            >
+              <X size={20} />
+            </button>
+            <h3 className="text-lg font-black text-white uppercase tracking-tight mb-2 flex items-center gap-3">
+              <FileCheck size={20} className="text-brand-primary" /> Emissió Formal de Comanda
+            </h3>
+            <p className="text-xs text-slate-400 mb-6">
+              Per emetre la comanda és obligatori indicar el proveïdor oficial adjudicatari i l'import acordat.
+            </p>
+            
+            <form onSubmit={handleConfirmEmitOrder} className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black text-brand-primary uppercase tracking-widest block mb-1">
+                  Empresa Proveïdora * (Obligatori)
+                </label>
+                {suppliers.length > 0 && (
+                  <select 
+                    className="input-field text-xs mb-2"
+                    value={orderSupplierId}
+                    onChange={(e) => {
+                      const sel = suppliers.find(s => s.id === e.target.value);
+                      setOrderSupplierId(e.target.value);
+                      if (sel) setOrderSupplierName(sel.name);
+                    }}
+                  >
+                    <option value="">-- Selecciona de la base de dades o escriu a sota --</option>
+                    {suppliers.map(s => (
+                      <option key={s.id} value={s.id}>{s.name} ({s.nif})</option>
+                    ))}
+                  </select>
+                )}
+                <input 
+                  type="text"
+                  placeholder="Nom de l'empresa proveïdora"
+                  className="input-field text-xs font-bold"
+                  value={orderSupplierName}
+                  onChange={(e) => setOrderSupplierName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">
+                  Enllaç del Producte o Catàleg (Opcional)
+                </label>
+                <input 
+                  type="url"
+                  placeholder="https://... URL directa de compra o fitxa"
+                  className="input-field text-xs font-mono"
+                  value={orderProductUrl}
+                  onChange={(e) => setOrderProductUrl(e.target.value)}
+                />
+                <p className="text-[10px] text-slate-500 mt-1">Enllaç web directe al producte per a la gestió de la compra.</p>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">
+                  Import Final / Acordat (€) *
+                </label>
+                <input 
+                  type="number"
+                  step="0.01"
+                  placeholder="ex: 1250.00"
+                  className="input-field text-xs font-bold"
+                  value={orderFinalAmount}
+                  onChange={(e) => setOrderFinalAmount(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">
+                  Observacions o Notes de la Comanda (Opcional)
+                </label>
+                <textarea 
+                  className="input-field text-xs min-h-[80px]"
+                  placeholder="Instruccions d'enviament, contacte, referències de comanda..."
+                  value={orderNotes}
+                  onChange={(e) => setOrderNotes(e.target.value)}
+                />
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                <button 
+                  type="button" 
+                  onClick={() => setShowEmitOrderModal(false)}
+                  className="btn-secondary flex-1 py-3 text-xs font-black uppercase tracking-widest"
+                >
+                  Cancel·lar
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={isProcessing}
+                  className="btn-primary flex-1 py-3 text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2"
+                >
+                  {isProcessing && <Loader2 size={16} className="animate-spin" />}
+                  <span>Confirmar i Emetre Comanda</span>
                 </button>
               </div>
             </form>

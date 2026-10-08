@@ -51,6 +51,7 @@ export function useRequests() {
             attachmentsCount: Number(raw.attachmentsCount || 0),
             quotesCount: Number(raw.quotesCount || 0),
             supplierName: raw.supplierName || raw.proveedor || '',
+            productUrl: raw.productUrl || '',
           } as PurchaseRequest;
         });
         setRequests(reqs);

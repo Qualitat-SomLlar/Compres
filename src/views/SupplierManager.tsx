@@ -15,10 +15,9 @@ import {
   Save,
   Building,
   Trash2,
-  Download
+  Download,
+  Link2
 } from 'lucide-react';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { storage } from '../lib/firebase';
 import { useSuppliers } from '../hooks/useSuppliers';
 import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -46,42 +45,51 @@ export default function SupplierManager() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isNewSupplierModalOpen, setIsNewSupplierModalOpen] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isUploading, setIsUploading] = useState(false);
+  const [showAddDocModal, setShowAddDocModal] = useState(false);
+  const [docName, setDocName] = useState('');
+  const [docUrl, setDocUrl] = useState('');
+  const [docType, setDocType] = useState('Normatiu');
+  const [isSavingDoc, setIsSavingDoc] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !selectedSupplier) return;
-    
-    setIsUploading(true);
+  const handleAddDocumentLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSupplier) return;
+    if (!docName.trim()) {
+      toast.error('Indica el nom del document');
+      return;
+    }
+    let formattedUrl = docUrl.trim();
+    if (!formattedUrl) {
+      toast.error('Indica la URL del document');
+      return;
+    }
+    if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
+      formattedUrl = 'https://' + formattedUrl;
+    }
+
+    setIsSavingDoc(true);
     try {
       const timestamp = Date.now();
-      const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const storagePath = `suppliers/${selectedSupplier.id}/${timestamp}_${cleanFileName}`;
-      const storageRef = ref(storage, storagePath);
-
-      const snapshot = await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(snapshot.ref);
-
       const newDoc = { 
         id: `doc-${timestamp}`, 
-        name: file.name, 
+        name: docName.trim(), 
         date: new Date().toISOString().split('T')[0], 
-        type: 'Normatiu',
-        storagePath,
-        downloadURL
+        type: docType,
+        downloadURL: formattedUrl
       };
       const updatedDocs = [...(selectedSupplier.documents || []), newDoc];
       await updateSupplier(selectedSupplier.id, { documents: updatedDocs });
       setSelectedSupplier({ ...selectedSupplier, documents: updatedDocs });
-      toast.success('Document pujat i vinculat al proveïdor correctament');
+      toast.success('Document vinculat al proveïdor correctament');
+      setShowAddDocModal(false);
+      setDocName('');
+      setDocUrl('');
     } catch (err) {
       console.error(err);
-      toast.error('Error al pujar el document');
+      toast.error('Error al vincular el document');
     } finally {
-      setIsUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      setIsSavingDoc(false);
     }
   };
 
@@ -90,14 +98,6 @@ export default function SupplierManager() {
     if (!window.confirm(`Vols eliminar el document "${docToDelete.name}"?`)) return;
 
     try {
-      if (docToDelete.storagePath) {
-        try {
-          await deleteObject(ref(storage, docToDelete.storagePath));
-        } catch (storageErr) {
-          console.warn("No s'ha pogut eliminar el fitxer de Storage:", storageErr);
-        }
-      }
-
       const remaining = (selectedSupplier.documents || []).filter((d: any) => d.id !== docToDelete.id);
       await updateSupplier(selectedSupplier.id, { documents: remaining });
       setSelectedSupplier({ ...selectedSupplier, documents: remaining });
@@ -355,22 +355,81 @@ export default function SupplierManager() {
               
               <div>
                 <div className="flex justify-between items-center mb-3 border-b border-white/5 pb-2">
-                  <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Documentació</h5>
+                  <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Documentació i Enllaços</h5>
                   <button 
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploading}
-                    className="btn-secondary text-[10px] font-black uppercase tracking-widest py-1.5 px-3 flex items-center gap-1"
+                    onClick={() => setShowAddDocModal(true)}
+                    className="btn-secondary text-[10px] font-black uppercase tracking-widest py-1.5 px-3 flex items-center gap-1.5 border-brand-primary/30 text-brand-primary hover:bg-brand-primary/10"
                   >
-                    <Plus size={12} />
-                    {isUploading ? 'Pujant...' : 'Pujar Document'}
+                    <Link2 size={12} />
+                    <span>+ Vincular Document (URL)</span>
                   </button>
-                  <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    className="hidden" 
-                    onChange={handleFileUpload}
-                  />
                 </div>
+
+                {showAddDocModal && (
+                  <form onSubmit={handleAddDocumentLink} className="p-4 rounded-xl bg-white/[0.02] border border-white/5 space-y-3 mb-4 animate-in fade-in">
+                    <div className="flex items-center justify-between pb-1 border-b border-white/5">
+                      <span className="text-[10px] font-black text-white uppercase tracking-wider">Vincular Enllaç de Document</span>
+                      <button type="button" onClick={() => setShowAddDocModal(false)} className="text-slate-500 hover:text-white">
+                        <X size={14} />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-1">Nom del Document *</label>
+                        <input 
+                          type="text" 
+                          placeholder="Ex: Certificat Bancari, NIF..." 
+                          className="input-field text-xs py-1.5"
+                          value={docName}
+                          onChange={e => setDocName(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-1">Tipus</label>
+                        <select 
+                          className="input-field text-xs py-1.5"
+                          value={docType}
+                          onChange={e => setDocType(e.target.value)}
+                        >
+                          <option value="Normatiu">Normatiu / Compliance</option>
+                          <option value="Contracte">Contracte</option>
+                          <option value="Fiscal / NIF">Fiscal / NIF</option>
+                          <option value="Bancari">Dades Bancàries</option>
+                          <option value="Altres">Altres</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-1">URL (SharePoint / Web) *</label>
+                        <input 
+                          type="url" 
+                          placeholder="https://..." 
+                          className="input-field text-xs py-1.5 font-mono"
+                          value={docUrl}
+                          onChange={e => setDocUrl(e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-1">
+                      <button 
+                        type="button" 
+                        onClick={() => setShowAddDocModal(false)}
+                        className="btn-secondary py-1 px-3 text-[10px]"
+                      >
+                        Cancel·lar
+                      </button>
+                      <button 
+                        type="submit" 
+                        disabled={isSavingDoc}
+                        className="btn-primary py-1 px-3 text-[10px] font-black uppercase flex items-center gap-1.5"
+                      >
+                        {isSavingDoc ? <Loader2 size={12} className="animate-spin" /> : <Link2 size={12} />}
+                        <span>Desar Enllaç</span>
+                      </button>
+                    </div>
+                  </form>
+                )}
                 
                 {selectedSupplier.documents && selectedSupplier.documents.length > 0 ? (
                   <div className="space-y-2">

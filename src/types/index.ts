@@ -107,6 +107,7 @@ export interface PurchaseRequest {
   
   supplierId?: string;
   supplierName?: string;
+  productUrl?: string;
   
   // Metadades seguiment
   attachmentsCount: number;
