@@ -180,7 +180,7 @@ export const workflowService = {
         );
         return {
           roleName: `Conformitat de Recepció`,
-          scopeDescription: `Tècnic/a sol·licitant (${request.requestingTechnicianName}) o equip receptor`,
+          scopeDescription: `Sol·licitant (${request.requestingTechnicianName}) o equip receptor`,
           users: matching,
           hasCover: matching.length > 0,
           levelNumber: 1
@@ -200,7 +200,7 @@ export const workflowService = {
       case 'retornada': {
         const matching = activeUsers.filter(u => u.id === request.createdByUserId);
         return {
-          roleName: `Tècnic/a Creador`,
+          roleName: `Sol·licitant Creador`,
           scopeDescription: `Treballador/a que ha generat la sol·licitud (${request.createdByUserName})`,
           users: matching,
           hasCover: matching.length > 0,

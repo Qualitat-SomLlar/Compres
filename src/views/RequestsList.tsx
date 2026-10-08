@@ -303,7 +303,7 @@ export default function RequestsList({ user: propUser }: RequestsListProps) {
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-brand-primary transition-colors" size={15} />
             <input 
               type="text" 
-              placeholder="Cerca codi PR, descripció, tècnic..." 
+              placeholder="Cerca codi PR, descripció, sol·licitant..." 
               className="input-field text-xs pl-10 py-2.5 w-full bg-white/[0.02] border-white/5 focus:border-brand-primary"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -385,7 +385,7 @@ export default function RequestsList({ user: propUser }: RequestsListProps) {
             <thead>
               <tr className="border-b border-white/[0.03] bg-white/[0.01]">
                 <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Expedient / Temps</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Tècnic/a i Àrea</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Sol·licitant i Àrea</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Bé o Servei</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Import Estimat</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] text-center">Estat</th>

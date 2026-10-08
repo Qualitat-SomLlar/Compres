@@ -30,7 +30,7 @@ export const STATUS_LABELS: Record<string, { label: string, color: string }> = {
 };
 
 export const ROLE_LABELS: Record<string, string> = {
-  tecnic: 'Tècnic/a Sol·licitant',
+  tecnic: 'Sol·licitant',
   coordinacio: 'Coordinació d\'Àrea',
   direccio_area: 'Direcció d\'Àrea',
   finances: 'Direcció ADM i Finances',
@@ -57,8 +57,8 @@ export const HIERARCHY_ROLES: HierarchyRoleConfig[] = [
     key: 'tecnic',
     level: 1,
     code: 'N1',
-    label: 'Tècnic/a Sol·licitant',
-    shortLabel: 'N1 · Tècnic/a',
+    label: 'Sol·licitant',
+    shortLabel: 'N1 · Sol·licitant',
     scope: 'area',
     description: 'Genera peticions de compra vinculades a la seva àrea. No té potestat d\'aprovació.',
     badgeColor: 'bg-blue-500/10 text-blue-400 border-blue-500/20'

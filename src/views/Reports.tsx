@@ -77,7 +77,7 @@ export default function Reports() {
       'Codi': r.code || r.id,
       'Data': r.createdAt ? new Date(r.createdAt).toLocaleDateString('ca-ES') : '',
       'Estat': STATUS_LABELS[r.status]?.label || r.status,
-      'Tècnic/a': r.requestingTechnicianName,
+      'Sol·licitant': r.requestingTechnicianName,
       'Àrea': getAreaName(r.areaId),
       'Descripció': r.itemDescription,
       'Import Estimat (€)': r.estimatedAmount,
@@ -92,7 +92,7 @@ export default function Reports() {
       'Codi Sol·licitud': r.code || r.id,
       'Data de Creació': r.createdAt ? new Date(r.createdAt).toLocaleDateString('ca-ES') : '',
       'Estat Actual': STATUS_LABELS[r.status]?.label || r.status,
-      'Tècnic/a Sol·licitant': r.requestingTechnicianName,
+      'Sol·licitant': r.requestingTechnicianName,
       'Introduïda per': r.createdByUserName,
       'Àrea': getAreaName(r.areaId),
       'Projecte': r.projectId,
@@ -224,7 +224,7 @@ export default function Reports() {
               <tr className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-white/[0.05]">
                 <th className="px-8 py-5">Codi</th>
                 <th className="px-8 py-5">Projecte / Descripció</th>
-                <th className="px-8 py-5">Tècnic/a</th>
+                <th className="px-8 py-5">Sol·licitant</th>
                 <th className="px-8 py-5">Import</th>
                 <th className="px-8 py-5">Estat</th>
                 <th className="px-8 py-5 text-right">Detalls</th>
@@ -241,7 +241,7 @@ export default function Reports() {
                     <div className="text-xs font-bold text-white line-clamp-1">{request.itemDescription || 'Sol·licitud de compra'}</div>
                   </td>
                   <td className="px-8 py-6">
-                    <div className="text-xs font-bold text-slate-300">{request.requestingTechnicianName || 'Tècnic/a'}</div>
+                    <div className="text-xs font-bold text-slate-300">{request.requestingTechnicianName || 'Sol·licitant'}</div>
                     <div className="text-[10px] text-slate-500 uppercase tracking-widest">{request.areaId ? getAreaName(request.areaId) : 'SENSE ÀREA'}</div>
                   </td>
                   <td className="px-8 py-6">

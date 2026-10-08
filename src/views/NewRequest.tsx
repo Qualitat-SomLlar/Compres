@@ -11,15 +11,17 @@ import {
   User as UserIcon,
   ShieldCheck,
   Plus,
-  Building2
+  Building2,
+  Link2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { collection, addDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { User, Attachment, AttachmentCategory, RequestStatus, PurchaseRequest } from '../types';
-import { CATEGORIES, normalizeAreaId } from '../constants';
+import { CATEGORIES, ATTACHMENT_CATEGORIES, normalizeAreaId } from '../constants';
 import UserSelector from '../components/UserSelector';
 import CustomSelect from '../components/CustomSelect';
 import CustomDatePicker from '../components/CustomDatePicker';
-import FileUploader from '../components/FileUploader';
 import AttachmentList from '../components/AttachmentList';
 import { useRequests } from '../hooks/useRequests';
 import { useAreas } from '../hooks/useAreas';
@@ -30,7 +32,6 @@ import { useCenters } from '../hooks/useCenters';
 import { useProjects } from '../hooks/useProjects';
 import { useEmailDispatcher } from '../hooks/useEmailDispatcher';
 import { emailService } from '../services/emailService';
-import { fileService } from '../services/fileService';
 import { activityService } from '../services/activityService';
 
 export default function NewRequest({ user }: { user: User }) {
@@ -45,7 +46,15 @@ export default function NewRequest({ user }: { user: User }) {
   const { projects } = useProjects();
   const { updateRequest } = useRequests();
   const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [filesQueue, setFilesQueue] = useState<{ file: File, category: AttachmentCategory, id: string }[]>([]);
+  const [newDocForm, setNewDocForm] = useState<{
+    category: AttachmentCategory;
+    name: string;
+    url: string;
+  }>({
+    category: 'pressupost',
+    name: '',
+    url: ''
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     requestingTechnicianId: '',
@@ -85,62 +94,59 @@ export default function NewRequest({ user }: { user: User }) {
     });
   };
 
-  const handleAttachmentUpload = (files: File[], category: AttachmentCategory) => {
-    const newQueueItems = files.map(file => {
-      const id = Math.random().toString(36).substring(7);
-      return { file, category, id };
-    });
+  const handleAddDocumentLink = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!newDocForm.name.trim()) {
+      toast.error('Indica el nom del document');
+      return;
+    }
+    let trimmedUrl = newDocForm.url.trim();
+    if (!trimmedUrl) {
+      toast.error("Indica l'enllaç o URL del document");
+      return;
+    }
+    if (!trimmedUrl.startsWith('http://') && !trimmedUrl.startsWith('https://')) {
+      trimmedUrl = 'https://' + trimmedUrl;
+    }
 
-    const newAttachments: Attachment[] = newQueueItems.map(({ file, category, id }) => ({
-      id,
+    const newAttachment: Attachment = {
+      id: 'doc_' + Date.now() + '_' + Math.random().toString(36).substring(7),
       purchaseRequestId: 'NEW',
-      fileName: file.name,
-      storagePath: `temp/${file.name}`,
-      downloadURL: URL.createObjectURL(file), // Preview local
-      mimeType: file.type || 'application/octet-stream',
-      size: file.size,
-      category,
+      fileName: `🔗 ${newDocForm.name.trim()}`,
+      storagePath: trimmedUrl,
+      downloadURL: trimmedUrl,
+      mimeType: 'text/uri-list',
+      size: 0,
+      category: newDocForm.category,
       uploadedByUserId: user.id,
       uploadedByUserName: user.name,
       createdAt: new Date().toISOString(),
       status: 'completed'
-    }));
+    };
 
-    setFilesQueue(prev => [...prev, ...newQueueItems]);
-    setAttachments(prev => [...prev, ...newAttachments]);
+    setAttachments(prev => [...prev, newAttachment]);
+    setNewDocForm({
+      category: 'pressupost',
+      name: '',
+      url: ''
+    });
+    toast.success('Document afegit a la llista');
   };
 
   const handleDeleteAttachment = (id: string) => {
-    setFilesQueue(prev => prev.filter(f => f.id !== id));
     setAttachments(prev => prev.filter(a => a.id !== id));
   };
 
   const saveRequest = async (targetStatus: 'pendent_coordinacio' | 'esborrany') => {
     if (targetStatus === 'pendent_coordinacio') {
       if (!formData.requestingTechnicianId) {
-        toast.error('Siusplau, selecciona el tècnic sol·licitant');
-        return;
-      }
-      if (!formData.projectId) {
-        toast.error('Siusplau, selecciona un projecte');
-        return;
-      }
-      if (!formData.analyticCode) {
-        toast.error('Siusplau, selecciona un codi analític');
-        return;
-      }
-      if (!formData.destinationCenterId) {
-        toast.error('Siusplau, selecciona un centre de destí');
-        return;
-      }
-      if (!formData.itemDescription.trim()) {
-        toast.error('Siusplau, indica la descripció del bé o servei');
+        toast.error('Siusplau, selecciona el sol·licitant');
         return;
       }
     } else {
-      // Per a esborranys només demanem una descripció mínima
+      // Per a esborranys només demanem una descripció mínima o el sol·licitant
       if (!formData.itemDescription.trim() && !formData.requestingTechnicianName) {
-        toast.error('Indica almenys una breu descripció o el tècnic per guardar com a esborrany');
+        toast.error('Indica almenys una breu descripció o el sol·licitant per guardar com a esborrany');
         return;
       }
     }
@@ -157,24 +163,34 @@ export default function NewRequest({ user }: { user: User }) {
       // 1. Crear el document a Firestore
       const newRequest = await addRequest({
         ...formData,
-        itemDescription: formData.itemDescription || 'Sense descripció (Esborrany)',
-        justification: formData.justification || 'Pendent de justificació',
+        itemDescription: formData.itemDescription?.trim() || 'Sense descripció',
+        justification: formData.justification?.trim() || '',
         deadline: formData.deadline || new Date().toISOString().split('T')[0],
         createdByUserId: user.id,
         createdByUserName: user.name,
         createdByUserEmail: user.email,
         areaId: requestAreaId,
-        attachmentsCount: filesQueue.length,
+        attachmentsCount: attachments.length,
         status: targetStatus
       });
 
-      // 2. Pujada real dels fitxers a Firebase Storage i registre a Firestore
-      if (filesQueue.length > 0) {
-        const uploadPromises = filesQueue.map(item => 
-          fileService.uploadFile(item.file, newRequest.id, item.category, user.id, user.name)
-        );
-        const uploadedAttachments = await Promise.all(uploadPromises);
-        await updateRequest(newRequest.id, { attachmentsCount: uploadedAttachments.length });
+      // 2. Desar els enllaços documentals a la col·lecció 'attachments'
+      if (attachments.length > 0) {
+        for (const att of attachments) {
+          await addDoc(collection(db, 'attachments'), {
+            purchaseRequestId: newRequest.id,
+            fileName: att.fileName,
+            storagePath: att.storagePath,
+            downloadURL: att.downloadURL,
+            mimeType: 'text/uri-list',
+            size: 0,
+            category: att.category,
+            uploadedByUserId: user.id,
+            uploadedByUserName: user.name,
+            createdAt: new Date().toISOString(),
+            status: 'completed'
+          });
+        }
       }
 
       // 3. Notificacions (només si s'envia a aprovació)
@@ -209,7 +225,7 @@ export default function NewRequest({ user }: { user: User }) {
           estimatedAmount: newRequest.estimatedAmount,
           itemDescription: newRequest.itemDescription,
           destinationCenterName: newRequest.destinationCenterName,
-          filesUploaded: filesQueue.length
+          filesUploaded: attachments.length
         }
       );
 
@@ -244,7 +260,7 @@ export default function NewRequest({ user }: { user: User }) {
           <div className="p-2.5 bg-brand-primary/10 rounded-xl text-brand-primary">
             <Plus size={20} />
           </div>
-          <h2 className="text-3xl font-black text-white tracking-tighter">Nova Sol·licitud de Compra</h2>
+          <h2 className="text-3xl font-black text-white tracking-tighter">Nova Sol·licitud</h2>
         </div>
         <p className="text-sm text-slate-500 font-medium max-w-xl">Inicia un nou expedient per al subministrament de béns o contractació de serveis.</p>
       </div>
@@ -272,7 +288,7 @@ export default function NewRequest({ user }: { user: User }) {
 
             <div className="space-y-3">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                Tècnic/a sol·licitant <span className="text-red-500">*</span>
+                Sol·licitant <span className="text-red-500">*</span>
               </label>
               <UserSelector 
                 onSelect={handleWorkerSelect} 
@@ -300,7 +316,7 @@ export default function NewRequest({ user }: { user: User }) {
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative z-10">
             <div className="space-y-3">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Projecte <span className="text-red-500">*</span></label>
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Projecte</label>
               <CustomSelect
                 placeholder="Selecciona projecte"
                 value={formData.projectId}
@@ -315,7 +331,7 @@ export default function NewRequest({ user }: { user: User }) {
 
             <div className="space-y-3">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                Codi Analític <span className="text-red-500">*</span>
+                Codi Analític
               </label>
               <CustomSelect
                 placeholder="Selecciona codi"
@@ -331,7 +347,7 @@ export default function NewRequest({ user }: { user: User }) {
 
             <div className="space-y-3">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                Centre de Destí <span className="text-red-500">*</span>
+                Centre de Destí
               </label>
               <CustomSelect
                 placeholder="Selecciona centre"
@@ -387,10 +403,9 @@ export default function NewRequest({ user }: { user: User }) {
             </div>
 
             <div className="space-y-3">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Concepte detallat <span className="text-red-500">*</span></label>
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Concepte detallat</label>
               <input 
                 type="text" 
-                required
                 placeholder="Què s'ha de comprar exactament?" 
                 className="input-field" 
                 value={formData.itemDescription}
@@ -399,12 +414,11 @@ export default function NewRequest({ user }: { user: User }) {
             </div>
 
             <div className="space-y-3">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Justificació de la despesa <span className="text-red-500">*</span></label>
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Justificació de la despesa</label>
               <textarea 
-                required
                 rows={3} 
                 placeholder="Explica la necessitat d'aquesta sol·licitud per a l'entitat o projecte." 
-                className="input-field resize-none"
+                className="input-field resize-none" 
                 value={formData.justification}
                 onChange={e => setFormData({...formData, justification: e.target.value})}
               />
@@ -412,20 +426,93 @@ export default function NewRequest({ user }: { user: User }) {
           </div>
         </section>
 
-        {/* Bloc 3: Documents adjunts */}
+        {/* Bloc 3: Documents adjunts / Enllaços */}
         <section className="card p-10 relative z-[5] !overflow-visible">
-          <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-10 flex items-center gap-3 relative z-10">
-            <div className="p-2 bg-white/5 rounded-lg text-slate-500"><FileText size={18} /></div>
-            Documents Adjunts
-          </h3>
+          <div className="flex items-center justify-between mb-4 relative z-10">
+            <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-3">
+              <div className="p-2 bg-white/5 rounded-lg text-slate-500"><FileText size={18} /></div>
+              Documents i Enllaços Adjunts
+            </h3>
+            {attachments.length > 0 && (
+              <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
+                {attachments.length} {attachments.length === 1 ? 'document' : 'documents'}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-slate-400 mb-8 relative z-10">
+            Indica enllaços a documents o carpetes compartides de SharePoint, OneDrive o núvol relacionats amb aquesta sol·licitud.
+          </p>
           
           <div className="space-y-8 relative z-10">
-            <FileUploader 
-              onUpload={handleAttachmentUpload}
-              maxSizeMB={10} 
-            />
+            {/* Panell per afegir nou enllaç documental */}
+            <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1.5">
+                    Tipus de Document
+                  </label>
+                  <select
+                    value={newDocForm.category}
+                    onChange={(e) => setNewDocForm(prev => ({ ...prev, category: e.target.value as AttachmentCategory }))}
+                    className="input-field text-xs py-2.5"
+                  >
+                    <option value="pressupost">Pressupost</option>
+                    <option value="factura">Factura</option>
+                    <option value="contracte">Contracte</option>
+                    <option value="albara">Albarà</option>
+                    <option value="justificacio">Memòria / Justificació</option>
+                    <option value="factura_proforma">Factura Proforma</option>
+                    <option value="fitxa_tecnica">Fitxa Tècnica</option>
+                    <option value="altres">Altres / Carpeta compartida</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1.5">
+                    Nom del Document
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Pressupost Proveïdor A, Plec de condicions..."
+                    value={newDocForm.name}
+                    onChange={(e) => setNewDocForm(prev => ({ ...prev, name: e.target.value }))}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddDocumentLink(); } }}
+                    className="input-field text-xs py-2.5"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1.5">
+                    URL de l'Enllaç (SharePoint / OneDrive)
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://somllar-my.sharepoint.com/..."
+                    value={newDocForm.url}
+                    onChange={(e) => setNewDocForm(prev => ({ ...prev, url: e.target.value }))}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddDocumentLink(); } }}
+                    className="input-field text-xs py-2.5 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <span className="text-[10px] text-slate-500 font-medium">
+                  Els enllaços permeten obrir directament els fitxers des de SharePoint o OneDrive corporatiu.
+                </span>
+                <button
+                  type="button"
+                  onClick={handleAddDocumentLink}
+                  className="btn-secondary flex items-center gap-2 py-2 px-4 text-xs font-black uppercase tracking-wider hover:border-brand-primary/40 hover:text-white"
+                >
+                  <Link2 size={15} className="text-sky-400" />
+                  <span>+ Afegir Document</span>
+                </button>
+              </div>
+            </div>
             
-            <div className="pt-8 border-t border-white/[0.05]">
+            {/* Llistat d'adjunts vinculats */}
+            <div className="pt-2">
               <AttachmentList 
                 attachments={attachments} 
                 onDelete={handleDeleteAttachment}

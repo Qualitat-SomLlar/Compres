@@ -648,11 +648,11 @@ export default function RequestDetail({ user }: { user: User }) {
                 </div>
               </div>
               
-              {/* Secció Tècnic i Creador */}
+              {/* Secció Sol·licitant i Creador */}
               <div className="col-span-full grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
                 <div className="p-5 rounded-2xl bg-[#0b0f19] border border-white/5">
                   <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <UserIcon size={12} /> Tècnic/a sol·licitant
+                    <UserIcon size={12} /> Sol·licitant
                   </p>
                   <p className="text-xs font-bold text-white tracking-tight">{request.requestingTechnicianName || 'No assignat'}</p>
                   <p className="text-[10px] text-slate-500 font-medium">{request.requestingTechnicianEmail || 'N/A'}</p>
@@ -1032,7 +1032,7 @@ export default function RequestDetail({ user }: { user: User }) {
               <TimelineStep 
                 title="Sol·licitud" 
                 status="completed" 
-                role={request.requestingTechnicianName || 'Tècnic/a sol·licitant'} 
+                role={request.requestingTechnicianName || 'Sol·licitant'} 
                 date={request.createdAt ? new Date(request.createdAt).toLocaleDateString('ca-ES') : 'Recent'}
               />
             </div>

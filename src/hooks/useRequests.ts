@@ -44,7 +44,7 @@ export function useRequests() {
             createdByUserName: raw.createdByUserName || 'Usuari Som Llar',
             createdByUserEmail: raw.createdByUserEmail || '',
             requestingTechnicianId: raw.requestingTechnicianId || String(raw.requesterId || ''),
-            requestingTechnicianName: raw.requestingTechnicianName || raw.requesterName || 'Tècnic/a',
+            requestingTechnicianName: raw.requestingTechnicianName || raw.requesterName || 'Sol·licitant',
             requestingTechnicianEmail: raw.requestingTechnicianEmail || '',
             requiresThreeQuotes: !!(raw.requiresThreeQuotes || (estimated > 5000)),
             urgency: raw.urgency || 'normal',

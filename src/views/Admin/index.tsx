@@ -687,12 +687,12 @@ function UsersManager() {
                       <div className="p-3 bg-black/40 rounded-xl border border-white/5 text-[11px] text-slate-300">
                         {formLevel === 1 && (
                           <span>
-                            Com a <strong>Tècnic/a (N1)</strong> de <strong>{selectedAreaName}</strong>, generarà sol·licituds vinculades a aquesta àrea. El primer que haurà d'aprovar-les serà el <strong>Coordinador/a (N2)</strong> de <strong>{selectedAreaName}</strong>.
+                            Com a <strong>Sol·licitant (N1)</strong> de <strong>{selectedAreaName}</strong>, generarà sol·licituds vinculades a aquesta àrea. El primer que haurà d'aprovar-les serà el <strong>Coordinador/a (N2)</strong> de <strong>{selectedAreaName}</strong>.
                           </span>
                         )}
                         {formLevel === 2 && (
                           <span>
-                            Com a <strong>Coordinació (N2)</strong> de <strong>{selectedAreaName}</strong>, serà el <strong>1r aprovador</strong> de totes les demandes fetes pels tècnics (N1) exclusivament de <strong>{selectedAreaName}</strong>. No rebrà sol·licituds d'altres àrees.
+                            Com a <strong>Coordinació (N2)</strong> de <strong>{selectedAreaName}</strong>, serà el <strong>1r aprovador</strong> de totes les demandes fetes pels sol·licitants (N1) exclusivament de <strong>{selectedAreaName}</strong>. No rebrà sol·licituds d'altres àrees.
                           </span>
                         )}
                         {formLevel === 3 && (
@@ -1730,7 +1730,7 @@ function HierarchyLevelsManager() {
 
 function FlowsManager() {
   const steps = [
-    { id: 1, name: 'Tècnic/a', role: 'tecnic', action: 'Genera Demanda', required: true },
+    { id: 1, name: 'Sol·licitant', role: 'tecnic', action: 'Genera Demanda', required: true },
     { id: 2, name: 'Coordinació', role: 'coordinacio', action: 'Primera Aprovació', required: true },
     { id: 3, name: 'Direcció d\'Àrea', role: 'direccio_area', action: 'Validació Pressupostària', required: true },
     { id: 4, name: 'Administració i Finances', role: 'finances', action: 'Tramitació i Autorització', required: true },

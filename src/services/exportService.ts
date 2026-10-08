@@ -73,7 +73,7 @@ export const exportService = {
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
-    doc.text("Tècnic/a Sol·licitant:", 20, currentY + 8);
+    doc.text("Sol·licitant:", 20, currentY + 8);
     doc.text("Àrea d'Imputació:", 20, currentY + 16);
     doc.text("Centre de Destí:", 20, currentY + 24);
     doc.text("Codi Analític:", 20, currentY + 32);
@@ -251,7 +251,7 @@ export const exportService = {
       'Codi Expedient': r.code || r.id,
       'Data Sol·licitud': r.createdAt ? new Date(r.createdAt).toLocaleDateString('ca-ES') : '',
       'Estat Actual': STATUS_LABELS[r.status]?.label || r.status,
-      'Tècnic Sol·licitant': r.requestingTechnicianName || '',
+      'Sol·licitant': r.requestingTechnicianName || '',
       'Email Sol·licitant': r.requestingTechnicianEmail || r.createdByUserEmail || '',
       'Àrea': r.areaName || r.areaId || '',
       'Centre Destí': r.destinationCenterName || '',

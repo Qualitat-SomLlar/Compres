@@ -221,7 +221,7 @@ const AppLayout = ({ children, user }: { children: React.ReactNode, user: User }
             
             <Link to="/compres/nova" className="btn-primary flex items-center gap-2 text-sm py-2">
               <PlusCircle size={18} />
-              <span className="hidden sm:inline">Nova Compra</span>
+              <span className="hidden sm:inline">Nova sol·licitud</span>
             </Link>
           </div>
         </header>
