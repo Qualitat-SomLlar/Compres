@@ -327,6 +327,7 @@ export default function RequestDetail({ user }: { user: User }) {
       let eventKey = '';
       if (action === 'reject') eventKey = 'rebutjada';
       else if (action === 'return') eventKey = 'retornada_esmena';
+      else if (newStatus === 'pendent_coordinacio') eventKey = 'solicitud_creada';
       else if (newStatus === 'aprovada') eventKey = 'compra_aprovada';
       else if (newStatus === 'pendent_finances') eventKey = 'enviada_finances';
       else if (newStatus === 'pendent_direccio') eventKey = 'validada_direccio';

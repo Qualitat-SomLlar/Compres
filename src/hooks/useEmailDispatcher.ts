@@ -4,6 +4,22 @@ import { emailService } from '../services/emailService';
 import { PurchaseRequest, RequestStatus } from '../types';
 import { normalizeAreaId } from '../constants';
 
+/**
+ * Esdeveniments de correu autoritzats exclusivament per al sol·licitant / creador:
+ * 1. Sol·licitud Registrada (solicitud_creada)
+ * 2. Comanda Tramitada (compra_tramitada)
+ * 3. Compra Rebuda (compra_rebuda)
+ * 4. Retornada per Esmena (retornada_esmena)
+ * 5. Sol·licitud Rebutjada (rebutjada)
+ */
+const REQUESTER_ALLOWED_EVENTS = new Set<string>([
+  'solicitud_creada',
+  'compra_tramitada',
+  'compra_rebuda',
+  'retornada_esmena',
+  'rebutjada'
+]);
+
 export function useEmailDispatcher() {
   const { settings } = useNotificationSettings();
   const { users } = useUsers();
@@ -90,19 +106,21 @@ export function useEmailDispatcher() {
         );
       });
 
-      // Confirmació també per al sol·licitant que s'ha creat la demanda
-      validRequesterEmails.forEach(email => {
-        sendPromises.push(
-          emailService.sendStatusUpdateNotification(
-            request, 
-            email, 
-            request.status, 
-            extra?.comment || "La teva sol·licitud ha estat registrada i enviada a la Coordinació de la teva àrea per a la seva validació.",
-            undefined,
-            { actorName: extra?.actorName, actorRole: extra?.actorRole, previousStatus: extra?.previousStatus }
-          )
-        );
-      });
+      // Confirmació per al sol·licitant que s'ha registrat la sol·licitud (Permès)
+      if (REQUESTER_ALLOWED_EVENTS.has(eventKey)) {
+        validRequesterEmails.forEach(email => {
+          sendPromises.push(
+            emailService.sendStatusUpdateNotification(
+              request, 
+              email, 
+              request.status, 
+              extra?.comment || "La teva sol·licitud ha estat registrada i enviada a la Coordinació de la teva àrea per a la seva validació.",
+              undefined,
+              { actorName: extra?.actorName, actorRole: extra?.actorRole, previousStatus: extra?.previousStatus }
+            )
+          );
+        });
+      }
     } 
     else if (eventKey === 'validada_direccio' || request.status === 'pendent_direccio') {
       // Notificar a la Direcció d'Àrea (N3) de l'àrea
@@ -127,19 +145,7 @@ export function useEmailDispatcher() {
         );
       });
 
-      // Actualització al sol·licitant
-      validRequesterEmails.forEach(email => {
-        sendPromises.push(
-          emailService.sendStatusUpdateNotification(
-            request, 
-            email, 
-            request.status, 
-            extra?.comment || "Validada per la Coordinació d'Àrea. Pendent de la Direcció d'Àrea.",
-            undefined,
-            { actorName: extra?.actorName, actorRole: extra?.actorRole, previousStatus: extra?.previousStatus }
-          )
-        );
-      });
+      // El sol·licitant no rep correu en aquesta fase interna de validació
     }
     else if (eventKey === 'enviada_finances' || request.status === 'pendent_finances') {
       // Notificar a Finances (N4)
@@ -163,40 +169,31 @@ export function useEmailDispatcher() {
         );
       });
 
-      // Actualització al sol·licitant
-      validRequesterEmails.forEach(email => {
-        sendPromises.push(
-          emailService.sendStatusUpdateNotification(
-            request, 
-            email, 
-            request.status, 
-            extra?.comment || "Validada per la Direcció d'Àrea. Pendent d'aprovació pressupostària per Finances.",
-            undefined,
-            { actorName: extra?.actorName, actorRole: extra?.actorRole, previousStatus: extra?.previousStatus }
-          )
-        );
-      });
+      // El sol·licitant no rep correu en aquesta fase interna de validació
     }
-    // CAS B: Canvis d'estat dirigits essencialment al sol·licitant
-    // (comanda emesa/realitzada, compra rebuda, aprovada, tancada, retornada, rebutjada)
+    // CAS B: Canvis d'estat
     else {
-      // Enviar notificació d'estat al sol·licitant
-      validRequesterEmails.forEach(email => {
-        sendPromises.push(
-          emailService.sendStatusUpdateNotification(
-            request, 
-            email, 
-            request.status, 
-            extra?.comment,
-            undefined,
-            { actorName: extra?.actorName, actorRole: extra?.actorRole, previousStatus: extra?.previousStatus }
-          )
-        );
-      });
+      // Al sol·licitant NOMÉS se li envia si és un dels 5 esdeveniments sol·licitats:
+      // (solicitud_creada, compra_tramitada, compra_rebuda, retornada_esmena, rebutjada)
+      if (REQUESTER_ALLOWED_EVENTS.has(eventKey)) {
+        validRequesterEmails.forEach(email => {
+          sendPromises.push(
+            emailService.sendStatusUpdateNotification(
+              request, 
+              email, 
+              request.status, 
+              extra?.comment,
+              undefined,
+              { actorName: extra?.actorName, actorRole: extra?.actorRole, previousStatus: extra?.previousStatus }
+            )
+          );
+        });
+      }
 
-      // Enviar també a qualsevol altre receptor configurat al panell
+      // Enviar també a qualsevol altre receptor configurat expressament al panell
       additionalRecipients.forEach(email => {
-        if (!validRequesterEmails.includes(email)) {
+        const alreadyReceivedAsRequester = REQUESTER_ALLOWED_EVENTS.has(eventKey) && validRequesterEmails.includes(email);
+        if (!alreadyReceivedAsRequester) {
           sendPromises.push(
             emailService.sendStatusUpdateNotification(
               request, 
