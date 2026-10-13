@@ -115,8 +115,30 @@ export interface PurchaseRequest {
   
   // Timestamps de fases
   coordinationApprovedAt?: string;
+  coordinationComment?: string;
+  coordinationApprovedBy?: string;
+  coordinationApproverRole?: string;
+  
   areaDirectionApprovedAt?: string;
+  areaDirectionComment?: string;
+  areaDirectionApprovedBy?: string;
+  areaDirectionApproverRole?: string;
+
   financeApprovedAt?: string;
+  financeComment?: string;
+  financeApprovedBy?: string;
+  financeApproverRole?: string;
+
+  lastReturnComment?: string;
+  lastReturnedBy?: string;
+  lastReturnedRole?: string;
+  lastReturnedAt?: string;
+
+  rejectionComment?: string;
+  rejectedBy?: string;
+  rejectedRole?: string;
+  rejectedAt?: string;
+
   receivedAt?: string;
   invoiceValidatedAt?: string;
   closedAt?: string;

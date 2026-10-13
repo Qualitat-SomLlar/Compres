@@ -27,17 +27,21 @@ import {
   Users as UsersIcon,
   Download,
   Link2,
-  ExternalLink
+  ExternalLink,
+  Tag,
+  MapPin,
+  MessageCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { exportService } from '../services/exportService';
-import { STATUS_LABELS, getHierarchyRole, normalizeAreaId } from '../constants';
+import { STATUS_LABELS, getHierarchyRole, normalizeAreaId, CATEGORIES } from '../constants';
 import { User, RequestStatus, AttachmentCategory, PurchaseRequest, Attachment, Quote, ActivityLog } from '../types';
 import { cn } from '../lib/utils';
 import AttachmentList from '../components/AttachmentList';
 import StatusBadge from '../components/StatusBadge';
 import { useRequests } from '../hooks/useRequests';
 import { useAreas } from '../hooks/useAreas';
+import { useCenters } from '../hooks/useCenters';
 import { useNotifications } from '../hooks/useNotifications';
 import { useUsers } from '../hooks/useUsers';
 import { useSuppliers } from '../hooks/useSuppliers';
@@ -57,6 +61,7 @@ export default function RequestDetail({ user }: { user: User }) {
   const { dispatchEmail } = useEmailDispatcher();
   const { users, getUsersByRole } = useUsers();
   const { suppliers } = useSuppliers();
+  const { centers } = useCenters();
   
   const request = id ? getRequestById(id) : undefined;
   const [comment, setComment] = useState('');
@@ -98,6 +103,125 @@ export default function RequestDetail({ user }: { user: User }) {
   // Historial d'Auditoria de la Sol·licitud
   const [requestLogs, setRequestLogs] = useState<ActivityLog[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
+
+  // Resolució de dades completes del sol·licitant
+  const destinationCenter = centers.find(c => c.id === request?.destinationCenterId);
+  const destinationCenterName = request?.destinationCenterName || destinationCenter?.name || (request?.destinationCenterId ? request.destinationCenterId : 'Sense centre especificat');
+  
+  const categoryItem = CATEGORIES.find(c => c.id === request?.category);
+  const categoryLabel = categoryItem?.name || request?.category || 'No categoritzat';
+  const subcategoryLabel = request?.subcategory || 'Sense subcategoria';
+
+  const urgencyConfig = {
+    baixa: { label: 'Baixa', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
+    mitjana: { label: 'Mitjana', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
+    alta: { label: 'Alta', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+    critica: { label: 'Crítica', color: 'bg-red-500/10 text-red-400 border-red-500/20' }
+  }[request?.urgency || 'mitjana'] || { label: 'Mitjana', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20' };
+
+  // Historial unificat de comentaris i validacions prèvies per a nivells jeràrquics
+  const validationComments = React.useMemo(() => {
+    const items: Array<{
+      id: string;
+      title: string;
+      author: string;
+      role?: string;
+      date?: string;
+      comment: string;
+      type: 'approval' | 'return' | 'reject' | 'note';
+    }> = [];
+
+    if (request?.coordinationComment) {
+      items.push({
+        id: 'coordination',
+        title: 'Validació de Coordinació',
+        author: request.coordinationApprovedBy || 'Coordinació',
+        role: request.coordinationApproverRole || 'coordinacio',
+        date: request.coordinationApprovedAt,
+        comment: request.coordinationComment,
+        type: 'approval'
+      });
+    }
+
+    if (request?.areaDirectionComment) {
+      items.push({
+        id: 'direction',
+        title: "Validació de Direcció d'Àrea",
+        author: request.areaDirectionApprovedBy || "Direcció d'Àrea",
+        role: request.areaDirectionApproverRole || 'direccio_area',
+        date: request.areaDirectionApprovedAt,
+        comment: request.areaDirectionComment,
+        type: 'approval'
+      });
+    }
+
+    if (request?.financeComment) {
+      items.push({
+        id: 'finance',
+        title: 'Aprovació de Finances',
+        author: request.financeApprovedBy || 'Finances',
+        role: request.financeApproverRole || 'finances',
+        date: request.financeApprovedAt,
+        comment: request.financeComment,
+        type: 'approval'
+      });
+    }
+
+    if (request?.lastReturnComment) {
+      items.push({
+        id: 'return',
+        title: 'Retorn per Esmena',
+        author: request.lastReturnedBy || 'Validador/a',
+        role: request.lastReturnedRole,
+        date: request.lastReturnedAt,
+        comment: request.lastReturnComment,
+        type: 'return'
+      });
+    }
+
+    if (request?.rejectionComment) {
+      items.push({
+        id: 'reject',
+        title: 'Motiu de Rebuig',
+        author: request.rejectedBy || 'Validador/a',
+        role: request.rejectedRole,
+        date: request.rejectedAt,
+        comment: request.rejectionComment,
+        type: 'reject'
+      });
+    }
+
+    // Extracció d'observacions dels logs d'auditoria (per expedients existents o accions registrades)
+    if (requestLogs && requestLogs.length > 0) {
+      requestLogs.forEach((log) => {
+        const logComment = (log.metadata?.comment as string) || '';
+        if (logComment && !items.some(it => it.comment.trim() === logComment.trim())) {
+          items.push({
+            id: `log_${log.id}`,
+            title: log.actionTitle || 'Nota d\'auditoria',
+            author: log.userName || 'Usuari',
+            role: log.userRole,
+            date: log.timestamp,
+            comment: logComment,
+            type: log.actionType === 'request_rejected' ? 'reject' : log.actionType === 'request_returned' ? 'return' : 'note'
+          });
+        }
+      });
+    }
+
+    // Fallback a text general d'observacions si no hi ha cap element estructurat
+    if (items.length === 0 && request?.observations?.trim()) {
+      items.push({
+        id: 'observations',
+        title: 'Observacions acumulades',
+        author: 'Històric',
+        comment: request.observations,
+        type: 'note'
+      });
+    }
+
+    return items;
+  }, [request, requestLogs]);
 
   // Carregar documents i pressupostos en temps real
   useEffect(() => {
@@ -278,8 +402,14 @@ export default function RequestDetail({ user }: { user: User }) {
     try {
       const newStatus = workflowService.getNextStatus(request.status, action);
       
-      const newObservations = comment 
-        ? (request.observations ? `${request.observations}\n\n[${new Date().toLocaleDateString('ca-ES')} - ${user.name}]: ${comment}` : comment) 
+      const nowIso = new Date().toISOString();
+      const formattedTimestamp = new Date().toLocaleDateString('ca-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      const commentWithActor = comment.trim() 
+        ? `[${formattedTimestamp} - ${user.name} (${getHierarchyRole(user.role)})]: ${comment.trim()}` 
+        : '';
+
+      const newObservations = commentWithActor 
+        ? (request.observations ? `${request.observations}\n\n${commentWithActor}` : commentWithActor) 
         : (request.observations || '');
 
       const updateData: Partial<PurchaseRequest> = {
@@ -287,13 +417,38 @@ export default function RequestDetail({ user }: { user: User }) {
         observations: newObservations
       };
 
-      // Afegir timestamps d'aprovació segons la fase
+      // Afegir timestamps d'aprovació i comentaris estructurats segons la fase o acció
       if (action === 'approve') {
-        if (request.status === 'pendent_coordinacio') updateData.coordinationApprovedAt = new Date().toISOString();
-        if (request.status === 'pendent_direccio') updateData.areaDirectionApprovedAt = new Date().toISOString();
-        if (request.status === 'pendent_finances') updateData.financeApprovedAt = new Date().toISOString();
-        if (request.status === 'comanda_emesa') updateData.receivedAt = new Date().toISOString();
-        if (request.status === 'rebuda') updateData.closedAt = new Date().toISOString();
+        if (request.status === 'pendent_coordinacio') {
+          updateData.coordinationApprovedAt = nowIso;
+          updateData.coordinationComment = comment.trim() || undefined;
+          updateData.coordinationApprovedBy = user.name;
+          updateData.coordinationApproverRole = user.role;
+        }
+        if (request.status === 'pendent_direccio') {
+          updateData.areaDirectionApprovedAt = nowIso;
+          updateData.areaDirectionComment = comment.trim() || undefined;
+          updateData.areaDirectionApprovedBy = user.name;
+          updateData.areaDirectionApproverRole = user.role;
+        }
+        if (request.status === 'pendent_finances') {
+          updateData.financeApprovedAt = nowIso;
+          updateData.financeComment = comment.trim() || undefined;
+          updateData.financeApprovedBy = user.name;
+          updateData.financeApproverRole = user.role;
+        }
+        if (request.status === 'comanda_emesa') updateData.receivedAt = nowIso;
+        if (request.status === 'rebuda') updateData.closedAt = nowIso;
+      } else if (action === 'return') {
+        updateData.lastReturnComment = comment.trim() || undefined;
+        updateData.lastReturnedBy = user.name;
+        updateData.lastReturnedRole = user.role;
+        updateData.lastReturnedAt = nowIso;
+      } else if (action === 'reject') {
+        updateData.rejectionComment = comment.trim() || undefined;
+        updateData.rejectedBy = user.name;
+        updateData.rejectedRole = user.role;
+        updateData.rejectedAt = nowIso;
       }
 
       await updateRequest(request.id, updateData);
@@ -693,22 +848,39 @@ export default function RequestDetail({ user }: { user: User }) {
         {/* Detalls Principals */}
         <div className="lg:col-span-2 space-y-10">
           <div className="card overflow-hidden">
-            <div className="p-12 border-b border-white/[0.05] bg-white/[0.01] relative overflow-hidden">
+            <div className="p-8 md:p-10 border-b border-white/[0.05] bg-white/[0.01] relative overflow-hidden">
               <div className="absolute top-0 right-0 w-80 h-80 bg-brand-primary/5 blur-[100px] -mr-40 -mt-40 rounded-full"></div>
               <div className="flex flex-col md:flex-row justify-between items-start gap-8 relative z-10">
                 <div className="space-y-4">
-                  <h1 className="text-4xl font-black text-white tracking-tighter leading-tight max-w-lg">{request.itemDescription || 'Sol·licitud de compra'}</h1>
-                  <div className="flex flex-wrap gap-4">
-                    <p className="text-slate-500 font-black uppercase text-[10px] tracking-[0.3em]">Codi: <span className="text-brand-primary">{request.code || request.id}</span></p>
-                    <p className="text-slate-500 font-black uppercase text-[10px] tracking-[0.3em]">Àrea: <span className="text-white">{request.areaId ? getAreaName(request.areaId) : 'SENSE ÀREA'}</span></p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="px-3 py-1 rounded-lg bg-brand-primary/10 border border-brand-primary/20 text-brand-primary font-black uppercase text-[10px] tracking-widest">
+                      {request.code || request.id}
+                    </span>
+                    <span className={cn("px-3 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest", urgencyConfig.color)}>
+                      Urgència: {urgencyConfig.label}
+                    </span>
+                  </div>
+                  <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-snug max-w-xl">
+                    {request.itemDescription || 'Sol·licitud de compra'}
+                  </h1>
+                  <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-slate-400">
+                    <span className="flex items-center gap-1.5">
+                      <Building2 size={14} className="text-brand-primary" />
+                      <strong className="text-white">Àrea:</strong> {request.areaId ? getAreaName(request.areaId) : 'Sense àrea'}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <MapPin size={14} className="text-brand-primary" />
+                      <strong className="text-white">Destí:</strong> {destinationCenterName}
+                    </span>
                   </div>
                 </div>
+
                 <div className="text-left md:text-right shrink-0">
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-3">
-                    {request.finalAmount ? "Import Adjudicat" : "Import Estimat"}
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-2">
+                    {request.finalAmount ? "Import Adjudicat / Definitiu" : "Import Estimat"}
                   </p>
-                  <p className="text-5xl md:text-6xl font-black text-white tracking-tighter">
-                    {((request.finalAmount ?? request.estimatedAmount) || 0).toLocaleString()} <span className="text-3xl text-brand-primary/50">€</span>
+                  <p className="text-4xl md:text-5xl font-black text-white tracking-tighter">
+                    {((request.finalAmount ?? request.estimatedAmount) || 0).toLocaleString()} <span className="text-2xl text-brand-primary/50">€</span>
                   </p>
                   {request.supplierName && (
                     <div className="flex items-center md:justify-end gap-2 mt-2">
@@ -723,9 +895,9 @@ export default function RequestDetail({ user }: { user: User }) {
                         href={request.productUrl} 
                         target="_blank" 
                         rel="noopener noreferrer" 
-                        className="text-xs font-bold text-sky-400 hover:underline truncate max-w-xs"
+                        className="text-xs font-bold text-sky-400 hover:underline truncate max-w-xs inline-flex items-center gap-1"
                       >
-                        Enllaç del producte
+                        <span>Enllaç del producte</span>
                       </a>
                     </div>
                   )}
@@ -733,50 +905,382 @@ export default function RequestDetail({ user }: { user: User }) {
               </div>
             </div>
 
-            <div className="p-12 grid grid-cols-1 md:grid-cols-2 gap-12 relative">
-              <div className="space-y-3">
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                  <Building2 size={14} className="text-brand-primary" /> Imputació Contable
+            {/* Graella de tots els camps de la sol·licitud */}
+            <div className="p-8 md:p-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative">
+              {/* 1. Centre de Destí */}
+              <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl space-y-1.5">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                  <MapPin size={13} className="text-brand-primary" /> Centre de Destí
                 </p>
-                <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
-                   <p className="text-sm font-bold text-slate-200">{request.projectId || 'Sense projecte assignat'}</p>
-                   <p className="text-xs font-black text-brand-primary mt-1 tracking-widest">{request.analyticCode || 'Sense codi analític'}</p>
-                </div>
+                <p className="text-sm font-bold text-slate-200">{destinationCenterName}</p>
+                <p className="text-[10px] text-slate-500">Ubicació física o servei destinatari</p>
               </div>
-              <div className="space-y-3">
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                  <Calendar size={14} className="text-brand-primary" /> Horitzó Temporal
+
+              {/* 2. Imputació Contable / Projecte */}
+              <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl space-y-1.5">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                  <Building2 size={13} className="text-brand-primary" /> Imputació Contable
                 </p>
-                <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
-                  <p className="text-sm font-bold text-slate-200">{request.deadline ? new Date(request.deadline).toLocaleDateString('ca-ES') : 'Sense data límit'}</p>
-                  <p className="text-[10px] text-slate-500 font-black uppercase mt-1 tracking-tighter">Data límit desitjada</p>
-                </div>
+                <p className="text-sm font-bold text-slate-200">{request.projectId || 'Sense projecte assignat'}</p>
+                <p className="text-xs font-black text-brand-primary tracking-wider">{request.analyticCode || 'Sense codi analític'}</p>
               </div>
-              
+
+              {/* 3. Categoria i Subcategoria */}
+              <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl space-y-1.5">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                  <Tag size={13} className="text-brand-primary" /> Categoria de Compra
+                </p>
+                <p className="text-sm font-bold text-slate-200">{categoryLabel}</p>
+                <p className="text-[10px] text-slate-400">{subcategoryLabel}</p>
+              </div>
+
+              {/* 4. Nivell d'Urgència & Termini */}
+              <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl space-y-1.5">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                  <Calendar size={13} className="text-brand-primary" /> Horitzó Temporal
+                </p>
+                <p className="text-sm font-bold text-slate-200">
+                  {request.deadline ? new Date(request.deadline).toLocaleDateString('ca-ES') : 'Sense data límit'}
+                </p>
+                <p className="text-[10px] text-slate-500">
+                  Prioritat: <span className="font-bold text-slate-300 capitalize">{request.urgency || 'mitjana'}</span>
+                </p>
+              </div>
+
+              {/* 5. Control de 3 Pressupostos */}
+              <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl space-y-1.5">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                  <FileCheck size={13} className="text-brand-primary" /> Requisit 3 Pressupostos
+                </p>
+                <p className={cn(
+                  "text-xs font-black uppercase tracking-wider",
+                  request.requiresThreeQuotes 
+                    ? quotes.length >= 3 ? "text-emerald-400" : "text-amber-400" 
+                    : "text-slate-400"
+                )}>
+                  {request.requiresThreeQuotes ? "Obligatori (>= 5.000€)" : "Compra Directa"}
+                </p>
+                <p className="text-[10px] text-slate-500">
+                  {quotes.length} {quotes.length === 1 ? 'oferta afegida' : 'ofertes afegides'}
+                </p>
+              </div>
+
+              {/* 6. Proveïdor & Enllaç Web */}
+              <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl space-y-1.5">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                  <CreditCard size={13} className="text-brand-primary" /> Proveïdor Proposat
+                </p>
+                <p className="text-sm font-bold text-slate-200 truncate">
+                  {request.supplierName || 'No proposat inicialment'}
+                </p>
+                {request.productUrl ? (
+                  <a 
+                    href={request.productUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-[10px] text-sky-400 hover:underline flex items-center gap-1 truncate font-medium"
+                  >
+                    <ExternalLink size={10} /> Enllaç al producte / catàleg
+                  </a>
+                ) : (
+                  <p className="text-[10px] text-slate-500">Sense enllaç de producte</p>
+                )}
+              </div>
+
               {/* Secció Sol·licitant i Creador */}
-              <div className="col-span-full grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
-                <div className="p-5 rounded-2xl bg-[#0b0f19] border border-white/5">
-                  <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <UserIcon size={12} /> Sol·licitant
+              <div className="col-span-full grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                <div className="p-4 rounded-2xl bg-[#0b0f19] border border-white/5 space-y-1">
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                    <UserIcon size={12} className="text-brand-primary" /> Persona Sol·licitant
                   </p>
                   <p className="text-xs font-bold text-white tracking-tight">{request.requestingTechnicianName || 'No assignat'}</p>
                   <p className="text-[10px] text-slate-500 font-medium">{request.requestingTechnicianEmail || 'N/A'}</p>
                 </div>
-                <div className="p-5 rounded-2xl bg-[#0b0f19] border border-white/5">
-                  <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <History size={12} /> Registrat al sistema per
+                <div className="p-4 rounded-2xl bg-[#0b0f19] border border-white/5 space-y-1">
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                    <History size={12} className="text-brand-primary" /> Registrat al sistema per
                   </p>
                   <p className="text-xs font-bold text-slate-300 tracking-tight">{request.createdByUserName || 'Usuari'}</p>
-                  <p className="text-[10px] text-slate-500 font-medium">{request.createdByUserEmail || 'N/A'}</p>
+                  <p className="text-[10px] text-slate-500 font-medium">
+                    {request.createdByUserEmail || 'N/A'} • {request.createdAt ? new Date(request.createdAt).toLocaleDateString('ca-ES') : ''}
+                  </p>
                 </div>
               </div>
 
-              <div className="col-span-full space-y-4 pt-10 border-t border-white/[0.05]">
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Memòria Justificativa</p>
-                <div className="relative p-6 bg-white/[0.01] rounded-3xl border border-white/[0.03]">
-                  <p className="text-sm text-slate-400 leading-relaxed italic">{request.justification ? `"${request.justification}"` : 'Sense memòria justificativa especificada.'}</p>
+              {/* Memòria Justificativa */}
+              <div className="col-span-full space-y-3 pt-6 border-t border-white/[0.05]">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                  <FileText size={13} className="text-brand-primary" /> Memòria Justificativa de la Despesa
+                </p>
+                <div className="relative p-5 bg-white/[0.01] rounded-2xl border border-white/[0.04]">
+                  <p className="text-xs md:text-sm text-slate-300 leading-relaxed italic whitespace-pre-wrap">
+                    {request.justification ? `"${request.justification}"` : 'Sense memòria justificativa especificada pel sol·licitant.'}
+                  </p>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Cadena de Validacions i Comentaris Jeràrquics */}
+          <div className="card p-8 md:p-10 space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-white/5">
+              <div>
+                <h3 className="text-xs font-black text-white uppercase tracking-[0.25em] flex items-center gap-2.5">
+                  <ShieldCheck size={18} className="text-brand-primary" /> Cadena de Validacions i Comentaris Jeràrquics
+                </h3>
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Flux d'autorització organitzativa: registre cronològic de decisions i observacions de cada nivell.
+                </p>
+              </div>
+              <span className="text-[9px] font-black uppercase px-2.5 py-1 rounded-lg bg-white/5 text-slate-400 tracking-wider">
+                Auditoria Oficial
+              </span>
+            </div>
+
+            {/* Banner destacat si està retornada per esmena */}
+            {(request.status === 'retornada' || request.lastReturnComment) && (
+              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-black uppercase tracking-wider flex items-center gap-2">
+                    <AlertTriangle size={16} className="text-amber-400" /> Expedient Retornat per Esmena
+                  </span>
+                  {request.lastReturnedAt && (
+                    <span className="text-[10px] text-amber-300/80">
+                      {new Date(request.lastReturnedAt).toLocaleString('ca-ES')}
+                    </span>
+                  )}
+                </div>
+                {request.lastReturnComment && (
+                  <p className="text-xs leading-relaxed italic bg-black/20 p-3 rounded-xl border border-amber-500/20">
+                    "{request.lastReturnComment}"
+                  </p>
+                )}
+                <p className="text-[10px] text-amber-400/90 font-bold">
+                  Retornat per: {request.lastReturnedBy || 'Validador/a'} {request.lastReturnedRole && `(${getHierarchyRole(request.lastReturnedRole)})`}
+                </p>
+              </div>
+            )}
+
+            {/* Banner destacat si està rebutjada */}
+            {(request.status === 'rebutjada' || request.rejectionComment) && (
+              <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-300 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-black uppercase tracking-wider flex items-center gap-2">
+                    <XCircle size={16} className="text-red-400" /> Sol·licitud Rebutjada Definitivament
+                  </span>
+                  {request.rejectedAt && (
+                    <span className="text-[10px] text-red-300/80">
+                      {new Date(request.rejectedAt).toLocaleString('ca-ES')}
+                    </span>
+                  )}
+                </div>
+                {request.rejectionComment && (
+                  <p className="text-xs leading-relaxed italic bg-black/20 p-3 rounded-xl border border-red-500/20">
+                    "{request.rejectionComment}"
+                  </p>
+                )}
+                <p className="text-[10px] text-red-400/90 font-bold">
+                  Rebutjat per: {request.rejectedBy || 'Validador/a'} {request.rejectedRole && `(${getHierarchyRole(request.rejectedRole)})`}
+                </p>
+              </div>
+            )}
+
+            {/* Fites de Validació en format targetes jeràrquiques */}
+            <div className="space-y-4">
+              {/* Nivell 1: Creació */}
+              <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] font-black">1</div>
+                    <span className="text-xs font-bold text-white">Sol·licitud Registrada</span>
+                  </div>
+                  <span className="text-[10px] text-emerald-400 font-black uppercase tracking-wider flex items-center gap-1">
+                    <CheckCircle2 size={12} /> Completat
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-400 flex flex-wrap gap-x-4 gap-y-1">
+                  <span>Sol·licitant: <strong className="text-slate-200">{request.requestingTechnicianName || 'N/A'}</strong></span>
+                  <span>Registrat per: <strong className="text-slate-200">{request.createdByUserName}</strong></span>
+                  <span>Data: <strong className="text-slate-200">{request.createdAt ? new Date(request.createdAt).toLocaleString('ca-ES') : 'N/A'}</strong></span>
+                </div>
+              </div>
+
+              {/* Nivell 2: Coordinació */}
+              <div className={cn(
+                "p-4 rounded-2xl border space-y-2 transition-all",
+                request.coordinationApprovedAt 
+                  ? "bg-white/[0.02] border-white/5" 
+                  : request.status === 'pendent_coordinacio'
+                    ? "bg-brand-primary/[0.03] border-brand-primary/30"
+                    : "bg-white/[0.01] border-white/[0.03] opacity-60"
+              )}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={cn(
+                      "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black",
+                      request.coordinationApprovedAt ? "bg-emerald-500/20 text-emerald-400" :
+                      request.status === 'pendent_coordinacio' ? "bg-amber-500/20 text-amber-400" :
+                      "bg-slate-800 text-slate-500"
+                    )}>2</div>
+                    <span className="text-xs font-bold text-white">Validació de Coordinació</span>
+                    <span className="text-[10px] text-slate-500 font-normal">({getAreaName(request.areaId)})</span>
+                  </div>
+                  {request.coordinationApprovedAt ? (
+                    <span className="text-[10px] text-emerald-400 font-black uppercase tracking-wider flex items-center gap-1">
+                      <CheckCircle2 size={12} /> Validat
+                    </span>
+                  ) : request.status === 'pendent_coordinacio' ? (
+                    <span className="text-[10px] text-amber-400 font-black uppercase tracking-wider flex items-center gap-1">
+                      <Clock size={12} /> Pendent de validació
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-slate-600 font-black uppercase tracking-wider">Pendent</span>
+                  )}
+                </div>
+
+                {request.coordinationApprovedAt && (
+                  <div className="text-[11px] text-slate-400 flex flex-wrap gap-x-4 gap-y-1">
+                    <span>Validat per: <strong className="text-slate-200">{request.coordinationApprovedBy || areaCoordinatorsLabel}</strong></span>
+                    <span>Data: <strong className="text-slate-200">{new Date(request.coordinationApprovedAt).toLocaleString('ca-ES')}</strong></span>
+                  </div>
+                )}
+
+                {request.coordinationComment && (
+                  <div className="p-3 bg-white/[0.02] border border-white/5 rounded-xl space-y-1">
+                    <p className="text-[10px] font-black text-brand-primary uppercase tracking-wider flex items-center gap-1">
+                      <MessageSquare size={10} /> Comentari de Coordinació:
+                    </p>
+                    <p className="text-xs text-slate-300 italic whitespace-pre-wrap">
+                      "{request.coordinationComment}"
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Nivell 3: Direcció d'Àrea */}
+              <div className={cn(
+                "p-4 rounded-2xl border space-y-2 transition-all",
+                request.areaDirectionApprovedAt 
+                  ? "bg-white/[0.02] border-white/5" 
+                  : request.status === 'pendent_direccio'
+                    ? "bg-brand-primary/[0.03] border-brand-primary/30"
+                    : "bg-white/[0.01] border-white/[0.03] opacity-60"
+              )}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={cn(
+                      "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black",
+                      request.areaDirectionApprovedAt ? "bg-emerald-500/20 text-emerald-400" :
+                      request.status === 'pendent_direccio' ? "bg-amber-500/20 text-amber-400" :
+                      "bg-slate-800 text-slate-500"
+                    )}>3</div>
+                    <span className="text-xs font-bold text-white">Validació de Direcció d'Àrea</span>
+                    <span className="text-[10px] text-slate-500 font-normal">({getAreaName(request.areaId)})</span>
+                  </div>
+                  {request.areaDirectionApprovedAt ? (
+                    <span className="text-[10px] text-emerald-400 font-black uppercase tracking-wider flex items-center gap-1">
+                      <CheckCircle2 size={12} /> Validat
+                    </span>
+                  ) : request.status === 'pendent_direccio' ? (
+                    <span className="text-[10px] text-amber-400 font-black uppercase tracking-wider flex items-center gap-1">
+                      <Clock size={12} /> Pendent de validació
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-slate-600 font-black uppercase tracking-wider">Pendent</span>
+                  )}
+                </div>
+
+                {request.areaDirectionApprovedAt && (
+                  <div className="text-[11px] text-slate-400 flex flex-wrap gap-x-4 gap-y-1">
+                    <span>Validat per: <strong className="text-slate-200">{request.areaDirectionApprovedBy || areaDirectorsLabel}</strong></span>
+                    <span>Data: <strong className="text-slate-200">{new Date(request.areaDirectionApprovedAt).toLocaleString('ca-ES')}</strong></span>
+                  </div>
+                )}
+
+                {request.areaDirectionComment && (
+                  <div className="p-3 bg-white/[0.02] border border-white/5 rounded-xl space-y-1">
+                    <p className="text-[10px] font-black text-brand-primary uppercase tracking-wider flex items-center gap-1">
+                      <MessageSquare size={10} /> Comentari de Direcció d'Àrea:
+                    </p>
+                    <p className="text-xs text-slate-300 italic whitespace-pre-wrap">
+                      "{request.areaDirectionComment}"
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Nivell 4: Finances */}
+              <div className={cn(
+                "p-4 rounded-2xl border space-y-2 transition-all",
+                request.financeApprovedAt 
+                  ? "bg-white/[0.02] border-white/5" 
+                  : request.status === 'pendent_finances'
+                    ? "bg-brand-primary/[0.03] border-brand-primary/30"
+                    : "bg-white/[0.01] border-white/[0.03] opacity-60"
+              )}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={cn(
+                      "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black",
+                      request.financeApprovedAt ? "bg-emerald-500/20 text-emerald-400" :
+                      request.status === 'pendent_finances' ? "bg-amber-500/20 text-amber-400" :
+                      "bg-slate-800 text-slate-500"
+                    )}>4</div>
+                    <span className="text-xs font-bold text-white">Aprovació d'Administració i Finances</span>
+                  </div>
+                  {request.financeApprovedAt ? (
+                    <span className="text-[10px] text-emerald-400 font-black uppercase tracking-wider flex items-center gap-1">
+                      <CheckCircle2 size={12} /> Aprovat
+                    </span>
+                  ) : request.status === 'pendent_finances' ? (
+                    <span className="text-[10px] text-amber-400 font-black uppercase tracking-wider flex items-center gap-1">
+                      <Clock size={12} /> Pendent d'aprovació
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-slate-600 font-black uppercase tracking-wider">Pendent</span>
+                  )}
+                </div>
+
+                {request.financeApprovedAt && (
+                  <div className="text-[11px] text-slate-400 flex flex-wrap gap-x-4 gap-y-1">
+                    <span>Aprovat per: <strong className="text-slate-200">{request.financeApprovedBy || financeLabel}</strong></span>
+                    <span>Data: <strong className="text-slate-200">{new Date(request.financeApprovedAt).toLocaleString('ca-ES')}</strong></span>
+                  </div>
+                )}
+
+                {request.financeComment && (
+                  <div className="p-3 bg-white/[0.02] border border-white/5 rounded-xl space-y-1">
+                    <p className="text-[10px] font-black text-brand-primary uppercase tracking-wider flex items-center gap-1">
+                      <MessageSquare size={10} /> Comentari de Finances:
+                    </p>
+                    <p className="text-xs text-slate-300 italic whitespace-pre-wrap">
+                      "{request.financeComment}"
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Nivell 5: Emissió Formal de Comanda i Recepció */}
+              {['comanda_emesa', 'rebuda', 'tancada'].includes(request.status) && (
+                <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] font-black">5</div>
+                      <span className="text-xs font-bold text-white">Comanda Tramitada & Adjudicada</span>
+                    </div>
+                    <span className="text-[10px] text-emerald-400 font-black uppercase tracking-wider flex items-center gap-1">
+                      <CheckCircle2 size={12} /> Emesa
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-400 flex flex-wrap gap-x-4 gap-y-1">
+                    <span>Proveïdor adjudicat: <strong className="text-brand-primary">{request.supplierName || 'N/A'}</strong></span>
+                    <span>Import definitiu: <strong className="text-white">{((request.finalAmount ?? request.estimatedAmount) || 0).toLocaleString()}€</strong></span>
+                    {request.receivedAt && (
+                      <span>Recepció: <strong className="text-slate-200">{new Date(request.receivedAt).toLocaleDateString('ca-ES')}</strong></span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -1216,13 +1720,65 @@ export default function RequestDetail({ user }: { user: User }) {
               </div>
             )}
 
+            {/* Comentaris i Observacions Prèvies de la Jerarquia */}
+            <div className="space-y-3 mb-6">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                  <MessageCircle size={14} className="text-brand-primary" /> Comentaris de Validacions Prèvies ({validationComments.length})
+                </span>
+              </div>
+
+              {validationComments.length > 0 ? (
+                <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+                  {validationComments.map((item) => (
+                    <div 
+                      key={item.id} 
+                      className={cn(
+                        "p-3 rounded-xl border text-xs space-y-1.5 transition-all",
+                        item.type === 'return' ? "bg-amber-500/10 border-amber-500/30 text-amber-200" :
+                        item.type === 'reject' ? "bg-red-500/10 border-red-500/30 text-red-200" :
+                        "bg-white/[0.03] border-white/10 text-slate-200"
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-2 text-[10px]">
+                        <span className="font-black text-brand-primary uppercase tracking-wider truncate">
+                          {item.title}
+                        </span>
+                        {item.date && (
+                          <span className="text-slate-500 text-[9px] shrink-0">
+                            {new Date(item.date).toLocaleDateString('ca-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] leading-relaxed italic text-slate-300 whitespace-pre-wrap">
+                        "{item.comment}"
+                      </p>
+                      <div className="text-[9px] text-slate-400 font-bold flex items-center gap-1.5 pt-0.5">
+                        <UserIcon size={10} className="text-slate-500" />
+                        <span>{item.author} {item.role && <span className="opacity-75">({getHierarchyRole(item.role)})</span>}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 text-[10px] text-slate-500 italic">
+                  Sense comentaris previs en aquesta sol·licitud.
+                </div>
+              )}
+            </div>
+
             <div className="space-y-6">
-               <textarea 
-                className="input-field text-xs min-h-[120px]" 
-                placeholder="Escriu una nota interna, justificació o motiu d'esmena..."
-                value={comment}
-                onChange={e => setComment(e.target.value)}
-              />
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-2">
+                  Afegir comentari o observació a la teva validació:
+                </label>
+                <textarea 
+                  className="input-field text-xs min-h-[110px]" 
+                  placeholder="Escriu una nota interna, justificació o motiu d'esmena..."
+                  value={comment}
+                  onChange={e => setComment(e.target.value)}
+                />
+              </div>
               {canApprove ? (
                 <div className="space-y-4">
                   <div className="flex gap-3 mt-4">
