@@ -41,6 +41,7 @@ export function useHierarchyLevels() {
           level: Number(raw.level) || 1,
           code: raw.code || `N${raw.level || 1}`,
           label: raw.label || d.id,
+          name: raw.name || raw.label || d.id,
           shortLabel: raw.shortLabel || raw.label || d.id,
           scope: (raw.scope as 'area' | 'global') || 'area',
           description: raw.description || '',

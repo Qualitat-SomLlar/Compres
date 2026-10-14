@@ -1780,7 +1780,9 @@ function NotificationsManager() {
   const { settings, loading, updateSetting, initializeSettings } = useNotificationSettings();
   const { hierarchyLevels } = useHierarchyLevels();
   const events = NOTIFICATION_EVENTS;
-  const roles = hierarchyLevels.map(h => [h.key, h.name] as [string, string]);
+  const roles = hierarchyLevels
+    .filter(h => h.active !== false)
+    .map(h => [h.key, h.label || (h as any).name || h.shortLabel || h.key] as [string, string]);
 
   const missingEvents = events.filter(e => !settings.some(s => s.eventKey === e.id));
 
@@ -1872,20 +1874,25 @@ function NotificationsManager() {
                   <div className="space-y-4">
                     <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.2em]">Rols receptors</p>
                     <div className="flex flex-wrap gap-2">
-                      {roles.map(([key, label]) => (
-                        <button
-                          key={key}
-                          onClick={() => toggleRole(setting, key)}
-                          className={cn(
-                            "px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border",
-                            setting.recipientRoles?.includes(key as any)
-                              ? "bg-brand-primary/10 border-brand-primary text-brand-primary"
-                              : "bg-white/5 border-transparent text-slate-500 hover:border-white/10"
-                          )}
-                        >
-                          {label}
-                        </button>
-                      ))}
+                      {roles.map(([key, label]) => {
+                        const isSelected = setting.recipientRoles?.includes(key as any);
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => toggleRole(setting, key)}
+                            className={cn(
+                              "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border flex items-center gap-1.5",
+                              isSelected
+                                ? "bg-brand-primary/15 border-brand-primary text-brand-primary shadow-sm"
+                                : "bg-white/5 border-white/5 text-slate-400 hover:border-white/20 hover:text-white"
+                            )}
+                          >
+                            <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", isSelected ? "bg-brand-primary" : "bg-slate-600")}></span>
+                            <span>{label}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
