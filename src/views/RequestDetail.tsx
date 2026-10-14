@@ -405,7 +405,7 @@ export default function RequestDetail({ user }: { user: User }) {
       const nowIso = new Date().toISOString();
       const formattedTimestamp = new Date().toLocaleDateString('ca-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
       const commentWithActor = comment.trim() 
-        ? `[${formattedTimestamp} - ${user.name} (${getHierarchyRole(user.role)})]: ${comment.trim()}` 
+        ? `[${formattedTimestamp} - ${user.name} (${getHierarchyRole(user.role).label})]: ${comment.trim()}` 
         : '';
 
       const newObservations = commentWithActor 
@@ -1056,7 +1056,7 @@ export default function RequestDetail({ user }: { user: User }) {
                   </p>
                 )}
                 <p className="text-[10px] text-amber-400/90 font-bold">
-                  Retornat per: {request.lastReturnedBy || 'Validador/a'} {request.lastReturnedRole && `(${getHierarchyRole(request.lastReturnedRole)})`}
+                  Retornat per: {request.lastReturnedBy || 'Validador/a'} {request.lastReturnedRole && `(${getHierarchyRole(request.lastReturnedRole).label})`}
                 </p>
               </div>
             )}
@@ -1080,7 +1080,7 @@ export default function RequestDetail({ user }: { user: User }) {
                   </p>
                 )}
                 <p className="text-[10px] text-red-400/90 font-bold">
-                  Rebutjat per: {request.rejectedBy || 'Validador/a'} {request.rejectedRole && `(${getHierarchyRole(request.rejectedRole)})`}
+                  Rebutjat per: {request.rejectedBy || 'Validador/a'} {request.rejectedRole && `(${getHierarchyRole(request.rejectedRole).label})`}
                 </p>
               </div>
             )}
@@ -1755,7 +1755,7 @@ export default function RequestDetail({ user }: { user: User }) {
                       </p>
                       <div className="text-[9px] text-slate-400 font-bold flex items-center gap-1.5 pt-0.5">
                         <UserIcon size={10} className="text-slate-500" />
-                        <span>{item.author} {item.role && <span className="opacity-75">({getHierarchyRole(item.role)})</span>}</span>
+                        <span>{item.author} {item.role && <span className="opacity-75">({getHierarchyRole(item.role).label})</span>}</span>
                       </div>
                     </div>
                   ))}
