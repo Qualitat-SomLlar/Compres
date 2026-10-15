@@ -1,7 +1,7 @@
 import { PurchaseRequest, RequestStatus } from '../types';
 import { STATUS_LABELS } from '../constants';
 
-const GOOGLE_SCRIPT_WEBHOOK_URL = import.meta.env.VITE_GOOGLE_SCRIPT_WEBHOOK_URL || 'https://script.google.com/macros/s/AKfycbxdP68-I7PZ0_CM4WFJESNKLQY76qNgN-daNjFbh0QPjjVsn36Uoi4TY3ZFpwTkWqm0Nw/exec'; 
+const GOOGLE_SCRIPT_WEBHOOK_URL = import.meta.env.VITE_GOOGLE_SCRIPT_WEBHOOK_URL || 'https://script.google.com/macros/s/AKfycbx9_0gwoVDMUz65D3tW0nqp5RoAbs7VaqcPMonWhNqTgME9iUOwyrpOBZQg19Qn3gKj3Q/exec'; 
 
 export interface WorkerWelcomePayload {
   name: string;
