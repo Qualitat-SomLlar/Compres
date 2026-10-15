@@ -17,7 +17,7 @@ export const exportService = {
       format: 'a4'
     });
 
-    const primaryColor = [227, 6, 19]; // Som Llar / Brand red/orange
+    const primaryColor = [102, 36, 131]; // Som Llar Brand Purple (#662483)
     const darkColor = [30, 41, 59];
     const lightSlate = [100, 116, 139];
 
@@ -135,9 +135,9 @@ export const exportService = {
     doc.text("3. ADJUDICACIÓ I VALORACIÓ ECONÒMICA", 15, currentY);
 
     currentY += 7;
-    doc.setFillColor(254, 242, 242);
+    doc.setFillColor(250, 245, 255);
     doc.roundedRect(15, currentY, 180, 24, 2, 2, 'F');
-    doc.setDrawColor(254, 202, 202);
+    doc.setDrawColor(233, 213, 255);
     doc.roundedRect(15, currentY, 180, 24, 2, 2, 'S');
 
     doc.setFontSize(9);
@@ -170,6 +170,9 @@ export const exportService = {
     // 3 caixes de firma
     const boxWidth = 56;
     const boxHeight = 32;
+
+    // Vora neutra slate per a les caixes de signatures
+    doc.setDrawColor(226, 232, 240);
 
     // Coordinació
     doc.setFillColor(248, 250, 252);
