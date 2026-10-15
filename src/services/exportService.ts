@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import { PurchaseRequest, Quote, Attachment } from '../types';
 import { STATUS_LABELS } from '../constants';
+import { SOM_LLAR_LOGO_BASE64 } from './somLlarLogoBase64';
 
 export const exportService = {
   /**
@@ -25,16 +26,21 @@ export const exportService = {
     doc.setFillColor(248, 250, 252);
     doc.rect(0, 0, 210, 45, 'F');
 
-    // Títol de l'entitat
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(20);
-    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.text('SOM LLAR', 15, 20);
+    // Logotip oficial de Som Llar (amb fallback a text)
+    try {
+      doc.addImage(SOM_LLAR_LOGO_BASE64, 'PNG', 15, 9, 46, 10.3);
+    } catch {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(20);
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.text('SOM LLAR', 15, 20);
+    }
 
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.setTextColor(lightSlate[0], lightSlate[1], lightSlate[2]);
     doc.setFont('helvetica', 'normal');
     doc.text("ASSOCIACIÓ SOM LLAR - GESTIÓ INTEGRAL DE COMPRES", 15, 26);
+    doc.setFontSize(8);
     doc.text("CIF: G-63024823 | www.somllar.cat", 15, 31);
 
     // Codi d'expedient destacat
