@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, doc, updateDoc, deleteDoc, addDoc, getDocs, where } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, updateDoc, deleteDoc, addDoc, setDoc, getDocs, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { User, UserRole, HierarchyLevel } from '../types';
 import { getHierarchyRole, normalizeAreaId, getAreaName } from '../constants';
@@ -89,14 +89,25 @@ export function useUsers() {
     const hierarchyLevel = userData.hierarchyLevel || getHierarchyRole(userData.role).level;
     const roleConfig = getHierarchyRole(hierarchyLevel || userData.role);
 
-    const docRef = await addDoc(collection(db, 'users'), {
+    // ID = correu en minúscules: les regles de Firestore el fan servir per verificar
+    // el rol pre-assignat quan l'usuari entra per primer cop.
+    const emailId = (userData.email || '').toLowerCase().trim();
+    const payload = {
       ...userData,
+      ...(emailId ? { email: emailId } : {}),
       areaId,
       areaName,
       hierarchyLevel,
       createdAt: now,
       updatedAt: now
-    });
+    };
+    let docRef;
+    if (emailId) {
+      docRef = doc(db, 'users', emailId);
+      await setDoc(docRef, payload);
+    } else {
+      docRef = await addDoc(collection(db, 'users'), payload);
+    }
 
     // Enviar correu automàtic de benvinguda i accés
     if (options?.sendWelcomeEmail !== false && userData.email) {

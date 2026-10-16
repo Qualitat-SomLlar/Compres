@@ -8,40 +8,136 @@ service cloud.firestore {
 
     // Helpers
     function isAuthenticated() { return request.auth != null; }
+    function userEmail() { return request.auth.token.email.lower(); }
+
+    // Només comptes corporatius autenticats amb Microsoft.
+    // (El filtre de domini del client no és una barrera de seguretat.)
+    function isCorporate() {
+      return isAuthenticated()
+        && request.auth.token.email != null
+        && userEmail().matches('.*@somllar[.]cat')
+        && request.auth.token.firebase.sign_in_provider == 'microsoft.com';
+    }
     function userDocExists() { return exists(/databases/$(database)/documents/users/$(request.auth.uid)); }
     function getUserData() { return userDocExists() ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data : {}; }
-    function hasRole(role) { 
-      return isAuthenticated() && (
+    function hasRole(role) {
+      return isCorporate() && (
         (userDocExists() && getUserData().role == role) ||
         (role == 'superadmin' && userDocExists() && getUserData().role == 'admin')
-      ); 
-    }
-    function isSuperAdminEmail() {
-      return isAuthenticated() && (
-        request.auth.token.email in [
-          'secretaria@somllar.cat',
-          'secretariadq@somllar.cat',
-          'lito@somllar.cat',
-          'admin@somllar.cat',
-          'secretariadq@prohabitatge.org'
-        ] || 
-        request.auth.token.email.matches('admin.*') ||
-        request.auth.token.email.matches('secretaria.*')
       );
     }
-    function isSuperAdmin() { 
-      return isSuperAdminEmail() || 
-             hasRole('superadmin') || 
-             (userDocExists() && getUserData().hierarchyLevel == 99); 
+    function isSuperAdminEmail() {
+      return isCorporate() && userEmail() in [
+        'secretaria@somllar.cat',
+        'secretariadq@somllar.cat',
+        'lito@somllar.cat',
+        'admin@somllar.cat'
+      ];
     }
-    function isAdmin() { 
-      return isSuperAdmin() || 
-             hasRole('admin_compres') || 
-             hasRole('finances') || 
+    function isSuperAdmin() {
+      return isSuperAdminEmail() ||
+             hasRole('superadmin') ||
+             (isCorporate() && userDocExists() && getUserData().hierarchyLevel == 99);
+    }
+    function isAdmin() {
+      return isSuperAdmin() ||
+             hasRole('admin_compres') ||
+             hasRole('finances') ||
              hasRole('gerencia') ||
              hasRole('admin') ||
-             (userDocExists() && getUserData().hierarchyLevel in [4, 5, 6, 99]) ||
-             (isAuthenticated() && request.auth.token.email in ['finances@somllar.cat', 'compres@somllar.cat', 'administracio@somllar.cat']); 
+             (isCorporate() && userDocExists() && getUserData().hierarchyLevel in [4, 5, 6, 99]) ||
+             (isCorporate() && userEmail() in ['finances@somllar.cat', 'compres@somllar.cat', 'administracio@somllar.cat']);
+    }
+
+    // Perfil de l'usuari actual (s'accepten també els noms de rol antics que normalitza el client)
+    function myRole() { return getUserData().get('role', ''); }
+    function myLevel() { return getUserData().get('hierarchyLevel', 0); }
+    function myArea() { return string(getUserData().get('areaId', '')).lower(); }
+
+    function isCoordinator() { return myLevel() == 2 || myRole() in ['coordinacio', 'coordinador']; }
+    function isAreaDirector() { return myLevel() == 3 || myRole() in ['direccio_area', 'direccio', 'responsablearea']; }
+    function isFinance() { return myLevel() == 4 || myRole() in ['finances', 'finanzas', 'administracio']; }
+    function isHighLevel() { return myLevel() >= 4; }
+    function isAccounting() { return myRole() == 'comptabilitat'; }
+
+    // Supervisió global del circuit (equivalent a workflowService.canUserApprove)
+    function isWorkflowSupervisor() {
+      return isSuperAdmin() || myLevel() == 6 || myRole() in ['gerencia', 'admin_compres'];
+    }
+
+    function onlyChanges(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    // Utilitats sobre una sol·licitud de compra
+    function isRequester(req) {
+      return request.auth.uid == req.get('createdByUserId', '') ||
+             request.auth.uid == req.get('requestingTechnicianId', '');
+    }
+    function sameArea(req) {
+      return string(req.get('areaId', 'social')).lower() == myArea();
+    }
+
+    // Qui pot actuar sobre la fase actual de l'expedient
+    function canActOnStep(req) {
+      let s = req.status;
+      return (s in ['esborrany', 'retornada'] && isRequester(req))
+        || (s == 'pendent_coordinacio' && isCoordinator() && sameArea(req))
+        || (s == 'pendent_direccio' && isAreaDirector() && sameArea(req))
+        || (s == 'pendent_finances' && isFinance())
+        || (s == 'aprovada' && (isHighLevel() || isFinance()))
+        || (s == 'comanda_emesa' && (isRequester(req) || isHighLevel()))
+        || (s == 'rebuda' && (isHighLevel() || isFinance() || isAccounting()));
+    }
+
+    // Transicions d'estat permeses (workflowService.getNextStatus)
+    function validTransition(s, t) {
+      return (s in ['esborrany', 'retornada'] && t == 'pendent_coordinacio')
+        || (s == 'pendent_coordinacio' && t in ['pendent_direccio', 'retornada', 'rebutjada'])
+        || (s == 'pendent_direccio' && t in ['pendent_finances', 'retornada', 'rebutjada'])
+        || (s == 'pendent_finances' && t in ['aprovada', 'retornada', 'rebutjada'])
+        || (s == 'aprovada' && t in ['comanda_emesa', 'retornada', 'rebutjada'])
+        || (s == 'comanda_emesa' && t in ['rebuda', 'retornada', 'rebutjada'])
+        || (s == 'rebuda' && t in ['tancada', 'retornada', 'rebutjada']);
+    }
+
+    // Camps que es poden tocar en qualsevol canvi d'estat
+    function workflowFields() {
+      return ['status', 'observations', 'updatedAt',
+              'lastReturnComment', 'lastReturnedBy', 'lastReturnedRole', 'lastReturnedAt',
+              'rejectionComment', 'rejectedBy', 'rejectedRole', 'rejectedAt'];
+    }
+    // Camps propis de cada fase
+    function stepFields(s) {
+      return s == 'pendent_coordinacio'
+          ? ['coordinationApprovedAt', 'coordinationComment', 'coordinationApprovedBy', 'coordinationApproverRole']
+        : s == 'pendent_direccio'
+          ? ['areaDirectionApprovedAt', 'areaDirectionComment', 'areaDirectionApprovedBy', 'areaDirectionApproverRole']
+        : s == 'pendent_finances'
+          ? ['financeApprovedAt', 'financeComment', 'financeApprovedBy', 'financeApproverRole']
+        : s == 'aprovada'
+          ? ['supplierName', 'supplierId', 'productUrl', 'finalAmount']
+        : s == 'comanda_emesa' ? ['receivedAt']
+        : s == 'rebuda' ? ['closedAt']
+        : [];
+    }
+    // Camps que no es poden fixar en crear una sol·licitud
+    function approvalFields() {
+      return stepFields('pendent_coordinacio')
+        .concat(stepFields('pendent_direccio'))
+        .concat(stepFields('pendent_finances'))
+        .concat(['receivedAt', 'closedAt', 'rejectedAt', 'rejectedBy', 'lastReturnedAt', 'lastReturnedBy']);
+    }
+
+    // Pressupostos comparatius i adjudicació: el sol·licitant mentre no s'ha aprovat
+    // la coordinació, qui aprova la fase actual, o la supervisió global.
+    function canManageQuotesOn(req) {
+      return isWorkflowSupervisor()
+        || (isRequester(req) && req.status in ['esborrany', 'retornada', 'pendent_coordinacio'])
+        || (canActOnStep(req) && req.status in ['pendent_coordinacio', 'pendent_direccio', 'pendent_finances']);
+    }
+    function requestOf(requestId) {
+      return get(/databases/$(database)/documents/purchaseRequests/$(requestId)).data;
     }
 
     match /{allPaths=**} {
@@ -49,87 +145,141 @@ service cloud.firestore {
     }
 
     // User Profiles
+    // Camps que l'usuari NO pot modificar al seu propi perfil
+    function selfEditsProtected() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(['role', 'hierarchyLevel', 'active', 'email', 'areaId', 'areaName']);
+    }
+    // Pre-registre fet per un administrador: users/{correu en minúscules}
+    function preRegistered() {
+      return exists(/databases/$(database)/documents/users/$(userEmail()));
+    }
+    function preRegData() {
+      return get(/databases/$(database)/documents/users/$(userEmail())).data;
+    }
+    function validSelfCreate(userId) {
+      return request.auth.uid == userId
+        && isCorporate()
+        && request.resource.data.email == userEmail()
+        && (
+          // Alta nova sense privilegis
+          (request.resource.data.role == 'tecnic'
+            && request.resource.data.hierarchyLevel == 1
+            && request.resource.data.active == true)
+          ||
+          // Migració d'un pre-registre: ha de coincidir amb el que va fixar l'administrador
+          (preRegistered()
+            && request.resource.data.role == preRegData().role
+            && request.resource.data.hierarchyLevel == preRegData().hierarchyLevel
+            && request.resource.data.active == preRegData().get('active', true)
+            && request.resource.data.get('areaId', '') == preRegData().get('areaId', ''))
+        );
+    }
     match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && (isAdmin() || request.auth.uid == userId);
-      allow update: if isAuthenticated() && (
-        isAdmin() || 
-        (request.auth.uid == userId && request.resource.data.role == resource.data.role && request.resource.data.active == resource.data.active)
-      );
-      allow delete: if isAuthenticated() && (isAdmin() || isSuperAdmin());
+      allow read: if isCorporate();
+      allow create: if isAdmin() || validSelfCreate(userId);
+      allow update: if isAdmin() ||
+        (request.auth.uid == userId && isCorporate() && !selfEditsProtected());
+      // L'usuari pot esborrar el seu propi pre-registre (ID = correu) un cop migrat
+      allow delete: if isAdmin() || (isCorporate() && userId == userEmail());
     }
 
     // Purchase Requests
     match /purchaseRequests/{requestId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (
-        isAdmin() ||
-        hasRole('coordinacio') || 
-        hasRole('direccio_area') || 
-        hasRole('comptabilitat') ||
-        request.auth.uid == resource.data.createdByUserId
+      allow read: if isCorporate();
+
+      // Una sol·licitud neix com a esborrany o pendent de coordinació, a nom de qui la crea
+      allow create: if isCorporate()
+        && request.resource.data.createdByUserId == request.auth.uid
+        && request.resource.data.status in ['esborrany', 'pendent_coordinacio']
+        && !request.resource.data.keys().hasAny(approvalFields());
+
+      allow update: if isCorporate() && (
+        isWorkflowSupervisor()
+        // Comptadors de documents i pressupostos
+        || onlyChanges(['attachmentsCount', 'quotesCount', 'updatedAt'])
+        // Adjudicació / retirada d'un pressupost
+        || (canManageQuotesOn(resource.data)
+            && onlyChanges(['supplierId', 'supplierName', 'finalAmount', 'quotesCount', 'updatedAt']))
+        // Avanç, retorn o rebuig dins del circuit d'aprovació
+        || (canActOnStep(resource.data)
+            && validTransition(resource.data.status, request.resource.data.status)
+            && onlyChanges(workflowFields().concat(stepFields(resource.data.status))))
       );
 
-      // Subcol·leccions d'adjunts i pressupostos comparatius
+      // Subcol·leccions d'adjunts i pressupostos (no les fa servir l'aplicació)
       match /attachments/{attachmentId} {
-        allow read, write: if isAuthenticated();
+        allow read: if isCorporate();
+        allow write: if isWorkflowSupervisor();
       }
       match /quotes/{quoteId} {
-        allow read, write: if isAuthenticated();
+        allow read: if isCorporate();
+        allow write: if isWorkflowSupervisor();
       }
     }
 
     // Documents i pressupostos a nivell global
     match /attachments/{attachmentId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isCorporate();
+      allow create: if isCorporate() && request.resource.data.uploadedByUserId == request.auth.uid;
+      allow update, delete: if isAdmin() || (isCorporate() && request.auth.uid == resource.data.uploadedByUserId);
     }
     match /quotes/{quoteId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isCorporate();
+      allow create: if isCorporate()
+        && request.resource.data.isSelected == false
+        && canManageQuotesOn(requestOf(request.resource.data.requestId));
+      // Fora de la supervisió global, només es pot marcar/desmarcar l'adjudicació
+      allow update: if isCorporate()
+        && request.resource.data.requestId == resource.data.requestId
+        && canManageQuotesOn(requestOf(resource.data.requestId))
+        && (isWorkflowSupervisor() || onlyChanges(['isSelected']));
+      allow delete: if isCorporate() && canManageQuotesOn(requestOf(resource.data.requestId));
     }
 
     // Suppliers
     match /suppliers/{supplierId} {
-      allow read: if isAuthenticated();
+      allow read: if isCorporate();
       allow write: if isAdmin();
     }
 
     // Workers
     match /workers/{workerId} {
-      allow read: if isAuthenticated();
+      allow read: if isCorporate();
       allow write: if isAdmin();
     }
 
     // Centers, Projects, Analytic Codes, Areas, Hierarchy Levels
-    match /centers/{id} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
-    match /projects/{id} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
-    match /analyticCodes/{id} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
-    match /areas/{id} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
-    match /hierarchyLevels/{id} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /centers/{id} { allow read: if isCorporate(); allow write: if isAdmin(); }
+    match /projects/{id} { allow read: if isCorporate(); allow write: if isAdmin(); }
+    match /analyticCodes/{id} { allow read: if isCorporate(); allow write: if isAdmin(); }
+    match /areas/{id} { allow read: if isCorporate(); allow write: if isAdmin(); }
+    match /hierarchyLevels/{id} { allow read: if isCorporate(); allow write: if isAdmin(); }
 
     // Notification Settings
     match /notificationSettings/{id} {
-      allow read: if isAuthenticated();
+      allow read: if isCorporate();
       allow write: if isAdmin();
     }
 
     // Notifications
     match /notifications/{notifId} {
-      allow read: if isAuthenticated() && request.auth.uid == resource.data.userId;
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      allow read: if isCorporate() && request.auth.uid == resource.data.userId;
+      allow create: if isCorporate();
+      allow update: if isCorporate() && request.auth.uid == resource.data.userId;
     }
 
     // Activity Logs & Audit Logs
     match /activityLogs/{logId} {
-      allow read: if isAuthenticated() && (isAdmin() || isSuperAdmin());
-      allow create: if isAuthenticated();
+      // Els administradors ho veuen tot; la resta, l'historial d'un expedient concret
+      allow read: if isAdmin() || (isCorporate() && resource.data.requestId is string);
+      allow create: if isCorporate() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isSuperAdmin();
     }
 
     match /auditLogs/{logId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
+      allow read: if isAdmin();
+      allow create: if isCorporate();
       allow update, delete: if false;
     }
   }

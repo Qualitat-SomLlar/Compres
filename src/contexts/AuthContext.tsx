@@ -64,6 +64,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 ...data,
                 id: firebaseUser.uid,
                 email: userEmail,
+                active: data.active !== false,
                 updatedAt: new Date().toISOString()
               });
               try {

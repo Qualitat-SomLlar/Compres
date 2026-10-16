@@ -1,0 +1,8 @@
+{
+  "firestore": [
+    {
+      "database": "ai-studio-compras-48fb283c-38cf-405c-ac81-04f31b00f68b",
+      "rules": "firestore.rules"
+    }
+  ]
+}
