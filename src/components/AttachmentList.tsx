@@ -7,10 +7,11 @@ import { cn } from '../lib/utils';
 interface AttachmentListProps {
   attachments: Attachment[];
   onDelete?: (id: string) => void;
+  canDelete?: (file: Attachment) => boolean;
   readOnly?: boolean;
 }
 
-export default function AttachmentList({ attachments, onDelete, readOnly }: AttachmentListProps) {
+export default function AttachmentList({ attachments, onDelete, canDelete, readOnly }: AttachmentListProps) {
   const isLink = (url: string) => url.startsWith('http://') || url.startsWith('https://');
 
   const getIcon = (mimeType: string, url: string) => {
@@ -79,7 +80,7 @@ export default function AttachmentList({ attachments, onDelete, readOnly }: Atta
                 <Download size={12} />
                 <span>Descarregar / Veure</span>
               </a>
-              {!readOnly && onDelete && (
+              {!readOnly && onDelete && (!canDelete || canDelete(file)) && (
                 <button 
                   onClick={() => onDelete(file.id)}
                   className="p-1.5 text-slate-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"

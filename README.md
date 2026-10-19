@@ -1,20 +1,26 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Som Llar · Gestió de Compres
 
-# Run and deploy your AI Studio app
+Aplicació web (React + Vite + Firebase) per gestionar les sol·licituds de compra de Som Llar:
+circuit d'aprovació (Coordinació → Direcció d'Àrea → Finances), emissió de comandes,
+recepció, pressupostos comparatius i proveïdors.
 
-This contains everything you need to run your app locally.
+- Producció: https://compres-somllar.vercel.app (desplegament automàtic des de `main` a Vercel)
+- Firebase: projecte `som-llar-compres`, base de dades Firestore `ai-studio-compras-48fb283c-…`
+- Accés: només comptes Microsoft `@somllar.cat`
 
-View your app in AI Studio: https://ai.studio/apps/24b4c656-2d7a-40da-a1b0-5a32480ee6fa
+## Desenvolupament local
 
-## Run Locally
+1. `npm install`
+2. Copia `.env.example` a `.env.local` i omple els valors.
+3. `npm run dev` (http://localhost:3000)
 
-**Prerequisites:**  Node.js
+Comprovacions: `npm run lint` (TypeScript) i `npm run build`.
 
+## Regles de seguretat de Firestore
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Les regles són a `firestore.rules`. Per publicar-les:
+
+- Des de la consola: Firebase → Firestore → base de dades `ai-studio-compras-…` → Regles → enganxar → Publicar.
+- Des del CLI (amb un compte amb accés al projecte): `npx firebase deploy --only firestore:rules`.
+
+Si canvies els rols o el circuit d'aprovació a `src/services/workflowService.ts`, revisa també `firestore.rules`.

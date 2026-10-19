@@ -16,8 +16,19 @@ const getPlatformUrl = (customUrl?: string) => {
   if (typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('localhost')) {
     return window.location.origin;
   }
-  return import.meta.env.VITE_APP_URL || 'https://som-llar-gesti-de-compres.vercel.app';
+  return import.meta.env.VITE_APP_URL || 'https://compres-somllar.vercel.app';
 };
+
+/**
+ * Escapa el text introduït pels usuaris abans d'inserir-lo a l'HTML dels correus.
+ */
+const escapeHtml = (value: unknown): string =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 
 export const emailService = {
   /**
@@ -48,7 +59,7 @@ export const emailService = {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${subject}</title>
+  <title>${escapeHtml(subject)}</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
   <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f1f5f9; padding: 35px 15px;">
@@ -71,7 +82,7 @@ export const emailService = {
           <!-- Cos Principal -->
           <tr>
             <td style="padding: 36px 32px 28px;">
-              <h2 style="margin-top: 0; font-size: 20px; font-weight: 800; color: #0f172a;">Hola, ${worker.name}! 👋</h2>
+              <h2 style="margin-top: 0; font-size: 20px; font-weight: 800; color: #0f172a;">Hola, ${escapeHtml(worker.name)}! 👋</h2>
               <p style="font-size: 14px; line-height: 1.6; color: #475569; margin-bottom: 24px;">
                 T'informem que s'ha creat i activat correctament el teu compte a la plataforma de <strong>Gestió de Compres de Som Llar</strong>. A partir d'ara podràs gestionar o validar sol·licituds segons el teu àmbit de responsabilitat.
               </p>
@@ -85,15 +96,15 @@ export const emailService = {
                     <table width="100%" border="0" cellspacing="0" cellpadding="5">
                       <tr>
                         <td width="38%" style="font-size: 13px; color: #64748b; font-weight: 600;">Àrea adscrita:</td>
-                        <td style="font-size: 13px; color: #0f172a; font-weight: 700;">${worker.areaName}</td>
+                        <td style="font-size: 13px; color: #0f172a; font-weight: 700;">${escapeHtml(worker.areaName)}</td>
                       </tr>
                       <tr>
                         <td style="font-size: 13px; color: #64748b; font-weight: 600;">Càrrec / Nivell:</td>
-                        <td style="font-size: 13px; color: #0f172a; font-weight: 700;">${roleDisplay}</td>
+                        <td style="font-size: 13px; color: #0f172a; font-weight: 700;">${escapeHtml(roleDisplay)}</td>
                       </tr>
                       <tr>
                         <td style="font-size: 13px; color: #64748b; font-weight: 600;">Correu d'accés:</td>
-                        <td style="font-size: 13px; color: #0284c7; font-weight: 700;">${worker.email}</td>
+                        <td style="font-size: 13px; color: #0284c7; font-weight: 700;">${escapeHtml(worker.email)}</td>
                       </tr>
                     </table>
                   </td>
@@ -104,7 +115,7 @@ export const emailService = {
               <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin: 28px 0;">
                 <tr>
                   <td align="center">
-                    <a href="${platformUrl}" target="_blank" style="background-color: #059669; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; padding: 15px 36px; font-size: 15px; font-weight: 800; text-decoration: none; border-radius: 12px; display: inline-block; box-shadow: 0 10px 18px -4px rgba(16, 185, 129, 0.35); letter-spacing: 0.02em;">
+                    <a href="${escapeHtml(platformUrl)}" target="_blank" style="background-color: #059669; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; padding: 15px 36px; font-size: 15px; font-weight: 800; text-decoration: none; border-radius: 12px; display: inline-block; box-shadow: 0 10px 18px -4px rgba(16, 185, 129, 0.35); letter-spacing: 0.02em;">
                       Accedir a la Plataforma &rarr;
                     </a>
                   </td>
@@ -121,7 +132,7 @@ export const emailService = {
               <!-- Enllaç alternatiu -->
               <p style="font-size: 11px; color: #94a3b8; line-height: 1.5; margin-top: 22px; word-break: break-all;">
                 Si el botó no funciona, pots copiar i enganxar aquest enllaç al navegador:<br>
-                <a href="${platformUrl}" style="color: #059669; text-decoration: underline;">${platformUrl}</a>
+                <a href="${escapeHtml(platformUrl)}" style="color: #059669; text-decoration: underline;">${escapeHtml(platformUrl)}</a>
               </p>
             </td>
           </tr>
@@ -313,7 +324,7 @@ export const emailService = {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${subject}</title>
+  <title>${escapeHtml(subject)}</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
   <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f1f5f9; padding: 30px 15px;">
@@ -329,7 +340,7 @@ export const emailService = {
                 <span style="font-size: 11px; font-weight: 800; letter-spacing: 0.15em; text-transform: uppercase; color: #ffffff;">CIRCUIT DE SIGNATURES</span>
               </div>
               <h1 style="margin: 0; font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: -0.01em;">Pendent de la teva Aprovació</h1>
-              <p style="margin: 6px 0 0; font-size: 13px; color: #e0f2fe; font-weight: 500;">Autorització requerida com a ${approverRoleName}</p>
+              <p style="margin: 6px 0 0; font-size: 13px; color: #e0f2fe; font-weight: 500;">Autorització requerida com a ${escapeHtml(approverRoleName)}</p>
             </td>
           </tr>
 
@@ -337,7 +348,7 @@ export const emailService = {
           <tr>
             <td style="padding: 28px 30px 24px;">
               <p style="font-size: 14px; line-height: 1.6; color: #334155; margin-top: 0; margin-bottom: 16px;">
-                S'ha registrat la sol·licitud d'adquisició <strong>${requestCode}</strong> que necessita la teva revisió i signatura per continuar el curs administratiu:
+                S'ha registrat la sol·licitud d'adquisició <strong>${escapeHtml(requestCode)}</strong> que necessita la teva revisió i signatura per continuar el curs administratiu:
               </p>
 
               <!-- Línia de temps visual -->
@@ -348,35 +359,35 @@ export const emailService = {
                 <tr>
                   <td style="padding: 18px 20px;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">
-                      <span style="font-size: 14px; font-weight: 800; color: #0284c7;">${requestCode}</span>
-                      <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; background-color: #e2e8f0; color: #475569; padding: 3px 8px; border-radius: 6px;">Urgència: ${urgencyLabel}</span>
+                      <span style="font-size: 14px; font-weight: 800; color: #0284c7;">${escapeHtml(requestCode)}</span>
+                      <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; background-color: #e2e8f0; color: #475569; padding: 3px 8px; border-radius: 6px;">Urgència: ${escapeHtml(urgencyLabel)}</span>
                     </div>
 
                     <table width="100%" border="0" cellspacing="0" cellpadding="5">
                       <tr>
                         <td width="34%" style="font-size: 12px; color: #64748b; font-weight: 600;">Sol·licitant:</td>
-                        <td style="font-size: 13px; color: #0f172a; font-weight: 700;">${requester}</td>
+                        <td style="font-size: 13px; color: #0f172a; font-weight: 700;">${escapeHtml(requester)}</td>
                       </tr>
                       <tr>
                         <td style="font-size: 12px; color: #64748b; font-weight: 600;">Àrea adscrita:</td>
-                        <td style="font-size: 13px; color: #0f172a; font-weight: 700;">${request.areaName || request.areaId}</td>
+                        <td style="font-size: 13px; color: #0f172a; font-weight: 700;">${escapeHtml(request.areaName || request.areaId)}</td>
                       </tr>
                       <tr>
                         <td style="font-size: 12px; color: #64748b; font-weight: 600;">Projecte / Analític:</td>
-                        <td style="font-size: 13px; color: #0f172a; font-weight: 600;">${request.projectId || 'Sense projecte'} · ${request.analyticCode || 'Sense codi'}</td>
+                        <td style="font-size: 13px; color: #0f172a; font-weight: 600;">${escapeHtml(request.projectId || 'Sense projecte')} · ${escapeHtml(request.analyticCode || 'Sense codi')}</td>
                       </tr>
                       <tr>
                         <td style="font-size: 12px; color: #64748b; font-weight: 600; vertical-align: top;">Concepte:</td>
-                        <td style="font-size: 13px; color: #0f172a; font-weight: 700;">${request.itemDescription}</td>
+                        <td style="font-size: 13px; color: #0f172a; font-weight: 700;">${escapeHtml(request.itemDescription)}</td>
                       </tr>
                       <tr>
                         <td style="font-size: 12px; color: #64748b; font-weight: 600; padding-top: 8px;">Import estimat:</td>
-                        <td style="font-size: 16px; color: #059669; font-weight: 800; padding-top: 8px;">${amountFormatted}</td>
+                        <td style="font-size: 16px; color: #059669; font-weight: 800; padding-top: 8px;">${escapeHtml(amountFormatted)}</td>
                       </tr>
                       ${extraData?.actorName ? `
                       <tr>
                         <td style="font-size: 12px; color: #64748b; font-weight: 600;">Tramitat per:</td>
-                        <td style="font-size: 13px; color: #0f172a; font-weight: 600;">${extraData.actorName}</td>
+                        <td style="font-size: 13px; color: #0f172a; font-weight: 600;">${escapeHtml(extraData.actorName)}</td>
                       </tr>
                       ` : ''}
                     </table>
@@ -404,7 +415,7 @@ export const emailService = {
                       Què has de fer a continuació?
                     </h3>
                     <p style="margin: 0; font-size: 12px; line-height: 1.55; color: #2563eb;">
-                      Com a <strong>${approverRoleName}</strong>, fes clic al botó inferior per comprovar les justificacions, pressupostos i aprovar o retornar la demanda.
+                      Com a <strong>${escapeHtml(approverRoleName)}</strong>, fes clic al botó inferior per comprovar les justificacions, pressupostos i aprovar o retornar la demanda.
                     </p>
                   </td>
                 </tr>
@@ -414,8 +425,8 @@ export const emailService = {
               <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin: 24px 0 16px;">
                 <tr>
                   <td align="center">
-                    <a href="${requestUrl}" target="_blank" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: #ffffff; padding: 15px 36px; font-size: 15px; font-weight: 800; text-decoration: none; border-radius: 12px; display: inline-block; box-shadow: 0 10px 18px -4px rgba(2, 132, 199, 0.35); letter-spacing: 0.02em;">
-                      👉 Revisar i Validar com a ${approverRoleName} &rarr;
+                    <a href="${escapeHtml(requestUrl)}" target="_blank" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: #ffffff; padding: 15px 36px; font-size: 15px; font-weight: 800; text-decoration: none; border-radius: 12px; display: inline-block; box-shadow: 0 10px 18px -4px rgba(2, 132, 199, 0.35); letter-spacing: 0.02em;">
+                      👉 Revisar i Validar com a ${escapeHtml(approverRoleName)} &rarr;
                     </a>
                   </td>
                 </tr>
@@ -622,7 +633,7 @@ export const emailService = {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${subject}</title>
+  <title>${escapeHtml(subject)}</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
   <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f1f5f9; padding: 30px 15px;">
@@ -637,8 +648,8 @@ export const emailService = {
               <div style="background-color: rgba(255,255,255,0.2); display: inline-block; padding: 5px 14px; border-radius: 30px; margin-bottom: 10px;">
                 <span style="font-size: 11px; font-weight: 800; letter-spacing: 0.15em; text-transform: uppercase; color: #ffffff;">SEGUIMENT DE LA TEVA COMPRA</span>
               </div>
-              <h1 style="margin: 0; font-size: 21px; font-weight: 800; color: #ffffff; letter-spacing: -0.01em;">${headline}</h1>
-              <p style="margin: 6px 0 0; font-size: 13px; color: rgba(255,255,255,0.92); font-weight: 600;">Expedient ${requestCode}</p>
+              <h1 style="margin: 0; font-size: 21px; font-weight: 800; color: #ffffff; letter-spacing: -0.01em;">${escapeHtml(headline)}</h1>
+              <p style="margin: 6px 0 0; font-size: 13px; color: rgba(255,255,255,0.92); font-weight: 600;">Expedient ${escapeHtml(requestCode)}</p>
             </td>
           </tr>
 
@@ -656,31 +667,31 @@ export const emailService = {
                     <table width="100%" border="0" cellspacing="0" cellpadding="5">
                       <tr>
                         <td width="35%" style="font-size: 12px; color: #64748b; font-weight: 600;">Concepte:</td>
-                        <td style="font-size: 13px; color: #0f172a; font-weight: 700;">${request.itemDescription}</td>
+                        <td style="font-size: 13px; color: #0f172a; font-weight: 700;">${escapeHtml(request.itemDescription)}</td>
                       </tr>
                       <tr>
                         <td style="font-size: 12px; color: #64748b; font-weight: 600;">Estat actual:</td>
                         <td style="font-size: 13px; color: #0f172a; font-weight: 700;">
-                          <span style="background-color: #e2e8f0; color: #1e293b; padding: 3px 8px; border-radius: 6px; font-size: 11px; text-transform: uppercase;">${statusInfo.label}</span>
+                          <span style="background-color: #e2e8f0; color: #1e293b; padding: 3px 8px; border-radius: 6px; font-size: 11px; text-transform: uppercase;">${escapeHtml(statusInfo.label)}</span>
                         </td>
                       </tr>
                       ${request.supplierName ? `
                       <tr>
                         <td style="font-size: 12px; color: #64748b; font-weight: 600;">Proveïdor:</td>
-                        <td style="font-size: 13px; color: #0f172a; font-weight: 700;">${request.supplierName}</td>
+                        <td style="font-size: 13px; color: #0f172a; font-weight: 700;">${escapeHtml(request.supplierName)}</td>
                       </tr>
                       ` : ''}
                       <tr>
                         <td style="font-size: 12px; color: #64748b; font-weight: 600;">Import:</td>
                         <td style="font-size: 15px; color: #059669; font-weight: 800;">
-                          ${amountFormatted}
+                          ${escapeHtml(amountFormatted)}
                         </td>
                       </tr>
                       ${extraData?.actorName ? `
                       <tr>
                         <td style="font-size: 12px; color: #64748b; font-weight: 600;">Acció feta per:</td>
                         <td style="font-size: 13px; color: #0f172a; font-weight: 600;">
-                          ${extraData.actorName} ${extraData.actorRole ? `<span style="font-size: 11px; color: #64748b;">(${extraData.actorRole})</span>` : ''}
+                          ${escapeHtml(extraData.actorName)} ${extraData.actorRole ? `<span style="font-size: 11px; color: #64748b;">(${escapeHtml(extraData.actorRole)})</span>` : ''}
                         </td>
                       </tr>
                       ` : ''}
@@ -694,7 +705,7 @@ export const emailService = {
               <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 14px 18px; margin-bottom: 22px;">
                 <p style="margin: 0 0 4px; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1e40af;">OBSERVACIONS DE L'EXPEDIENT:</p>
                 <p style="margin: 0; font-size: 13px; color: #1e3a8a; line-height: 1.5; font-style: italic;">
-                  "${comment}"
+                  "${escapeHtml(comment)}"
                 </p>
               </div>
               ` : ''}
@@ -704,13 +715,13 @@ export const emailService = {
                 <tr>
                   <td style="padding: 16px 18px;">
                     <span style="display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 800; text-transform: uppercase; background-color: ${badgeBg}; color: ${badgeColor}; margin-bottom: 6px;">
-                      ${badgeText}
+                      ${escapeHtml(badgeText)}
                     </span>
                     <h3 style="margin: 0 0 4px; font-size: 13px; font-weight: 800; color: #0f172a;">
-                      ${nextStepTitle}
+                      ${escapeHtml(nextStepTitle)}
                     </h3>
                     <p style="margin: 0; font-size: 12px; line-height: 1.55; color: #475569;">
-                      ${nextStepExplanation}
+                      ${escapeHtml(nextStepExplanation)}
                     </p>
                   </td>
                 </tr>
@@ -720,7 +731,7 @@ export const emailService = {
               <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin: 24px 0 16px;">
                 <tr>
                   <td align="center">
-                    <a href="${requestUrl}" target="_blank" style="background: ${buttonGradient}; color: #ffffff; padding: 14px 34px; font-size: 14px; font-weight: 800; text-decoration: none; border-radius: 12px; display: inline-block; box-shadow: 0 10px 18px -4px rgba(0,0,0,0.25); letter-spacing: 0.02em;">
+                    <a href="${escapeHtml(requestUrl)}" target="_blank" style="background: ${buttonGradient}; color: #ffffff; padding: 14px 34px; font-size: 14px; font-weight: 800; text-decoration: none; border-radius: 12px; display: inline-block; box-shadow: 0 10px 18px -4px rgba(0,0,0,0.25); letter-spacing: 0.02em;">
                       ${buttonText}
                     </a>
                   </td>
@@ -801,6 +812,8 @@ export const emailService = {
         message: payload.body || payload.text,
         text: payload.body || payload.message,
         html: payload.htmlBody,
+        // Clau compartida que valida el doPost de l'Apps Script (vegeu docs/apps-script-webhook.md)
+        token: import.meta.env.VITE_EMAIL_WEBHOOK_TOKEN || '',
         timestamp: new Date().toISOString()
       };
 

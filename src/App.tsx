@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -19,15 +19,21 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import toast, { Toaster } from 'react-hot-toast';
 
-// Views (To be implemented in next steps)
-import Dashboard from './views/Dashboard';
-import RequestsList from './views/RequestsList';
-import NewRequest from './views/NewRequest';
-import SupplierManager from './views/SupplierManager';
-import RequestDetail from './views/RequestDetail';
-import Reports from './views/Reports';
-import AdminPanel from './views/Admin';
-import NotFound from './views/NotFound';
+// Vistes (carregades sota demanda per reduir la mida del paquet inicial)
+const Dashboard = lazy(() => import('./views/Dashboard'));
+const RequestsList = lazy(() => import('./views/RequestsList'));
+const NewRequest = lazy(() => import('./views/NewRequest'));
+const SupplierManager = lazy(() => import('./views/SupplierManager'));
+const RequestDetail = lazy(() => import('./views/RequestDetail'));
+const Reports = lazy(() => import('./views/Reports'));
+const AdminPanel = lazy(() => import('./views/Admin'));
+const NotFound = lazy(() => import('./views/NotFound'));
+
+const ViewLoader = () => (
+  <div className="py-24 text-center text-xs text-slate-500 font-bold uppercase tracking-widest">
+    Carregant...
+  </div>
+);
 import NotificationBell from './components/NotificationBell';
 
 // Contexts and Types
@@ -305,6 +311,7 @@ function AppContent() {
   return (
     <Router>
       <AppLayout user={user}>
+        <Suspense fallback={<ViewLoader />}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/compres" element={<RequestsList user={user} />} />
@@ -319,6 +326,7 @@ function AppContent() {
           } />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
       </AppLayout>
     </Router>
   );

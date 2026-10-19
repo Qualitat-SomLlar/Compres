@@ -84,6 +84,38 @@ export const workflowService = {
   },
 
   /**
+   * Supervisió global del circuit (equivalent a isWorkflowSupervisor de firestore.rules).
+   */
+  isWorkflowSupervisor(user?: User): boolean {
+    if (!user) return false;
+    const userLevel = user.hierarchyLevel || getHierarchyRole(user.role).level;
+    return userLevel === 99 || userLevel === 6 ||
+      user.role === 'superadmin' || user.role === 'gerencia' || user.role === 'admin_compres';
+  },
+
+  /**
+   * Perfil d'administració (equivalent a isAdmin de firestore.rules).
+   */
+  isAdminProfile(user?: User): boolean {
+    if (!user) return false;
+    const userLevel = user.hierarchyLevel || getHierarchyRole(user.role).level;
+    return this.isWorkflowSupervisor(user) || user.role === 'finances' || [4, 5, 6, 99].includes(userLevel);
+  },
+
+  /**
+   * Qui pot afegir, adjudicar o eliminar pressupostos (equivalent a canManageQuotesOn de firestore.rules):
+   * el sol·licitant fins que coordinació aprova, qui aprova la fase actual fins a finances, o la supervisió global.
+   */
+  canManageQuotes(user?: User, request?: PurchaseRequest): boolean {
+    if (!user || !request) return false;
+    if (this.isWorkflowSupervisor(user)) return true;
+    const isRequester = request.createdByUserId === user.id || request.requestingTechnicianId === user.id;
+    if (isRequester && ['esborrany', 'retornada', 'pendent_coordinacio'].includes(request.status)) return true;
+    return ['pendent_coordinacio', 'pendent_direccio', 'pendent_finances'].includes(request.status) &&
+      this.canUserApprove(user, request);
+  },
+
+  /**
    * Get the target role for notifications when a request reaches a certain status.
    */
   getTargetRoleForStatus(status: RequestStatus): UserRole | 'creator' | null {

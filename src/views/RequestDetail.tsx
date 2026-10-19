@@ -783,6 +783,9 @@ export default function RequestDetail({ user }: { user: User }) {
   };
 
   const canApprove = workflowService.canUserApprove(user, request);
+  const canManageQuotes = workflowService.canManageQuotes(user, request);
+  const canDeleteAttachment = (file: Attachment) =>
+    workflowService.isAdminProfile(user) || file.uploadedByUserId === user.id;
   const eligibleApprovers = request ? workflowService.getEligibleApprovers(request, users) : null;
   const isCurrentUserApprover = eligibleApprovers?.users.some(u => u.id === user.id);
 
@@ -1384,6 +1387,7 @@ export default function RequestDetail({ user }: { user: User }) {
                 <AttachmentList 
                   attachments={attachments} 
                   onDelete={handleDeleteAttachment}
+                  canDelete={canDeleteAttachment}
                 />
               )}
             </div>
@@ -1405,13 +1409,15 @@ export default function RequestDetail({ user }: { user: User }) {
                     {quotes.length >= 3 ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
                     {quotes.length} de 3 Ofertes
                   </span>
-                  <button 
-                    onClick={() => setShowAddQuoteModal(true)}
-                    className="btn-primary py-1.5 px-4 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5"
-                  >
-                    <Plus size={14} />
-                    <span>Afegir Oferta</span>
-                  </button>
+                  {canManageQuotes && (
+                    <button
+                      onClick={() => setShowAddQuoteModal(true)}
+                      className="btn-primary py-1.5 px-4 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5"
+                    >
+                      <Plus size={14} />
+                      <span>Afegir Oferta</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1490,7 +1496,7 @@ export default function RequestDetail({ user }: { user: User }) {
                                 <span className="bg-brand-primary text-white px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest shadow-lg shadow-brand-primary/20 flex items-center gap-1.5">
                                   <Award size={12} /> ADJUDICAT
                                 </span>
-                              ) : (
+                              ) : canManageQuotes && (
                                 <button
                                   disabled={isProcessing}
                                   onClick={() => handleSelectQuote(q)}
@@ -1499,13 +1505,15 @@ export default function RequestDetail({ user }: { user: User }) {
                                   <Award size={12} /> Adjudicar
                                 </button>
                               )}
-                              <button 
-                                onClick={() => handleDeleteQuote(q.id)}
-                                className="p-1.5 text-slate-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
-                                title="Eliminar oferta"
-                              >
-                                <Trash2 size={14} />
-                              </button>
+                              {canManageQuotes && (
+                                <button
+                                  onClick={() => handleDeleteQuote(q.id)}
+                                  className="p-1.5 text-slate-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                                  title="Eliminar oferta"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>

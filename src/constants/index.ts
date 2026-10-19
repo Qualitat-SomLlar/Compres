@@ -41,16 +41,8 @@ export const ROLE_LABELS: Record<string, string> = {
   superadmin: 'Superadministrador'
 };
 
-export interface HierarchyRoleConfig {
-  key: string;
-  level: number;
-  code: string; // 'N1', 'N2', 'N3', 'N4', 'N5', 'N6', 'SUPER'
-  label: string;
-  shortLabel: string;
-  scope: 'area' | 'global';
-  description: string;
-  badgeColor: string;
-}
+import type { HierarchyRoleConfig } from '../types';
+export type { HierarchyRoleConfig };
 
 export const HIERARCHY_ROLES: HierarchyRoleConfig[] = [
   {

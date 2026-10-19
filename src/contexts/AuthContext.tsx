@@ -25,8 +25,14 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
-const ADMIN_EMAILS = ['secretariadq@somllar.cat'];
-const SUPERADMIN_EMAILS = ['secretariadq@somllar.cat'];
+// Han de coincidir amb isSuperAdminEmail() de firestore.rules
+const SUPERADMIN_EMAILS = [
+  'secretaria@somllar.cat',
+  'secretariadq@somllar.cat',
+  'lito@somllar.cat',
+  'admin@somllar.cat'
+];
+const ADMIN_EMAILS = SUPERADMIN_EMAILS;
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
