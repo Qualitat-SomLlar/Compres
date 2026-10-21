@@ -88,6 +88,26 @@ test('canUserApprove: supervisió global aprova en qualsevol estat', () => {
   }
 });
 
+test('canUserApprove: emetre comanda (aprovada) només Finances i supervisió', () => {
+  const req = makeRequest('aprovada');
+  assert.equal(workflowService.canUserApprove(makeUser('finances', 'admin_finances'), req), true);
+  assert.equal(workflowService.canUserApprove(makeUser('admin_compres'), req), true);
+  assert.equal(workflowService.canUserApprove(makeUser('gerencia'), req), true);
+  assert.equal(workflowService.canUserApprove(makeUser('comptabilitat'), req), false);
+  assert.equal(workflowService.canUserApprove(makeUser('direccio_area', 'tics'), req), false);
+  assert.equal(workflowService.canUserApprove(makeUser('tecnic', 'tics', 'tecnic1'), req), false);
+});
+
+test('getEligibleApprovers (aprovada): Comptabilitat no hi figura', () => {
+  const users = [
+    makeUser('finances', 'admin_finances', 'f1'),
+    makeUser('admin_compres', 'admin_finances', 'a1'),
+    makeUser('comptabilitat', 'admin_finances', 'k1'),
+  ];
+  const res = workflowService.getEligibleApprovers(makeRequest('aprovada'), users);
+  assert.deepEqual(res?.users.map(u => u.id).sort(), ['a1', 'f1']);
+});
+
 test('canUserApprove: estats finals no es poden aprovar', () => {
   assert.equal(workflowService.canUserApprove(makeUser('finances'), makeRequest('tancada')), false);
   assert.equal(workflowService.canUserApprove(makeUser('finances'), makeRequest('rebutjada')), false);

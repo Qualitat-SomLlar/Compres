@@ -85,7 +85,7 @@ service cloud.firestore {
         || (s == 'pendent_coordinacio' && isCoordinator() && sameArea(req))
         || (s == 'pendent_direccio' && isAreaDirector() && sameArea(req))
         || (s == 'pendent_finances' && isFinance())
-        || (s == 'aprovada' && (isHighLevel() || isFinance()))
+        || (s == 'aprovada' && isFinance())
         || (s == 'comanda_emesa' && (isRequester(req) || isHighLevel()))
         || (s == 'rebuda' && (isHighLevel() || isFinance() || isAccounting()));
     }

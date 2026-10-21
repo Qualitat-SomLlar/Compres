@@ -65,8 +65,9 @@ export const workflowService = {
         return userLevel === 4 || userRole === 'finances';
       
       case 'aprovada':
-        // Emissió formal de comanda: Finances o Administració de Compres
-        return userLevel >= 4 || userRole === 'finances';
+        // Emissió formal de comanda: Finances (N4); Administració de Compres, Gerència i Superadmin
+        // ja hi accedeixen per la supervisió global. Comptabilitat (N5) no pot emetre comandes.
+        return userLevel === 4 || userRole === 'finances';
 
       case 'comanda_emesa':
         // Conformitat de recepció de béns / serveis: Tècnic, creador o compres
@@ -194,7 +195,7 @@ export const workflowService = {
       case 'aprovada': {
         const matching = activeUsers.filter(u => {
           const uLevel = u.hierarchyLevel || getHierarchyRole(u.role).level;
-          return uLevel >= 4 || u.role === 'finances' || u.role === 'admin_compres';
+          return uLevel === 4 || u.role === 'finances' || workflowService.isWorkflowSupervisor(u);
         });
         return {
           roleName: `Administració de Compres / Finances (N4-N5)`,
