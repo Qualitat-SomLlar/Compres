@@ -1,6 +1,11 @@
 // ===============================================================
 // Som Llar - Firestore Security Rules
 // ===============================================================
+// NOTA DE RENDIMENT: Firestore limita cada petició a 1.000 expressions avaluades
+// (compartides entre totes les regles que coincideixen, inclosa la regla comodí).
+// Per això el perfil de l'usuari es llegeix UNA sola vegada (getUserData()) i es
+// passa com a paràmetre `u` a les funcions "U", en lloc de tornar-lo a calcular
+// a cada helper. Les proves a tests/firestore.rules.test.ts ho verifiquen.
 
 rules_version = '2';
 service cloud.firestore {
@@ -20,50 +25,42 @@ service cloud.firestore {
     }
     function userDocExists() { return exists(/databases/$(database)/documents/users/$(request.auth.uid)); }
     function getUserData() { return userDocExists() ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data : {}; }
-    function hasRole(role) {
-      return isCorporate() && (
-        (userDocExists() && getUserData().role == role) ||
-        (role == 'superadmin' && userDocExists() && getUserData().role == 'admin')
-      );
-    }
-    function isSuperAdminEmail() {
-      return isCorporate() && userEmail() in [
-        'secretaria@somllar.cat',
-        'secretariadq@somllar.cat',
-        'lito@somllar.cat',
-        'admin@somllar.cat'
-      ];
-    }
-    function isSuperAdmin() {
-      return isSuperAdminEmail() ||
-             hasRole('superadmin') ||
-             (isCorporate() && userDocExists() && getUserData().hierarchyLevel == 99);
-    }
-    function isAdmin() {
-      return isSuperAdmin() ||
-             hasRole('admin_compres') ||
-             hasRole('finances') ||
-             hasRole('gerencia') ||
-             hasRole('admin') ||
-             (isCorporate() && userDocExists() && getUserData().hierarchyLevel in [4, 5, 6, 99]) ||
-             (isCorporate() && userEmail() in ['finances@somllar.cat', 'compres@somllar.cat', 'administracio@somllar.cat']);
-    }
 
-    // Perfil de l'usuari actual (s'accepten també els noms de rol antics que normalitza el client)
-    function myRole() { return getUserData().get('role', ''); }
-    function myLevel() { return getUserData().get('hierarchyLevel', 0); }
-    function myArea() { return string(getUserData().get('areaId', '')).lower(); }
+    // Camps del perfil (u = getUserData()). S'accepten també els noms de rol antics que normalitza el client.
+    function lvl(u) { return u.get('hierarchyLevel', 0); }
+    function rol(u) { return u.get('role', ''); }
+    function area(u) { return string(u.get('areaId', '')).lower(); }
 
-    function isCoordinator() { return myLevel() == 2 || myRole() in ['coordinacio', 'coordinador']; }
-    function isAreaDirector() { return myLevel() == 3 || myRole() in ['direccio_area', 'direccio', 'responsablearea']; }
-    function isFinance() { return myLevel() == 4 || myRole() in ['finances', 'finanzas', 'administracio']; }
-    function isHighLevel() { return myLevel() >= 4; }
-    function isAccounting() { return myRole() == 'comptabilitat'; }
-
-    // Supervisió global del circuit (equivalent a workflowService.canUserApprove)
-    function isWorkflowSupervisor() {
-      return isSuperAdmin() || myLevel() == 6 || myRole() in ['gerencia', 'admin_compres'];
+    // Rols (requereixen que l'usuari ja sigui corporatiu: es comprova a les regles)
+    function isSuperAdminU(u) {
+      return userEmail() in [
+               'secretaria@somllar.cat',
+               'secretariadq@somllar.cat',
+               'lito@somllar.cat',
+               'admin@somllar.cat'
+             ]
+          || rol(u) in ['superadmin', 'admin']
+          || lvl(u) == 99;
     }
+    function isAdminU(u) {
+      return isSuperAdminU(u)
+          || rol(u) in ['admin_compres', 'finances', 'gerencia']
+          || lvl(u) in [4, 5, 6, 99]
+          || userEmail() in ['finances@somllar.cat', 'compres@somllar.cat', 'administracio@somllar.cat'];
+    }
+    // Supervisió global del circuit (equivalent a workflowService.isWorkflowSupervisor)
+    function isSupervisorU(u) {
+      return isSuperAdminU(u) || lvl(u) == 6 || rol(u) in ['gerencia', 'admin_compres'];
+    }
+    function isCoordinatorU(u) { return lvl(u) == 2 || rol(u) in ['coordinacio', 'coordinador']; }
+    function isAreaDirectorU(u) { return lvl(u) == 3 || rol(u) in ['direccio_area', 'direccio', 'responsablearea']; }
+    function isFinanceU(u) { return lvl(u) == 4 || rol(u) in ['finances', 'finanzas', 'administracio']; }
+    function isHighLevelU(u) { return lvl(u) >= 4; }
+    function isAccountingU(u) { return rol(u) == 'comptabilitat'; }
+
+    // Versions d'ús directe (una sola lectura del perfil per crida)
+    function isSuperAdmin() { return isCorporate() && isSuperAdminU(getUserData()); }
+    function isAdmin() { return isCorporate() && isAdminU(getUserData()); }
 
     function onlyChanges(keys) {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
@@ -74,20 +71,19 @@ service cloud.firestore {
       return request.auth.uid == req.get('createdByUserId', '') ||
              request.auth.uid == req.get('requestingTechnicianId', '');
     }
-    function sameArea(req) {
-      return string(req.get('areaId', 'social')).lower() == myArea();
+    function sameArea(u, req) {
+      return string(req.get('areaId', 'social')).lower() == area(u);
     }
 
     // Qui pot actuar sobre la fase actual de l'expedient
-    function canActOnStep(req) {
+    function canActOnStep(u, req) {
       let s = req.status;
       return (s in ['esborrany', 'retornada'] && isRequester(req))
-        || (s == 'pendent_coordinacio' && isCoordinator() && sameArea(req))
-        || (s == 'pendent_direccio' && isAreaDirector() && sameArea(req))
-        || (s == 'pendent_finances' && isFinance())
-        || (s == 'aprovada' && isFinance())
-        || (s == 'comanda_emesa' && (isRequester(req) || isHighLevel()))
-        || (s == 'rebuda' && (isHighLevel() || isFinance() || isAccounting()));
+        || (s == 'pendent_coordinacio' && isCoordinatorU(u) && sameArea(u, req))
+        || (s == 'pendent_direccio' && isAreaDirectorU(u) && sameArea(u, req))
+        || (s in ['pendent_finances', 'aprovada'] && isFinanceU(u))
+        || (s == 'comanda_emesa' && (isRequester(req) || isHighLevelU(u)))
+        || (s == 'rebuda' && (isHighLevelU(u) || isFinanceU(u) || isAccountingU(u)));
     }
 
     // Transicions d'estat permeses (workflowService.getNextStatus)
@@ -131,13 +127,27 @@ service cloud.firestore {
 
     // Pressupostos comparatius i adjudicació: el sol·licitant mentre no s'ha aprovat
     // la coordinació, qui aprova la fase actual, o la supervisió global.
-    function canManageQuotesOn(req) {
-      return isWorkflowSupervisor()
+    function canManageQuotesOn(u, req) {
+      return isSupervisorU(u)
         || (isRequester(req) && req.status in ['esborrany', 'retornada', 'pendent_coordinacio'])
-        || (canActOnStep(req) && req.status in ['pendent_coordinacio', 'pendent_direccio', 'pendent_finances']);
+        || (req.status in ['pendent_coordinacio', 'pendent_direccio', 'pendent_finances'] && canActOnStep(u, req));
     }
     function requestOf(requestId) {
       return get(/databases/$(database)/documents/purchaseRequests/$(requestId)).data;
+    }
+
+    // Actualització d'una sol·licitud (u = getUserData(), llegit una sola vegada)
+    function canUpdateRequest(u) {
+      return isSupervisorU(u)
+        // Comptadors de documents i pressupostos
+        || onlyChanges(['attachmentsCount', 'quotesCount', 'updatedAt'])
+        // Adjudicació / retirada d'un pressupost
+        || (onlyChanges(['supplierId', 'supplierName', 'finalAmount', 'quotesCount', 'updatedAt'])
+            && canManageQuotesOn(u, resource.data))
+        // Avanç, retorn o rebuig dins del circuit d'aprovació
+        || (validTransition(resource.data.status, request.resource.data.status)
+            && canActOnStep(u, resource.data)
+            && onlyChanges(workflowFields().concat(stepFields(resource.data.status))));
     }
 
     match /{allPaths=**} {
@@ -194,27 +204,16 @@ service cloud.firestore {
         && request.resource.data.status in ['esborrany', 'pendent_coordinacio']
         && !request.resource.data.keys().hasAny(approvalFields());
 
-      allow update: if isCorporate() && (
-        isWorkflowSupervisor()
-        // Comptadors de documents i pressupostos
-        || onlyChanges(['attachmentsCount', 'quotesCount', 'updatedAt'])
-        // Adjudicació / retirada d'un pressupost
-        || (canManageQuotesOn(resource.data)
-            && onlyChanges(['supplierId', 'supplierName', 'finalAmount', 'quotesCount', 'updatedAt']))
-        // Avanç, retorn o rebuig dins del circuit d'aprovació
-        || (canActOnStep(resource.data)
-            && validTransition(resource.data.status, request.resource.data.status)
-            && onlyChanges(workflowFields().concat(stepFields(resource.data.status))))
-      );
+      allow update: if isCorporate() && canUpdateRequest(getUserData());
 
       // Subcol·leccions d'adjunts i pressupostos (no les fa servir l'aplicació)
       match /attachments/{attachmentId} {
         allow read: if isCorporate();
-        allow write: if isWorkflowSupervisor();
+        allow write: if isCorporate() && isSupervisorU(getUserData());
       }
       match /quotes/{quoteId} {
         allow read: if isCorporate();
-        allow write: if isWorkflowSupervisor();
+        allow write: if isCorporate() && isSupervisorU(getUserData());
       }
     }
 
@@ -228,13 +227,17 @@ service cloud.firestore {
       allow read: if isCorporate();
       allow create: if isCorporate()
         && request.resource.data.isSelected == false
-        && canManageQuotesOn(requestOf(request.resource.data.requestId));
+        && canManageQuotesOn(getUserData(), requestOf(request.resource.data.requestId));
       // Fora de la supervisió global, només es pot marcar/desmarcar l'adjudicació
       allow update: if isCorporate()
         && request.resource.data.requestId == resource.data.requestId
-        && canManageQuotesOn(requestOf(resource.data.requestId))
-        && (isWorkflowSupervisor() || onlyChanges(['isSelected']));
-      allow delete: if isCorporate() && canManageQuotesOn(requestOf(resource.data.requestId));
+        && canQuoteUpdate(getUserData());
+      allow delete: if isCorporate()
+        && canManageQuotesOn(getUserData(), requestOf(resource.data.requestId));
+    }
+    function canQuoteUpdate(u) {
+      return canManageQuotesOn(u, requestOf(resource.data.requestId))
+        && (isSupervisorU(u) || onlyChanges(['isSelected']));
     }
 
     // Suppliers
