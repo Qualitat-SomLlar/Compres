@@ -16,15 +16,10 @@ import {
   User as UserIcon,
   ShieldCheck,
   Loader2,
-  Plus,
-  Trash2,
-  Award,
   AlertTriangle,
-  X,
   FileCheck,
   Users as UsersIcon,
   Download,
-  Link2,
   ExternalLink,
   Tag,
   MapPin,
@@ -35,11 +30,13 @@ import { exportService } from '../services/exportService';
 import { STATUS_LABELS, getHierarchyRole, normalizeAreaId, CATEGORIES } from '../constants';
 import { User, RequestStatus, AttachmentCategory, PurchaseRequest, Attachment, Quote, ActivityLog } from '../types';
 import { cn } from '../lib/utils';
-import AttachmentList from '../components/AttachmentList';
 import StatusBadge from '../components/StatusBadge';
 import { TimelineStep } from '../components/TimelineStep';
 import { AddQuoteModal } from '../components/AddQuoteModal';
 import { EmitOrderModal } from '../components/EmitOrderModal';
+import { RequestQuotesSection } from '../components/RequestQuotesSection';
+import { RequestAttachmentsSection } from '../components/RequestAttachmentsSection';
+import { RequestAuditHistory } from '../components/RequestAuditHistory';
 import { useRequests } from '../hooks/useRequests';
 import { useAreas } from '../hooks/useAreas';
 import { useCenters } from '../hooks/useCenters';
@@ -1289,295 +1286,34 @@ export default function RequestDetail({ user }: { user: User }) {
           </div>
 
           {/* Documents Adjunts Reals */}
-          <div className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <h3 className="text-xs font-black text-slate-500 uppercase tracking-[0.3em] flex items-center gap-3">
-                <FileText size={18} className="text-brand-primary" /> Documentació de l'Expedient ({attachments.length})
-              </h3>
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={() => setShowAddLinkModal(!showAddLinkModal)}
-                  className="btn-secondary flex items-center gap-2 py-2 px-3 text-[10px] font-black uppercase tracking-widest border-brand-primary/30 text-brand-primary hover:bg-brand-primary/10"
-                  title="Enllaçar carpeta o document des de OneDrive, SharePoint o Web"
-                >
-                  <Link2 size={14} />
-                  <span>{showAddLinkModal ? 'Tancar' : '+ Afegir Document (URL)'}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Modal / Panell per afegir enllaç de OneDrive / SharePoint */}
-            {showAddLinkModal && (
-              <form onSubmit={handleAddExternalLink} className="card p-6 border-sky-500/30 bg-sky-500/[0.02] animate-in fade-in space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b border-white/5">
-                  <span className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
-                    <Link2 size={16} className="text-sky-400" /> Vincular Carpeta o Fitxer de OneDrive / SharePoint
-                  </span>
-                  <button type="button" onClick={() => setShowAddLinkModal(false)} className="text-slate-500 hover:text-white">
-                    <X size={16} />
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">Títol o Nom del Document *</label>
-                    <input 
-                      type="text" 
-                      placeholder="Ex: Contracte Signat Som Llar o Carpeta Pressupostos"
-                      value={linkForm.title}
-                      onChange={(e) => setLinkForm(prev => ({ ...prev, title: e.target.value }))}
-                      required
-                      className="input-field text-xs py-2"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">Tipus de Document</label>
-                    <select
-                      value={linkForm.category}
-                      onChange={(e) => setLinkForm(prev => ({ ...prev, category: e.target.value as AttachmentCategory }))}
-                      className="input-field text-xs py-2"
-                    >
-                      <option value="pressupost">Pressupost</option>
-                      <option value="contracte">Contracte</option>
-                      <option value="factura">Factura</option>
-                      <option value="albara">Albarà</option>
-                      <option value="justificacio">Memòria / Justificació</option>
-                      <option value="altres">Carpeta General / Altres</option>
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">Enllaç Compartit de OneDrive / Teams (URL) *</label>
-                  <input 
-                    type="url" 
-                    placeholder="https://somllar-my.sharepoint.com/:f:/g/personal/..."
-                    value={linkForm.url}
-                    onChange={(e) => setLinkForm(prev => ({ ...prev, url: e.target.value }))}
-                    required
-                    className="input-field text-xs py-2 font-mono"
-                  />
-                  <p className="text-[10px] text-slate-500 mt-1">Enganxa l'enllaç d'accés creat des de OneDrive o Microsoft Teams corporatiu.</p>
-                </div>
-                <div className="flex justify-end gap-2 pt-2">
-                  <button 
-                    type="button" 
-                    onClick={() => setShowAddLinkModal(false)}
-                    className="btn-secondary py-1.5 px-3 text-xs"
-                  >
-                    Cancel·lar
-                  </button>
-                  <button 
-                    type="submit" 
-                    disabled={isSubmittingLink}
-                    className="btn-primary py-1.5 px-4 text-xs font-black uppercase tracking-wider flex items-center gap-2"
-                  >
-                    {isSubmittingLink ? <Loader2 size={14} className="animate-spin" /> : <Link2 size={14} />}
-                    <span>Desar Enllaç</span>
-                  </button>
-                </div>
-              </form>
-            )}
-
-
-            <div className="card p-8">
-              {loadingAttachments ? (
-                <div className="py-12 flex items-center justify-center gap-3 text-slate-500 text-xs">
-                  <Loader2 size={18} className="animate-spin text-brand-primary" />
-                  <span>Carregant documentació...</span>
-                </div>
-              ) : (
-                <AttachmentList 
-                  attachments={attachments} 
-                  onDelete={handleDeleteAttachment}
-                  canDelete={canDeleteAttachment}
-                />
-              )}
-            </div>
-          </div>
+          <RequestAttachmentsSection
+            attachments={attachments}
+            loadingAttachments={loadingAttachments}
+            showAddLinkModal={showAddLinkModal}
+            setShowAddLinkModal={setShowAddLinkModal}
+            linkForm={linkForm}
+            setLinkForm={setLinkForm}
+            isSubmittingLink={isSubmittingLink}
+            handleAddExternalLink={handleAddExternalLink}
+            handleDeleteAttachment={handleDeleteAttachment}
+            canDeleteAttachment={canDeleteAttachment}
+          />
 
           {/* Secció 3 Pressupostos Reals (Només si > 5000€) */}
           {request.requiresThreeQuotes && (
-            <div className="card ring-1 ring-amber-500/20 overflow-hidden shadow-2xl shadow-amber-500/5 space-y-6">
-              <div className="px-10 py-6 bg-amber-500/[0.03] border-b border-amber-500/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div className="flex items-center gap-4 text-amber-500 font-black uppercase tracking-[0.2em] text-[10px]">
-                  <AlertCircle size={20} />
-                  <span>Anàlisi Comparatiu de Pressupostos (Compliance {'>'} 5.000 €)</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className={cn(
-                    "text-[9px] px-3 py-1 rounded-md font-black tracking-widest uppercase flex items-center gap-1.5",
-                    quotes.length >= 3 ? "bg-emerald-500 text-black" : "bg-amber-500 text-black"
-                  )}>
-                    {quotes.length >= 3 ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
-                    {quotes.length} de 3 Ofertes
-                  </span>
-                  {canManageQuotes && (
-                    <button
-                      onClick={() => setShowAddQuoteModal(true)}
-                      className="btn-primary py-1.5 px-4 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5"
-                    >
-                      <Plus size={14} />
-                      <span>Afegir Oferta</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Informació de Compliance */}
-              <div className="px-10">
-                {quotes.length < 3 ? (
-                  <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center gap-3">
-                    <AlertTriangle size={18} className="shrink-0 text-amber-400" />
-                    <span>
-                      Normativa de contractació: És obligatori adjuntar un mínim de <strong>3 pressupostos comparatius</strong> per a compres iguals o superiors a 5.000 €. Falten {3 - quotes.length} pressupost(s).
-                    </span>
-                  </div>
-                ) : (
-                  <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-3">
-                    <CheckCircle2 size={18} className="shrink-0 text-emerald-400" />
-                    <span>
-                      Requisit de concurrència complert ({quotes.length} ofertes registrades). Selecciona l'oferta adjudicatària per fixar el proveïdor de l'expedient.
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              <div className="p-10 pt-0 overflow-x-auto">
-                {loadingQuotes ? (
-                  <div className="py-12 flex items-center justify-center gap-3 text-slate-500 text-xs">
-                    <Loader2 size={18} className="animate-spin text-brand-primary" />
-                    <span>Carregant taula comparativa...</span>
-                  </div>
-                ) : quotes.length === 0 ? (
-                  <div className="py-12 text-center border-2 border-dashed border-white/5 rounded-2xl">
-                    <FileCheck className="mx-auto text-slate-700 mb-3" size={32} />
-                    <p className="text-xs text-slate-400 font-bold">Encara no hi ha pressupostos registrats</p>
-                    <p className="text-[10px] text-slate-600 mt-1 uppercase tracking-widest">Prem sobre "Afegir Oferta" per introduir els pressupostos dels proveïdors.</p>
-                  </div>
-                ) : (
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-slate-600 border-b border-white/[0.03]">
-                        <th className="pb-6 text-left font-black uppercase tracking-widest text-[9px]">Empresa Proveïdora</th>
-                        <th className="pb-6 px-4 text-center font-black uppercase tracking-widest text-[9px]">Quota (€)</th>
-                        <th className="pb-6 px-4 text-center font-black uppercase tracking-widest text-[9px]">Punt. Tècnica</th>
-                        <th className="pb-6 px-4 text-left font-black uppercase tracking-widest text-[9px]">Justificació</th>
-                        <th className="pb-6 text-right font-black uppercase tracking-widest text-[9px]">Estat / Acció</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/[0.02]">
-                      {quotes.map((q) => (
-                        <tr key={q.id} className={cn("group transition-colors", q.isSelected && "bg-brand-primary/[0.04]")}>
-                          <td className="py-6 font-bold text-white">
-                            <div className="flex items-center gap-2">
-                              {q.isSelected ? (
-                                <CheckCircle size={16} className="text-brand-primary shrink-0" />
-                              ) : (
-                                <div className="w-4 h-4 rounded-full border border-slate-700 shrink-0" />
-                              )}
-                              <span>{q.supplierName}</span>
-                            </div>
-                          </td>
-                          <td className="py-6 px-4 text-center font-black text-white text-base">
-                            {((q.amount) || 0).toLocaleString()} €
-                          </td>
-                          <td className="py-6 px-4 text-center font-bold text-slate-400">
-                            <span className={cn(
-                              "px-2 py-1 rounded text-xs font-black",
-                              q.technicalScore >= 8 ? "text-emerald-400 bg-emerald-500/10" : "text-amber-400 bg-amber-500/10"
-                            )}>
-                              {q.technicalScore}/10
-                            </span>
-                          </td>
-                          <td className="py-6 px-4 text-left text-xs text-slate-400 max-w-xs truncate italic">
-                            {q.justification || '—'}
-                          </td>
-                          <td className="py-6 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              {q.isSelected ? (
-                                <span className="bg-brand-primary text-white px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest shadow-lg shadow-brand-primary/20 flex items-center gap-1.5">
-                                  <Award size={12} /> ADJUDICAT
-                                </span>
-                              ) : canManageQuotes && (
-                                <button
-                                  disabled={isProcessing}
-                                  onClick={() => handleSelectQuote(q)}
-                                  className="btn-secondary py-1.5 px-3 text-[9px] font-black uppercase tracking-widest hover:border-brand-primary text-slate-300 hover:text-brand-primary flex items-center gap-1.5"
-                                >
-                                  <Award size={12} /> Adjudicar
-                                </button>
-                              )}
-                              {canManageQuotes && (
-                                <button
-                                  onClick={() => handleDeleteQuote(q.id)}
-                                  className="p-1.5 text-slate-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
-                                  title="Eliminar oferta"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </div>
+            <RequestQuotesSection
+              quotes={quotes}
+              loadingQuotes={loadingQuotes}
+              canManageQuotes={canManageQuotes}
+              isProcessing={isProcessing}
+              setShowAddQuoteModal={setShowAddQuoteModal}
+              handleSelectQuote={handleSelectQuote}
+              handleDeleteQuote={handleDeleteQuote}
+            />
           )}
 
           {/* Historial d'Auditoria i Traçabilitat de la Sol·licitud */}
-          <div className="card p-8 space-y-6">
-            <div className="flex items-center justify-between border-b border-white/5 pb-4">
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-3">
-                <History size={18} className="text-brand-primary" /> Historial de Canvis i Traçabilitat ({requestLogs.length})
-              </h3>
-              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
-                Registre Inmutable
-              </span>
-            </div>
-
-            {loadingLogs ? (
-              <div className="py-8 flex items-center justify-center gap-3 text-slate-500 text-xs">
-                <Loader2 size={16} className="animate-spin text-brand-primary" />
-                <span>Carregant línia de temps d'auditoria...</span>
-              </div>
-            ) : requestLogs.length === 0 ? (
-              <div className="py-8 text-center border border-dashed border-white/5 rounded-2xl">
-                <p className="text-xs text-slate-500">Sense canvis posteriors registrats en aquest expedient.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {requestLogs.map((log) => (
-                  <div key={log.id} className="p-4 rounded-2xl bg-white/[0.01] border border-white/5 hover:border-white/10 transition-colors flex items-start justify-between gap-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-black text-white">{log.action}</span>
-                        <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-brand-primary/10 text-brand-primary uppercase tracking-wider">
-                          {log.userName}
-                        </span>
-                        {log.userRole && (
-                          <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-white/5 text-slate-400 uppercase">
-                            {log.userRole}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-400">{log.details}</p>
-                    </div>
-                    <span className="text-[9px] font-medium text-slate-500 whitespace-nowrap tabular-nums">
-                      {new Date(log.createdAt).toLocaleString('ca-ES', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <RequestAuditHistory requestLogs={requestLogs} loadingLogs={loadingLogs} />
         </div>
 
         {/* Barra Lateral */}
