@@ -13,7 +13,6 @@ import {
   Calendar,
   CreditCard,
   MessageSquare,
-  Info,
   User as UserIcon,
   ShieldCheck,
   Loader2,
@@ -21,7 +20,6 @@ import {
   Trash2,
   Award,
   AlertTriangle,
-  Upload,
   X,
   FileCheck,
   Users as UsersIcon,
@@ -39,6 +37,9 @@ import { User, RequestStatus, AttachmentCategory, PurchaseRequest, Attachment, Q
 import { cn } from '../lib/utils';
 import AttachmentList from '../components/AttachmentList';
 import StatusBadge from '../components/StatusBadge';
+import { TimelineStep } from '../components/TimelineStep';
+import { AddQuoteModal } from '../components/AddQuoteModal';
+import { EmitOrderModal } from '../components/EmitOrderModal';
 import { useRequests } from '../hooks/useRequests';
 import { useAreas } from '../hooks/useAreas';
 import { useCenters } from '../hooks/useCenters';
@@ -1846,266 +1847,38 @@ export default function RequestDetail({ user }: { user: User }) {
 
       {/* Modal Afegir Oferta Comparativa */}
       {showAddQuoteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-          <div className="card max-w-lg w-full p-8 border-brand-primary/30 shadow-2xl relative">
-            <button 
-              onClick={() => setShowAddQuoteModal(false)}
-              className="absolute top-6 right-6 text-slate-500 hover:text-white"
-            >
-              <X size={20} />
-            </button>
-            <h3 className="text-lg font-black text-white uppercase tracking-tight mb-6 flex items-center gap-3">
-              <Award size={20} className="text-brand-primary" /> Afegir Oferta de Pressupost
-            </h3>
-            
-            <form onSubmit={handleAddQuote} className="space-y-4">
-              <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">
-                  Empresa Proveïdora
-                </label>
-                {suppliers.length > 0 && (
-                  <select 
-                    className="input-field text-xs mb-2"
-                    value={quoteForm.supplierId}
-                    onChange={(e) => {
-                      const sel = suppliers.find(s => s.id === e.target.value);
-                      setQuoteForm(prev => ({
-                        ...prev,
-                        supplierId: e.target.value,
-                        supplierName: sel ? sel.name : prev.supplierName
-                      }));
-                    }}
-                  >
-                    <option value="">-- Selecciona de la base de dades o escriu a sota --</option>
-                    {suppliers.map(s => (
-                      <option key={s.id} value={s.id}>{s.name} ({s.nif})</option>
-                    ))}
-                  </select>
-                )}
-                <input 
-                  type="text"
-                  placeholder="Nom de l'empresa proveïdora"
-                  className="input-field text-xs"
-                  value={quoteForm.supplierName}
-                  onChange={(e) => setQuoteForm(prev => ({ ...prev, supplierName: e.target.value }))}
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">
-                    Import (€ sense IVA / total)
-                  </label>
-                  <input 
-                    type="number"
-                    step="0.01"
-                    placeholder="ex: 5400"
-                    className="input-field text-xs font-bold"
-                    value={quoteForm.amount}
-                    onChange={(e) => setQuoteForm(prev => ({ ...prev, amount: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">
-                    Puntuació Tècnica (1-10)
-                  </label>
-                  <input 
-                    type="number"
-                    min="1"
-                    max="10"
-                    step="0.5"
-                    className="input-field text-xs font-bold"
-                    value={quoteForm.technicalScore}
-                    onChange={(e) => setQuoteForm(prev => ({ ...prev, technicalScore: Number(e.target.value) }))}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">
-                  Justificació / Criteris Tècnics
-                </label>
-                <textarea 
-                  className="input-field text-xs min-h-[80px]"
-                  placeholder="Detalls del termini d'entrega, qualitat, garantia o raons d'elecció..."
-                  value={quoteForm.justification}
-                  onChange={(e) => setQuoteForm(prev => ({ ...prev, justification: e.target.value }))}
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">
-                  Enllaç del Document de l'Oferta (Opcional)
-                </label>
-                <input 
-                  type="url"
-                  placeholder="https://somllar-my.sharepoint.com/... o enllaç web"
-                  className="input-field text-xs font-mono"
-                  value={quoteUrl}
-                  onChange={(e) => setQuoteUrl(e.target.value)}
-                />
-                <p className="text-[10px] text-slate-500 mt-1">Enllaç a SharePoint, OneDrive o web de l'oferta.</p>
-              </div>
-
-              <div className="flex gap-4 pt-4">
-                <button 
-                  type="button" 
-                  onClick={() => setShowAddQuoteModal(false)}
-                  className="btn-secondary flex-1 py-3 text-xs font-black uppercase tracking-widest"
-                >
-                  Cancel·lar
-                </button>
-                <button 
-                  type="submit" 
-                  disabled={isSubmittingQuote}
-                  className="btn-primary flex-1 py-3 text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2"
-                >
-                  {isSubmittingQuote && <Loader2 size={16} className="animate-spin" />}
-                  <span>Guardar Oferta</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <AddQuoteModal
+          suppliers={suppliers}
+          quoteForm={quoteForm}
+          setQuoteForm={setQuoteForm}
+          quoteUrl={quoteUrl}
+          setQuoteUrl={setQuoteUrl}
+          isSubmittingQuote={isSubmittingQuote}
+          onSubmit={handleAddQuote}
+          onClose={() => setShowAddQuoteModal(false)}
+        />
       )}
 
       {/* Modal Emissió Formal de Comanda */}
       {showEmitOrderModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-          <div className="card max-w-lg w-full p-8 border-brand-primary/30 shadow-2xl relative">
-            <button 
-              onClick={() => setShowEmitOrderModal(false)}
-              className="absolute top-6 right-6 text-slate-500 hover:text-white"
-            >
-              <X size={20} />
-            </button>
-            <h3 className="text-lg font-black text-white uppercase tracking-tight mb-2 flex items-center gap-3">
-              <FileCheck size={20} className="text-brand-primary" /> Emissió Formal de Comanda
-            </h3>
-            <p className="text-xs text-slate-400 mb-6">
-              Per emetre la comanda és obligatori indicar el proveïdor oficial adjudicatari i l'import acordat.
-            </p>
-            
-            <form onSubmit={handleConfirmEmitOrder} className="space-y-4">
-              <div>
-                <label className="text-[10px] font-black text-brand-primary uppercase tracking-widest block mb-1">
-                  Empresa Proveïdora * (Obligatori)
-                </label>
-                {suppliers.length > 0 && (
-                  <select 
-                    className="input-field text-xs mb-2"
-                    value={orderSupplierId}
-                    onChange={(e) => {
-                      const sel = suppliers.find(s => s.id === e.target.value);
-                      setOrderSupplierId(e.target.value);
-                      if (sel) setOrderSupplierName(sel.name);
-                    }}
-                  >
-                    <option value="">-- Selecciona de la base de dades o escriu a sota --</option>
-                    {suppliers.map(s => (
-                      <option key={s.id} value={s.id}>{s.name} ({s.nif})</option>
-                    ))}
-                  </select>
-                )}
-                <input 
-                  type="text"
-                  placeholder="Nom de l'empresa proveïdora"
-                  className="input-field text-xs font-bold"
-                  value={orderSupplierName}
-                  onChange={(e) => setOrderSupplierName(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">
-                  Enllaç del Producte o Catàleg (Opcional)
-                </label>
-                <input 
-                  type="url"
-                  placeholder="https://... URL directa de compra o fitxa"
-                  className="input-field text-xs font-mono"
-                  value={orderProductUrl}
-                  onChange={(e) => setOrderProductUrl(e.target.value)}
-                />
-                <p className="text-[10px] text-slate-500 mt-1">Enllaç web directe al producte per a la gestió de la compra.</p>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">
-                  Import Final / Acordat (€) *
-                </label>
-                <input 
-                  type="number"
-                  step="0.01"
-                  placeholder="ex: 1250.00"
-                  className="input-field text-xs font-bold"
-                  value={orderFinalAmount}
-                  onChange={(e) => setOrderFinalAmount(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">
-                  Observacions o Notes de la Comanda (Opcional)
-                </label>
-                <textarea 
-                  className="input-field text-xs min-h-[80px]"
-                  placeholder="Instruccions d'enviament, contacte, referències de comanda..."
-                  value={orderNotes}
-                  onChange={(e) => setOrderNotes(e.target.value)}
-                />
-              </div>
-
-              <div className="flex gap-4 pt-4">
-                <button 
-                  type="button" 
-                  onClick={() => setShowEmitOrderModal(false)}
-                  className="btn-secondary flex-1 py-3 text-xs font-black uppercase tracking-widest"
-                >
-                  Cancel·lar
-                </button>
-                <button 
-                  type="submit" 
-                  disabled={isProcessing}
-                  className="btn-primary flex-1 py-3 text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2"
-                >
-                  {isProcessing && <Loader2 size={16} className="animate-spin" />}
-                  <span>Confirmar i Emetre Comanda</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <EmitOrderModal
+          suppliers={suppliers}
+          orderSupplierId={orderSupplierId}
+          setOrderSupplierId={setOrderSupplierId}
+          orderSupplierName={orderSupplierName}
+          setOrderSupplierName={setOrderSupplierName}
+          orderProductUrl={orderProductUrl}
+          setOrderProductUrl={setOrderProductUrl}
+          orderFinalAmount={orderFinalAmount}
+          setOrderFinalAmount={setOrderFinalAmount}
+          orderNotes={orderNotes}
+          setOrderNotes={setOrderNotes}
+          isProcessing={isProcessing}
+          onSubmit={handleConfirmEmitOrder}
+          onClose={() => setShowEmitOrderModal(false)}
+        />
       )}
     </div>
   );
 }
 
-interface TimelineStepProps {
-  title: string;
-  status: 'pending' | 'completed' | 'error';
-  role: string;
-  date?: string;
-  active?: boolean;
-}
-
-const TimelineStep = ({ title, status, role, date, active }: TimelineStepProps) => {
-  return (
-    <div className="relative pl-10 group">
-      <div className={cn(
-        "absolute left-[-6px] top-1.5 w-3 h-3 rounded-full border-2 transition-all duration-500",
-        status === 'completed' ? "bg-brand-primary border-brand-primary shadow-[0_0_15px_rgba(59,130,246,0.6)]" : 
-        active ? "bg-[#0b0f19] border-brand-primary animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.3)]" : "bg-[#0b0f19] border-slate-800"
-      )}></div>
-      <div className={cn("transition-opacity py-1", !active && status !== 'completed' ? "opacity-40" : "opacity-100")}>
-        <p className="text-[10px] font-black text-white uppercase tracking-widest truncate">{title}</p>
-        <p className="text-[9px] text-slate-500 font-bold tracking-tight mt-1">{role}</p>
-        {date && <p className="text-[8px] text-brand-primary/60 font-black mt-1.5 italic">{date}</p>}
-      </div>
-    </div>
-  );
-};
