@@ -9,12 +9,17 @@
   --color-brand-secondary: #0b0f19;
   --color-accent: #10b981;
   --color-accent-glow: rgba(16, 185, 129, 0.3);
-  
-  --color-dashboard-bg: #0b0f19;
-  --color-dashboard-card: #151c2c;
-  --color-dashboard-border: rgba(255, 255, 255, 0.08);
-  --color-text-main: #f3f4f6;
-  --color-text-dim: #9ca3af;
+}
+
+/* Colors que depenen del tema: han de llegir les variables de :root / html.light-theme
+   (amb `inline` Tailwind no en congela el valor fosc). Sense això, `text-text-main`
+   és sempre gairebé blanc i desapareix en mode clar. */
+@theme inline {
+  --color-dashboard-bg: var(--dashboard-bg);
+  --color-dashboard-card: var(--dashboard-card);
+  --color-dashboard-border: var(--dashboard-border);
+  --color-text-main: var(--text-main);
+  --color-text-dim: var(--text-dim);
 }
 
 :root {

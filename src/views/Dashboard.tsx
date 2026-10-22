@@ -254,7 +254,7 @@ export default function Dashboard() {
     <div className="space-y-8 pb-12 animate-in fade-in duration-700">
       
       {/* 1. HERO BANNER DE BENVINGUDA I ACCIONS RÀPIDES */}
-      <div className="card relative overflow-hidden p-8 md:p-10 border-brand-primary/20 bg-gradient-to-br from-brand-primary/10 via-brand-secondary/40 to-transparent">
+      <div className="card relative overflow-hidden p-8 md:p-10 border-brand-primary/20 bg-gradient-to-br from-brand-primary/10 via-dashboard-bg/40 to-transparent">
         <div className="absolute top-0 right-0 w-96 h-96 bg-brand-primary/10 blur-[100px] -mr-32 -mt-32 rounded-full pointer-events-none" />
         
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
