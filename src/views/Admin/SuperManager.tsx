@@ -23,6 +23,7 @@ export function SuperManager() {
   const { suppliers, addSupplier, updateSupplier, deleteSupplier } = useSuppliers();
 
   const [editingEntity, setEditingEntity] = useState<{type: string, id?: string, data: any} | null>(null);
+  const [responsibleSearch, setResponsibleSearch] = useState('');
 
   const handleRoleChange = async (userId: string, newRole: any) => {
     try {
@@ -159,6 +160,11 @@ export function SuperManager() {
                   <div>
                     <p className="text-xs font-bold text-white">{c.name}</p>
                     <p className="text-[10px] text-slate-500">{c.code} · {c.area}</p>
+                    {c.responsibleEmails && c.responsibleEmails.length > 0 ? (
+                      <p className="text-[10px] text-slate-400">Recepció: {c.responsibleEmails.map(e => users.find(u => u.email.toLowerCase() === e)?.name || e).join(', ')}</p>
+                    ) : (
+                      <p className="text-[10px] text-amber-400">Sense responsable de recepció</p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button onClick={() => setEditingEntity({type: 'center', id: c.id, data: c})} className="p-2 hover:bg-white/5 rounded-lg text-slate-400"><Edit2 size={12}/></button>
@@ -267,12 +273,52 @@ export function SuperManager() {
                 onChange={e => setEditingEntity({...editingEntity, data: {...editingEntity.data, code: e.target.value}})}
               />
               {editingEntity.type === 'center' && (
-                <input 
-                  className="input-field w-full" 
-                  placeholder="Àrea" 
-                  value={editingEntity.data.area || ''} 
-                  onChange={e => setEditingEntity({...editingEntity, data: {...editingEntity.data, area: e.target.value}})}
-                />
+                <>
+                  <input
+                    className="input-field w-full"
+                    placeholder="Àrea"
+                    value={editingEntity.data.area || ''}
+                    onChange={e => setEditingEntity({...editingEntity, data: {...editingEntity.data, area: e.target.value}})}
+                  />
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Responsables de recepció</label>
+                    <input
+                      className="input-field w-full"
+                      placeholder="Cerca per nom o correu"
+                      value={responsibleSearch}
+                      onChange={e => setResponsibleSearch(e.target.value)}
+                    />
+                    <div className="max-h-48 overflow-y-auto rounded-xl border border-white/10 divide-y divide-white/5">
+                      {users
+                        .filter(u => u.active !== false)
+                        .filter(u => `${u.name} ${u.email}`.toLowerCase().includes(responsibleSearch.toLowerCase()))
+                        .map(u => {
+                          const email = u.email.toLowerCase();
+                          const selected: string[] = editingEntity.data.responsibleEmails || [];
+                          return (
+                            <label key={u.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-white/[0.03]">
+                              <input
+                                type="checkbox"
+                                checked={selected.includes(email)}
+                                onChange={e => setEditingEntity({
+                                  ...editingEntity,
+                                  data: {
+                                    ...editingEntity.data,
+                                    responsibleEmails: e.target.checked
+                                      ? [...selected, email]
+                                      : selected.filter(s => s !== email)
+                                  }
+                                })}
+                              />
+                              <span className="text-xs text-white">{u.name}</span>
+                              <span className="text-[10px] text-slate-500 truncate">{u.email}</span>
+                            </label>
+                          );
+                        })}
+                    </div>
+                    <p className="text-[10px] text-slate-500">Reben l'avís quan s'emet la comanda i confirmen la recepció del material.</p>
+                  </div>
+                </>
               )}
               {editingEntity.type === 'supplier' && (
                 <>

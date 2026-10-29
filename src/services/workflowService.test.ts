@@ -76,10 +76,13 @@ test('canUserApprove: esborrany/retornada només pel creador o el tècnic sol·l
   assert.equal(workflowService.canUserApprove(makeUser('tecnic', 'tics', 'altre'), req), false);
 });
 
-test('canUserApprove: comanda_emesa la confirma el sol·licitant', () => {
+test('canUserApprove: comanda_emesa la confirma el responsable del centre, no el sol·licitant', () => {
   const req = makeRequest('comanda_emesa');
-  assert.equal(workflowService.canUserApprove(makeUser('tecnic', 'tics', 'tecnic1'), req), true);
-  assert.equal(workflowService.canUserApprove(makeUser('tecnic', 'tics', 'altre'), req), false);
+  const responsibles = ['Centre@somllar.cat'];
+  assert.equal(workflowService.canUserApprove(makeUser('tecnic', 'tics', 'centre'), req, responsibles), true);
+  assert.equal(workflowService.canUserApprove(makeUser('tecnic', 'tics', 'tecnic1'), req, responsibles), false);
+  assert.equal(workflowService.canUserApprove(makeUser('coordinacio', 'tics', 'creador'), req, responsibles), false);
+  assert.equal(workflowService.canUserApprove(makeUser('finances', 'admin_finances'), req, responsibles), true);
 });
 
 test('canUserApprove: supervisió global aprova en qualsevol estat', () => {
@@ -127,12 +130,108 @@ test('canManageQuotes: l\'aprovador de la fase pot gestionar, fora de fase no', 
   assert.equal(workflowService.canManageQuotes(direccio, makeRequest('comanda_emesa')), false);
 });
 
-test('getTargetRoleForStatus: destinataris de les notificacions', () => {
-  assert.equal(workflowService.getTargetRoleForStatus('pendent_coordinacio'), 'coordinacio');
-  assert.equal(workflowService.getTargetRoleForStatus('pendent_direccio'), 'direccio_area');
-  assert.equal(workflowService.getTargetRoleForStatus('pendent_finances'), 'finances');
-  assert.equal(workflowService.getTargetRoleForStatus('rebutjada'), 'creator');
-  assert.equal(workflowService.getTargetRoleForStatus('esborrany'), null);
+test('getInitialStatus: cada càrrec se salta el seu nivell i els inferiors', () => {
+  assert.equal(workflowService.getInitialStatus(makeUser('tecnic', 'tics'), 'tics'), 'pendent_coordinacio');
+  assert.equal(workflowService.getInitialStatus(makeUser('coordinacio', 'tics'), 'tics'), 'pendent_direccio');
+  assert.equal(workflowService.getInitialStatus(makeUser('direccio_area', 'tics'), 'tics'), 'pendent_finances');
+  for (const role of ['finances', 'admin_compres', 'comptabilitat', 'gerencia', 'superadmin'] as UserRole[]) {
+    assert.equal(workflowService.getInitialStatus(makeUser(role, 'admin_finances'), 'tics'), 'aprovada', role);
+  }
+});
+
+test('getInitialStatus: els nivells d\'àrea només se salten a la pròpia àrea', () => {
+  assert.equal(workflowService.getInitialStatus(makeUser('coordinacio', 'social'), 'tics'), 'pendent_coordinacio');
+  assert.equal(workflowService.getInitialStatus(makeUser('direccio_area', 'social'), 'tics'), 'pendent_coordinacio');
+});
+
+test('canCreateRequest: només Coordinació (N2) o superior', () => {
+  assert.equal(workflowService.canCreateRequest(makeUser('tecnic')), false);
+  assert.equal(workflowService.canCreateRequest(undefined), false);
+  for (const role of ['coordinacio', 'direccio_area', 'finances', 'admin_compres', 'comptabilitat', 'gerencia', 'superadmin'] as UserRole[]) {
+    assert.equal(workflowService.canCreateRequest(makeUser(role)), true, role);
+  }
+});
+
+test('isStepSkipped: segons la fase on va entrar l\'expedient', () => {
+  const req = makeRequest('pendent_finances', { initialStatus: 'pendent_finances' });
+  assert.equal(workflowService.isStepSkipped(req, 'pendent_coordinacio'), true);
+  assert.equal(workflowService.isStepSkipped(req, 'pendent_direccio'), true);
+  assert.equal(workflowService.isStepSkipped(req, 'pendent_finances'), false);
+  assert.equal(workflowService.isStepSkipped(makeRequest('pendent_direccio'), 'pendent_coordinacio'), false);
+});
+
+test('getEventForTransition: enviar i reenviar és sempre solicitud_creada', () => {
+  assert.equal(workflowService.getEventForTransition('esborrany', 'pendent_direccio', 'approve'), 'solicitud_creada');
+  assert.equal(workflowService.getEventForTransition('retornada', 'aprovada', 'approve'), 'solicitud_creada');
+  assert.equal(workflowService.getEventForTransition('pendent_finances', 'aprovada', 'approve'), 'compra_aprovada');
+  assert.equal(workflowService.getEventForTransition('pendent_direccio', 'retornada', 'return'), 'retornada_esmena');
+  assert.equal(workflowService.getEventForTransition('rebuda', 'tancada', 'approve'), 'compra_tancada');
+});
+
+// Organització de prova per als destinataris dels avisos
+const equip = [
+  makeUser('coordinacio', 'tics', 'creador'),
+  makeUser('tecnic', 'tics', 'tecnic1'),
+  makeUser('coordinacio', 'tics', 'c1'),
+  makeUser('direccio_area', 'tics', 'd1'),
+  makeUser('direccio_area', 'social', 'd2'),
+  makeUser('finances', 'admin_finances', 'f1'),
+  makeUser('admin_compres', 'admin_finances', 'a1'),
+  makeUser('comptabilitat', 'admin_finances', 'k1'),
+  makeUser('tecnic', 'tics', 'centre'),
+];
+const ambCorreus = (extra: Partial<PurchaseRequest> = {}) => ({
+  createdByUserEmail: 'creador@somllar.cat',
+  requestingTechnicianEmail: 'tecnic1@somllar.cat',
+  ...extra,
+});
+const destinataris = (event: Parameters<typeof workflowService.getEventRecipients>[0], status: RequestStatus) =>
+  workflowService.getEventRecipients(event, makeRequest(status, ambCorreus()), equip, ['centre@somllar.cat'])
+    .map(r => `${r.email.split('@')[0]}:${r.template}${r.task ? '/' + r.task : ''}${r.variant ? '/' + r.variant : ''}`);
+
+test('getEventRecipients: creació per un N2 avisa Direcció (N3) i confirma al sol·licitant', () => {
+  assert.deepEqual(destinataris('solicitud_creada', 'pendent_direccio'), [
+    'd1:task/approve', 'creador:status/registered', 'tecnic1:status/registered',
+  ]);
+});
+
+test('getEventRecipients: creació sense validació prèvia avisa Administració de Compres (N5)', () => {
+  assert.deepEqual(destinataris('solicitud_creada', 'aprovada'), [
+    'a1:task/emit_order', 'creador:status/registered', 'tecnic1:status/registered',
+  ]);
+});
+
+test('getEventRecipients: les validacions intermèdies no avisen el sol·licitant', () => {
+  assert.deepEqual(destinataris('enviada_finances', 'pendent_finances'), ['f1:task/approve']);
+  assert.deepEqual(destinataris('compra_aprovada', 'aprovada'), ['a1:task/emit_order']);
+});
+
+test('getEventRecipients: comanda, recepció, tancament i incidència', () => {
+  assert.deepEqual(destinataris('compra_tramitada', 'comanda_emesa'), [
+    'centre:status/center', 'creador:status', 'tecnic1:status',
+  ]);
+  assert.deepEqual(destinataris('compra_rebuda', 'rebuda'), [
+    'k1:task/close_invoice', 'creador:status', 'tecnic1:status',
+  ]);
+  assert.deepEqual(destinataris('compra_tancada', 'tancada'), ['a1:status']);
+  assert.deepEqual(destinataris('incidencia', 'incidencia'), ['a1:status', 'creador:status', 'tecnic1:status']);
+});
+
+test('getEventRecipients: retornada i rebutjada només al sol·licitant, sense duplicats ni inactius', () => {
+  assert.deepEqual(destinataris('rebutjada', 'rebutjada'), ['creador:status', 'tecnic1:status']);
+  const ambBaixa = [...equip, makeUser('tecnic', 'tics', 'baixa', { active: false })];
+  const mateixaPersona = workflowService.getEventRecipients(
+    'retornada_esmena',
+    makeRequest('retornada', ambCorreus({ requestingTechnicianEmail: 'CREADOR@somllar.cat' })),
+    ambBaixa
+  );
+  assert.deepEqual(mateixaPersona.map(r => r.email), ['creador@somllar.cat']);
+  const inactiu = workflowService.getEventRecipients(
+    'rebutjada',
+    makeRequest('rebutjada', ambCorreus({ requestingTechnicianEmail: 'baixa@somllar.cat' })),
+    ambBaixa
+  );
+  assert.deepEqual(inactiu.map(r => r.email), ['creador@somllar.cat']);
 });
 
 test('getEligibleApprovers: filtra per àrea i exclou usuaris inactius', () => {

@@ -275,8 +275,10 @@ export const emailService = {
   },
 
   /**
-   * 2. Correu per a Aprovadors: Quan hi ha una sol·licitud nova pendent d'aprovació.
-   * Dirigit a Coordinació (N2), Direcció d'Àrea (N3) o Finances (N4).
+   * 2. Correu de Tasca: algú ha d'actuar sobre l'expedient.
+   * - 'approve': validar (Coordinació N2, Direcció d'Àrea N3 o Finances N4).
+   * - 'emit_order': emetre la comanda (Administració de Compres N5).
+   * - 'close_invoice': conformar la factura i tancar (Comptabilitat).
    */
   async sendPendingApprovalNotification(
     request: PurchaseRequest, 
@@ -286,6 +288,7 @@ export const emailService = {
     extraData?: {
       actorName?: string;
       comment?: string;
+      task?: 'approve' | 'emit_order' | 'close_invoice';
     }
   ) {
     const platformUrl = getPlatformUrl(customAppUrl);
@@ -295,12 +298,50 @@ export const emailService = {
     const urgencyLabel = (request.urgency || 'mitjana').toUpperCase();
     const requester = request.requestingTechnicianName || request.createdByUserName || 'Treballador/a';
 
-    const subject = `🔔 [Acció Requerida] Pendent d'Aprovació: ${requestCode} - ${request.itemDescription}`;
+    const copy = {
+      approve: {
+        subjectPrefix: "Pendent d'Aprovació",
+        badge: 'CIRCUIT DE SIGNATURES',
+        title: 'Pendent de la teva Aprovació',
+        subtitle: `Autorització requerida com a ${approverRoleName}`,
+        intro: `S'ha registrat la sol·licitud d'adquisició <strong>${escapeHtml(requestCode)}</strong> que necessita la teva revisió i signatura per continuar el curs administratiu:`,
+        plainIntro: `Tens una nova sol·licitud de compra pendent de la teva revisió i aprovació com a ${approverRoleName}.`,
+        phase: `2. Validació (${approverRoleName})`,
+        nextStep: 'fes clic al botó inferior per comprovar les justificacions, pressupostos i aprovar o retornar la demanda.',
+        button: `Revisar i Validar com a ${approverRoleName}`,
+        statusLabel: `Pendent d'aprovació (${approverRoleName})`,
+      },
+      emit_order: {
+        subjectPrefix: 'Emetre Comanda',
+        badge: 'TRAMITACIÓ DE COMANDA',
+        title: 'Sol·licitud Aprovada: cal emetre la Comanda',
+        subtitle: `Tasca assignada a ${approverRoleName}`,
+        intro: `La sol·licitud <strong>${escapeHtml(requestCode)}</strong> ja té totes les aprovacions necessàries i està a punt per emetre la comanda formal al proveïdor:`,
+        plainIntro: `La sol·licitud de compra ja està aprovada i cal emetre la comanda formal al proveïdor (${approverRoleName}).`,
+        phase: `3. Comanda (${approverRoleName})`,
+        nextStep: 'fes clic al botó inferior per revisar els pressupostos, adjudicar el proveïdor i emetre la comanda formal.',
+        button: 'Emetre la Comanda',
+        statusLabel: "Aprovada: pendent d'emetre la comanda",
+      },
+      close_invoice: {
+        subjectPrefix: 'Conformitat de Factura',
+        badge: 'CONFORMITAT DE FACTURA',
+        title: 'Material Rebut: cal conformar la Factura',
+        subtitle: `Tasca assignada a ${approverRoleName}`,
+        intro: `El centre de destí ha confirmat la recepció de l'expedient <strong>${escapeHtml(requestCode)}</strong>. Cal creuar l'albarà amb la factura del proveïdor i tancar l'expedient:`,
+        plainIntro: `El centre de destí ha confirmat la recepció del material. Cal conformar la factura i tancar l'expedient (${approverRoleName}).`,
+        phase: `5. Tancament (${approverRoleName})`,
+        nextStep: "fes clic al botó inferior per revisar la documentació, conformar la factura i tancar l'expedient.",
+        button: 'Conformar Factura i Tancar',
+        statusLabel: 'Rebuda: pendent de conformitat de factura',
+      },
+    }[extraData?.task || 'approve'];
+
+    const subject = `🔔 [Acció Requerida] ${copy.subjectPrefix}: ${requestCode} - ${request.itemDescription}`;
 
     const plainTextBody = `Hola,\n\n` +
-      `Tens una nova sol·licitud de compra pendent de la teva revisió i aprovació com a ${approverRoleName}.\n\n` +
-      `Fase actual del circuit:\n` +
-      `[1. Sol·licitud: Feta] ──► [2. Validació (${approverRoleName}): EL TEU TORN] ──► [3. Comanda] ──► [4. Recepció] ──► [5. Tancat]\n\n` +
+      `${copy.plainIntro}\n\n` +
+      `Fase actual del circuit: ${copy.phase} — EL TEU TORN\n\n` +
       `Detalls de la sol·licitud:\n` +
       `- Codi d'expedient: ${requestCode}\n` +
       `- Sol·licitant: ${requester}\n` +
@@ -311,7 +352,7 @@ export const emailService = {
       `- Urgència: ${urgencyLabel}\n` +
       (extraData?.actorName ? `- Tramitat per: ${extraData.actorName}\n` : '') +
       (extraData?.comment ? `- Comentaris: ${extraData.comment}\n` : '') +
-      `\nPots revisar i signar la sol·licitud fent clic al següent enllaç:\n` +
+      `\nPots accedir a l'expedient fent clic al següent enllaç:\n` +
       `${requestUrl}\n\n` +
       `Cordialment,\n` +
       `Circuit de Validacions · Som Llar`;
@@ -337,10 +378,10 @@ export const emailService = {
           <tr>
             <td style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); padding: 32px 32px 26px; text-align: center;">
               <div style="background-color: rgba(255,255,255,0.2); display: inline-block; padding: 5px 14px; border-radius: 30px; margin-bottom: 10px;">
-                <span style="font-size: 11px; font-weight: 800; letter-spacing: 0.15em; text-transform: uppercase; color: #ffffff;">CIRCUIT DE SIGNATURES</span>
+                <span style="font-size: 11px; font-weight: 800; letter-spacing: 0.15em; text-transform: uppercase; color: #ffffff;">${copy.badge}</span>
               </div>
-              <h1 style="margin: 0; font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: -0.01em;">Pendent de la teva Aprovació</h1>
-              <p style="margin: 6px 0 0; font-size: 13px; color: #e0f2fe; font-weight: 500;">Autorització requerida com a ${escapeHtml(approverRoleName)}</p>
+              <h1 style="margin: 0; font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: -0.01em;">${copy.title}</h1>
+              <p style="margin: 6px 0 0; font-size: 13px; color: #e0f2fe; font-weight: 500;">${escapeHtml(copy.subtitle)}</p>
             </td>
           </tr>
 
@@ -348,7 +389,7 @@ export const emailService = {
           <tr>
             <td style="padding: 28px 30px 24px;">
               <p style="font-size: 14px; line-height: 1.6; color: #334155; margin-top: 0; margin-bottom: 16px;">
-                S'ha registrat la sol·licitud d'adquisició <strong>${escapeHtml(requestCode)}</strong> que necessita la teva revisió i signatura per continuar el curs administratiu:
+                ${copy.intro}
               </p>
 
               <!-- Línia de temps visual -->
@@ -415,7 +456,7 @@ export const emailService = {
                       Què has de fer a continuació?
                     </h3>
                     <p style="margin: 0; font-size: 12px; line-height: 1.55; color: #2563eb;">
-                      Com a <strong>${escapeHtml(approverRoleName)}</strong>, fes clic al botó inferior per comprovar les justificacions, pressupostos i aprovar o retornar la demanda.
+                      Com a <strong>${escapeHtml(approverRoleName)}</strong>, ${copy.nextStep}
                     </p>
                   </td>
                 </tr>
@@ -426,7 +467,7 @@ export const emailService = {
                 <tr>
                   <td align="center">
                     <a href="${escapeHtml(requestUrl)}" target="_blank" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: #ffffff; padding: 15px 36px; font-size: 15px; font-weight: 800; text-decoration: none; border-radius: 12px; display: inline-block; box-shadow: 0 10px 18px -4px rgba(2, 132, 199, 0.35); letter-spacing: 0.02em;">
-                      👉 Revisar i Validar com a ${escapeHtml(approverRoleName)} &rarr;
+                      👉 ${escapeHtml(copy.button)} &rarr;
                     </a>
                   </td>
                 </tr>
@@ -471,10 +512,10 @@ export const emailService = {
       amount: amountFormatted,
       requester,
       area: request.areaName || request.areaId,
-      status: `Pendent d'aprovació (${approverRoleName})`,
+      status: copy.statusLabel,
       url: requestUrl,
       actionUrl: requestUrl,
-      buttonText: `Revisar i Validar com a ${approverRoleName}`,
+      buttonText: copy.button,
       body: plainTextBody,
       htmlBody: htmlEmail,
     });
@@ -494,6 +535,8 @@ export const emailService = {
       actorName?: string;
       actorRole?: string;
       previousStatus?: RequestStatus;
+      // 'registered': confirmació d'enviament; 'center': avís al responsable del centre de destí
+      variant?: 'registered' | 'center';
     }
   ) {
     const platformUrl = getPlatformUrl(customAppUrl);
@@ -503,7 +546,7 @@ export const emailService = {
     const amountFormatted = `${((request.finalAmount ?? request.estimatedAmount) || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
 
     // Resolució intel·ligent de contingut segons l'estat
-    let headline = `Actualització de la teva sol·licitud ${requestCode}`;
+    let headline = `Actualització de la teva sol·licitud`;
     let bannerColor = 'linear-gradient(135deg, #059669 0%, #047857 100%)';
     let icon = '📦';
     let badgeText = 'ESTAT ACTUALITZAT';
@@ -514,16 +557,45 @@ export const emailService = {
     let buttonText = "Veure l'Expedient Complet &rarr;";
     let buttonGradient = 'linear-gradient(135deg, #059669 0%, #047857 100%)';
 
-    if (newStatus === 'comanda_emesa') {
+    if (extraData?.variant === 'registered') {
+      const phaseText: Partial<Record<RequestStatus, string>> = {
+        pendent_coordinacio: 'la Coordinació de la teva àrea (N2)',
+        pendent_direccio: "la Direcció d'Àrea (N3)",
+        pendent_finances: 'la Direcció ADM i Finances (N4)',
+      };
+      icon = '📨';
+      headline = `Sol·licitud Registrada`;
+      bannerColor = 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)';
+      badgeText = 'SOL·LICITUD REGISTRADA';
+      badgeBg = '#e0f2fe';
+      badgeColor = '#0369a1';
+      nextStepTitle = 'Què passa ara?';
+      nextStepExplanation = newStatus === 'aprovada'
+        ? "Pel teu càrrec no cal validació prèvia: la sol·licitud passa directament a Administració de Compres per emetre la comanda. Rebràs un avís quan s'emeti."
+        : `La sol·licitud s'ha enviat a ${phaseText[newStatus] || 'validació'}. Només rebràs un altre avís si es retorna per esmenar, si es rebutja o quan s'emeti la comanda.`;
+      buttonText = '📄 Consultar Estat de la Compra &rarr;';
+      buttonGradient = 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)';
+    } else if (newStatus === 'comanda_emesa' && extraData?.variant === 'center') {
+      icon = '🚚';
+      headline = `Comanda en Camí al teu Centre`;
+      bannerColor = 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)';
+      badgeText = 'RECEPCIÓ PENDENT';
+      badgeBg = '#e0e7ff';
+      badgeColor = '#3730a3';
+      nextStepTitle = 'Què has de fer quan arribi el material?';
+      nextStepExplanation = `S'ha emès la comanda al proveïdor amb entrega a ${request.destinationCenterName || 'el teu centre'}. Com a responsable de recepció del centre, quan arribi el material o es completi el servei accedeix a la plataforma i prem el botó per confirmar la recepció.`;
+      buttonText = '📦 Confirmar Recepció del Material &rarr;';
+      buttonGradient = 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)';
+    } else if (newStatus === 'comanda_emesa') {
       icon = '🚚';
       headline = `Comanda Tramitada al Proveïdor!`;
       bannerColor = 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)';
       badgeText = 'COMANDA EN CURS';
       badgeBg = '#e0e7ff';
       badgeColor = '#3730a3';
-      nextStepTitle = 'Què has de fer quan arribi el material?';
-      nextStepExplanation = 'La comanda ja ha estat emesa al proveïdor. En quant arribi el paquet a la teva seu o es completi el servei, si us plau accedeix a la plataforma i prem el botó per confirmar la recepció.';
-      buttonText = '📦 Confirmar Recepció del Material &rarr;';
+      nextStepTitle = 'I ara què?';
+      nextStepExplanation = 'La comanda ja ha estat emesa al proveïdor. Quan arribi el material o es completi el servei, el responsable del centre de destí en confirmarà la recepció a la plataforma.';
+      buttonText = '📄 Consultar Estat de la Compra &rarr;';
       buttonGradient = 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)';
     } else if (newStatus === 'rebuda') {
       icon = '✅';
@@ -533,7 +605,7 @@ export const emailService = {
       badgeBg = '#dcfce7';
       badgeColor = '#166534';
       nextStepTitle = 'Conformitat de Factura i Tancament';
-      nextStepExplanation = 'La recepció ha quedat registrada satisfactòriament. Ara Administració creuarà l\'albarà amb la factura oficial del proveïdor per autoritzar el pagament i tancar l\'expedient.';
+      nextStepExplanation = 'La recepció ha quedat registrada satisfactòriament. Ara Comptabilitat creuarà l\'albarà amb la factura oficial del proveïdor per autoritzar el pagament i tancar l\'expedient.';
       buttonText = '📄 Veure Conformitat i Albarans &rarr;';
       buttonGradient = 'linear-gradient(135deg, #059669 0%, #047857 100%)';
     } else if (newStatus === 'aprovada') {
@@ -580,6 +652,17 @@ export const emailService = {
       nextStepExplanation = 'La comanda, la recepció del material i la conformitat de factura han finalitzat amb èxit. L\'expedient queda arxivat a l\'històric.';
       buttonText = '📁 Consultar Historial Complet &rarr;';
       buttonGradient = 'linear-gradient(135deg, #334155 0%, #1e293b 100%)';
+    } else if (newStatus === 'incidencia') {
+      icon = '⚠️';
+      headline = `Incidència a l'Expedient`;
+      bannerColor = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
+      badgeText = 'INCIDÈNCIA REGISTRADA';
+      badgeBg = '#fef3c7';
+      badgeColor = '#92400e';
+      nextStepTitle = 'Seguiment de la Incidència';
+      nextStepExplanation = "S'ha registrat una incidència en aquest expedient (material defectuós, retard o error de facturació). Administració de Compres en farà el seguiment amb el proveïdor.";
+      buttonText = '📄 Veure Detalls de la Incidència &rarr;';
+      buttonGradient = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
     } else if (newStatus === 'pendent_direccio') {
       icon = '📋';
       headline = `Validada per Coordinació d'Àrea`;

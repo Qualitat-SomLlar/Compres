@@ -34,6 +34,7 @@ import { useSuppliers } from '../hooks/useSuppliers';
 import { useEmailDispatcher } from '../hooks/useEmailDispatcher';
 import { emailService } from '../services/emailService';
 import { activityService } from '../services/activityService';
+import { workflowService } from '../services/workflowService';
 
 export default function NewRequest({ user }: { user: User }) {
   const navigate = useNavigate();
@@ -41,7 +42,7 @@ export default function NewRequest({ user }: { user: User }) {
   const { getAreaName } = useAreas();
   const { addNotification } = useNotifications();
   const { dispatchEmail } = useEmailDispatcher();
-  const { getUsersByRole } = useUsers();
+  const { users } = useUsers();
   const { analyticCodes } = useAnalyticCodes();
   const { centers } = useCenters();
   const { projects } = useProjects();
@@ -142,8 +143,9 @@ export default function NewRequest({ user }: { user: User }) {
     setAttachments(prev => prev.filter(a => a.id !== id));
   };
 
-  const saveRequest = async (targetStatus: 'pendent_coordinacio' | 'esborrany') => {
-    if (targetStatus === 'pendent_coordinacio') {
+  const saveRequest = async (mode: 'submit' | 'esborrany') => {
+    const isSubmit = mode === 'submit';
+    if (isSubmit) {
       if (!formData.requestingTechnicianId) {
         toast.error('Siusplau, selecciona el sol·licitant');
         return;
@@ -157,13 +159,15 @@ export default function NewRequest({ user }: { user: User }) {
     }
 
     setIsSubmitting(true);
-    const loadingToast = toast.loading(targetStatus === 'esborrany' ? 'Desant esborrany...' : 'Tramitant expedient...');
+    const loadingToast = toast.loading(isSubmit ? 'Tramitant expedient...' : 'Desant esborrany...');
 
     try {
       // Determinar l'àrea d'imputació (prioritat: treballador triat -> centre -> codi analític -> usuari)
       const selectedCenter = centers.find(c => c.id === formData.destinationCenterId);
       const selectedAnalytic = analyticCodes.find(ac => ac.code === formData.analyticCode);
       const requestAreaId = normalizeAreaId(formData.areaId || selectedCenter?.area || selectedAnalytic?.area || user.areaId || 'social');
+      // Cada càrrec se salta el seu nivell de validació i els inferiors
+      const targetStatus: RequestStatus = isSubmit ? workflowService.getInitialStatus(user, requestAreaId) : 'esborrany';
 
       // 1. Crear el document a Firestore
       const newRequest = await addRequest({
@@ -176,7 +180,8 @@ export default function NewRequest({ user }: { user: User }) {
         createdByUserEmail: user.email,
         areaId: requestAreaId,
         attachmentsCount: attachments.length,
-        status: targetStatus
+        status: targetStatus,
+        ...(isSubmit ? { initialStatus: targetStatus } : {})
       });
 
       // 2. Desar els enllaços documentals a la col·lecció 'attachments'
@@ -199,11 +204,12 @@ export default function NewRequest({ user }: { user: User }) {
       }
 
       // 3. Notificacions (només si s'envia a aprovació)
-      if (targetStatus === 'pendent_coordinacio') {
-        const targetUsers = getUsersByRole('coordinacio', requestAreaId);
-        for (const targetUser of targetUsers) {
+      if (isSubmit) {
+        const taskRecipients = workflowService.getEventRecipients('solicitud_creada', newRequest, users)
+          .filter(r => r.template === 'task' && r.userId && r.userId !== user.id);
+        for (const recipient of taskRecipients) {
           await addNotification({
-            userId: targetUser.id,
+            userId: recipient.userId!,
             title: `Nova sol·licitud: ${newRequest.code || newRequest.id}`,
             message: `${user.name} ha creat una nova sol·licitud de ${newRequest.estimatedAmount}€.`,
             type: 'info',
@@ -219,10 +225,10 @@ export default function NewRequest({ user }: { user: User }) {
       // 4. Registre d'activitat i auditoria
       activityService.logRequestAction(
         user,
-        targetStatus === 'pendent_coordinacio' ? 'request_created' : 'request_updated',
-        targetStatus === 'pendent_coordinacio' ? 'Nova Sol·licitud Creada' : 'Esborrany Desat',
+        isSubmit ? 'request_created' : 'request_updated',
+        isSubmit ? 'Nova Sol·licitud Creada' : 'Esborrany Desat',
         newRequest,
-        targetStatus === 'pendent_coordinacio'
+        isSubmit
           ? `L'usuari ha enviat una nova sol·licitud de compra per valor de ${newRequest.estimatedAmount}€.`
           : `L'usuari ha desat un esborrany de sol·licitud.`,
         {
@@ -245,8 +251,19 @@ export default function NewRequest({ user }: { user: User }) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    saveRequest('pendent_coordinacio');
+    saveRequest('submit');
   };
+
+  if (!workflowService.canCreateRequest(user)) {
+    return (
+      <div className="max-w-xl mx-auto mt-10 card p-10 text-center space-y-4">
+        <AlertTriangle size={28} className="mx-auto text-amber-400" />
+        <h2 className="text-lg font-black text-white">No pots crear sol·licituds</h2>
+        <p className="text-sm text-slate-400">Les sol·licituds de compra les creen la Coordinació d'Àrea (N2) o càrrecs superiors. Adreça't a la coordinació de la teva àrea.</p>
+        <button onClick={() => navigate('/compres')} className="btn-secondary text-xs uppercase px-4 py-2">Tornar a la llista</button>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
@@ -304,7 +321,7 @@ export default function NewRequest({ user }: { user: User }) {
                   <Building2 size={12} className="text-brand-primary shrink-0" />
                   <span>Àrea d'adscripció: <strong className="text-white">{getAreaName(formData.areaId)}</strong></span>
                   <span className="text-slate-600">•</span>
-                  <span className="text-slate-400">Circuit assignat a la Coordinació (N2) i Direcció (N3) de <strong className="text-white">{getAreaName(formData.areaId)}</strong></span>
+                  <span className="text-slate-400">Primera validació: <strong className="text-white">{workflowService.getPhaseLabel(workflowService.getInitialStatus(user, formData.areaId), getAreaName(formData.areaId))}</strong></span>
                 </div>
               )}
             </div>
@@ -648,7 +665,7 @@ export default function NewRequest({ user }: { user: User }) {
         <button 
           type="button" 
           disabled={isSubmitting}
-          onClick={() => saveRequest('pendent_coordinacio')} 
+          onClick={() => saveRequest('submit')} 
           className="btn-primary flex items-center gap-2 text-xs py-3 px-8 font-black uppercase tracking-widest shadow-xl shadow-brand-primary/20 disabled:opacity-50"
         >
           <Send size={18} />

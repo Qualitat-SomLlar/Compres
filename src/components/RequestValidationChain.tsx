@@ -2,6 +2,7 @@ import { AlertTriangle, CheckCircle2, Clock, MessageSquare, ShieldCheck, XCircle
 import { cn } from '../lib/utils';
 import { getHierarchyRole } from '../constants';
 import { PurchaseRequest } from '../types';
+import { workflowService } from '../services/workflowService';
 
 interface RequestValidationChainProps {
   request: PurchaseRequest;
@@ -125,7 +126,7 @@ export function RequestValidationChain({ request, getAreaName, areaCoordinatorsL
                 <Clock size={12} /> Pendent de validació
               </span>
             ) : (
-              <span className="text-[10px] text-slate-600 font-black uppercase tracking-wider">Pendent</span>
+              <span className="text-[10px] text-slate-600 font-black uppercase tracking-wider">{workflowService.isStepSkipped(request, 'pendent_coordinacio') ? 'No requerida' : 'Pendent'}</span>
             )}
           </div>
 
@@ -177,7 +178,7 @@ export function RequestValidationChain({ request, getAreaName, areaCoordinatorsL
                 <Clock size={12} /> Pendent de validació
               </span>
             ) : (
-              <span className="text-[10px] text-slate-600 font-black uppercase tracking-wider">Pendent</span>
+              <span className="text-[10px] text-slate-600 font-black uppercase tracking-wider">{workflowService.isStepSkipped(request, 'pendent_direccio') ? 'No requerida' : 'Pendent'}</span>
             )}
           </div>
 
@@ -228,7 +229,7 @@ export function RequestValidationChain({ request, getAreaName, areaCoordinatorsL
                 <Clock size={12} /> Pendent d'aprovació
               </span>
             ) : (
-              <span className="text-[10px] text-slate-600 font-black uppercase tracking-wider">Pendent</span>
+              <span className="text-[10px] text-slate-600 font-black uppercase tracking-wider">{workflowService.isStepSkipped(request, 'pendent_finances') ? 'No requerida' : 'Pendent'}</span>
             )}
           </div>
 

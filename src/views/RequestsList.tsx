@@ -21,11 +21,12 @@ import {
 import StatusBadge from '../components/StatusBadge';
 import { useRequests } from '../hooks/useRequests';
 import { useAreas } from '../hooks/useAreas';
+import { useCenters } from '../hooks/useCenters';
 import { useAuth } from '../contexts/AuthContext';
 import { STATUS_LABELS, normalizeAreaId } from '../constants';
 import { workflowService } from '../services/workflowService';
 import { exportService } from '../services/exportService';
-import { User, RequestStatus } from '../types';
+import { User, RequestStatus, PurchaseRequest } from '../types';
 import { cn } from '../lib/utils';
 import toast from 'react-hot-toast';
 
@@ -38,6 +39,10 @@ interface RequestsListProps {
 export default function RequestsList({ user: propUser }: RequestsListProps) {
   const { user: authUser } = useAuth();
   const user = propUser || authUser;
+  const { centers } = useCenters();
+  const isMyTurn = (r: PurchaseRequest) => !!user &&
+    workflowService.canUserApprove(user, r, centers.find(c => c.id === r.destinationCenterId)?.responsibleEmails) &&
+    !['tancada', 'rebutjada'].includes(r.status);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<TabView>('all');
@@ -71,7 +76,7 @@ export default function RequestsList({ user: propUser }: RequestsListProps) {
     let closedCount = 0;
 
     requests.forEach(r => {
-      if (user && workflowService.canUserApprove(user, r) && !['tancada', 'rebutjada'].includes(r.status)) {
+      if (isMyTurn(r)) {
         myTurnCount++;
       }
       if (user && (r.createdByUserId === user.id || r.requestingTechnicianId === user.id)) {
@@ -92,14 +97,14 @@ export default function RequestsList({ user: propUser }: RequestsListProps) {
       pending: pendingCount,
       closed: closedCount
     };
-  }, [requests, user]);
+  }, [requests, user, centers]);
 
   // Filtratge complet
   const filteredRequests = useMemo(() => {
     return requests.filter(r => {
       // 1. Filtre per Pestanya
       if (activeTab === 'my_turn') {
-        if (!user || !workflowService.canUserApprove(user, r) || ['tancada', 'rebutjada'].includes(r.status)) {
+        if (!isMyTurn(r)) {
           return false;
         }
       } else if (activeTab === 'my_requests') {
@@ -153,7 +158,7 @@ export default function RequestsList({ user: propUser }: RequestsListProps) {
 
       return true;
     });
-  }, [requests, activeTab, areaFilter, statusFilter, complianceFilter, searchTerm, user]);
+  }, [requests, activeTab, areaFilter, statusFilter, complianceFilter, searchTerm, user, centers]);
 
   const hasActiveFilters = searchTerm !== '' || areaFilter !== 'all' || statusFilter !== 'all' || complianceFilter !== 'all';
 
@@ -197,10 +202,12 @@ export default function RequestsList({ user: propUser }: RequestsListProps) {
             <span>Exportar Excel</span>
           </button>
 
-          <Link to="/compres/nova" className="btn-primary flex items-center gap-2.5 py-3 px-6 text-xs font-black tracking-widest uppercase shadow-xl shadow-brand-primary/10">
-            <Plus size={16} />
-            <span>Nova Sol·licitud</span>
-          </Link>
+          {workflowService.canCreateRequest(user ?? undefined) && (
+            <Link to="/compres/nova" className="btn-primary flex items-center gap-2.5 py-3 px-6 text-xs font-black tracking-widest uppercase shadow-xl shadow-brand-primary/10">
+              <Plus size={16} />
+              <span>Nova Sol·licitud</span>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -394,14 +401,14 @@ export default function RequestsList({ user: propUser }: RequestsListProps) {
             </thead>
             <tbody className="divide-y divide-white/[0.02]">
               {filteredRequests.map((request) => {
-                const isMyTurn = user && workflowService.canUserApprove(user, request) && !['tancada', 'rebutjada'].includes(request.status);
+                const myTurn = isMyTurn(request);
 
                 return (
                   <tr 
                     key={request.id} 
                     className={cn(
                       "transition-colors group",
-                      isMyTurn ? "bg-emerald-500/[0.03] hover:bg-emerald-500/[0.07]" : "hover:bg-white/[0.01]"
+                      myTurn ? "bg-emerald-500/[0.03] hover:bg-emerald-500/[0.07]" : "hover:bg-white/[0.01]"
                     )}
                   >
                     {/* Codi i data */}
@@ -410,7 +417,7 @@ export default function RequestsList({ user: propUser }: RequestsListProps) {
                         <span className="font-mono font-black text-white text-xs tracking-tight">
                           {request.code || request.id}
                         </span>
-                        {isMyTurn && (
+                        {myTurn && (
                           <span className="text-[8px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase tracking-widest animate-pulse shrink-0">
                             El teu torn
                           </span>
@@ -514,12 +521,12 @@ export default function RequestsList({ user: propUser }: RequestsListProps) {
                         to={`/compres/${request.id}`} 
                         className={cn(
                           "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                          isMyTurn
+                          myTurn
                             ? "bg-emerald-500 text-black hover:bg-emerald-400 shadow-md shadow-emerald-500/20"
                             : "text-brand-primary hover:text-white bg-white/[0.02] hover:bg-white/5 border border-white/5"
                         )}
                       >
-                        <span>{isMyTurn ? 'Validar' : 'Gestionar'}</span>
+                        <span>{myTurn ? 'Validar' : 'Gestionar'}</span>
                         <ArrowUpRight size={13} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                       </Link>
                     </td>

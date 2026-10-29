@@ -74,6 +74,31 @@ service cloud.firestore {
     function sameArea(u, req) {
       return string(req.get('areaId', 'social')).lower() == area(u);
     }
+    // Responsable de recepció del centre de destí (centers/{id}.responsibleEmails)
+    function isCenterResponsible(req) {
+      let centerId = req.get('destinationCenterId', '');
+      return centerId is string && centerId != ''
+        && exists(/databases/$(database)/documents/centers/$(centerId))
+        && userEmail() in get(/databases/$(database)/documents/centers/$(centerId)).data.get('responsibleEmails', []);
+    }
+
+    // Només Coordinació (N2) o càrrecs superiors creen sol·licituds (workflowService.canCreateRequest)
+    function canCreateU(u) {
+      return isCoordinatorU(u) || isAreaDirectorU(u) || isFinanceU(u)
+        || isHighLevelU(u) || isAccountingU(u) || isSupervisorU(u);
+    }
+    // Fase on entra una sol·licitud en enviar-la (workflowService.getInitialStatus):
+    // cada càrrec se salta el seu nivell i els inferiors; els d'àrea, només a la pròpia àrea.
+    function startStatus(u, req) {
+      return (isFinanceU(u) || isHighLevelU(u) || isAccountingU(u) || isSupervisorU(u)) ? 'aprovada'
+        : !sameArea(u, req) ? 'pendent_coordinacio'
+        : isAreaDirectorU(u) ? 'pendent_finances'
+        : isCoordinatorU(u) ? 'pendent_direccio'
+        : 'pendent_coordinacio';
+    }
+    function validSubmitTarget(u, req, t) {
+      return t == 'pendent_coordinacio' || t == startStatus(u, req);
+    }
 
     // Qui pot actuar sobre la fase actual de l'expedient
     function canActOnStep(u, req) {
@@ -82,13 +107,13 @@ service cloud.firestore {
         || (s == 'pendent_coordinacio' && isCoordinatorU(u) && sameArea(u, req))
         || (s == 'pendent_direccio' && isAreaDirectorU(u) && sameArea(u, req))
         || (s in ['pendent_finances', 'aprovada'] && isFinanceU(u))
-        || (s == 'comanda_emesa' && (isRequester(req) || isHighLevelU(u)))
+        || (s == 'comanda_emesa' && (isCenterResponsible(req) || isHighLevelU(u)))
         || (s == 'rebuda' && (isHighLevelU(u) || isFinanceU(u) || isAccountingU(u)));
     }
 
     // Transicions d'estat permeses (workflowService.getNextStatus)
     function validTransition(s, t) {
-      return (s in ['esborrany', 'retornada'] && t == 'pendent_coordinacio')
+      return (s in ['esborrany', 'retornada'] && t in ['pendent_coordinacio', 'pendent_direccio', 'pendent_finances', 'aprovada'])
         || (s == 'pendent_coordinacio' && t in ['pendent_direccio', 'retornada', 'rebutjada'])
         || (s == 'pendent_direccio' && t in ['pendent_finances', 'retornada', 'rebutjada'])
         || (s == 'pendent_finances' && t in ['aprovada', 'retornada', 'rebutjada'])
@@ -105,7 +130,8 @@ service cloud.firestore {
     }
     // Camps propis de cada fase
     function stepFields(s) {
-      return s == 'pendent_coordinacio'
+      return s in ['esborrany', 'retornada'] ? ['initialStatus']
+        : s == 'pendent_coordinacio'
           ? ['coordinationApprovedAt', 'coordinationComment', 'coordinationApprovedBy', 'coordinationApproverRole']
         : s == 'pendent_direccio'
           ? ['areaDirectionApprovedAt', 'areaDirectionComment', 'areaDirectionApprovedBy', 'areaDirectionApproverRole']
@@ -132,22 +158,30 @@ service cloud.firestore {
         || (isRequester(req) && req.status in ['esborrany', 'retornada', 'pendent_coordinacio'])
         || (req.status in ['pendent_coordinacio', 'pendent_direccio', 'pendent_finances'] && canActOnStep(u, req));
     }
+    function canCreateRequest(u, req) {
+      return canCreateU(u) && req.status in ['esborrany', 'pendent_coordinacio', startStatus(u, req)];
+    }
     function requestOf(requestId) {
       return get(/databases/$(database)/documents/purchaseRequests/$(requestId)).data;
     }
 
-    // Actualització d'una sol·licitud (u = getUserData(), llegit una sola vegada)
+    // Actualització d'una sol·licitud (u = getUserData(), llegit una sola vegada).
+    // Els camps modificats es calculen una sola vegada: diff() és car i el límit de 1.000 expressions és per petició.
     function canUpdateRequest(u) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let s = resource.data.status;
+      let t = request.resource.data.status;
       return isSupervisorU(u)
         // Comptadors de documents i pressupostos
-        || onlyChanges(['attachmentsCount', 'quotesCount', 'updatedAt'])
+        || changed.hasOnly(['attachmentsCount', 'quotesCount', 'updatedAt'])
         // Adjudicació / retirada d'un pressupost
-        || (onlyChanges(['supplierId', 'supplierName', 'finalAmount', 'quotesCount', 'updatedAt'])
+        || (changed.hasOnly(['supplierId', 'supplierName', 'finalAmount', 'quotesCount', 'updatedAt'])
             && canManageQuotesOn(u, resource.data))
         // Avanç, retorn o rebuig dins del circuit d'aprovació
-        || (validTransition(resource.data.status, request.resource.data.status)
+        || (validTransition(s, t)
             && canActOnStep(u, resource.data)
-            && onlyChanges(workflowFields().concat(stepFields(resource.data.status))));
+            && changed.hasOnly(workflowFields().concat(stepFields(s)))
+            && (!(s in ['esborrany', 'retornada']) || validSubmitTarget(u, resource.data, t)));
     }
 
     match /{allPaths=**} {
@@ -198,10 +232,10 @@ service cloud.firestore {
     match /purchaseRequests/{requestId} {
       allow read: if isCorporate();
 
-      // Una sol·licitud neix com a esborrany o pendent de coordinació, a nom de qui la crea
+      // Una sol·licitud neix com a esborrany o a la fase que correspon al càrrec de qui la crea (N2 o superior)
       allow create: if isCorporate()
         && request.resource.data.createdByUserId == request.auth.uid
-        && request.resource.data.status in ['esborrany', 'pendent_coordinacio']
+        && canCreateRequest(getUserData(), request.resource.data)
         && !request.resource.data.keys().hasAny(approvalFields());
 
       allow update: if isCorporate() && canUpdateRequest(getUserData());

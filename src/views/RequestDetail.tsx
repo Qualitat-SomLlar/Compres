@@ -43,7 +43,7 @@ import { useNotifications } from '../hooks/useNotifications';
 import { useUsers } from '../hooks/useUsers';
 import { useSuppliers } from '../hooks/useSuppliers';
 import { useEmailDispatcher } from '../hooks/useEmailDispatcher';
-import { workflowService } from '../services/workflowService';
+import { workflowService, WorkflowEvent } from '../services/workflowService';
 import { fileService } from '../services/fileService';
 import { activityService } from '../services/activityService';
 import { collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
@@ -56,7 +56,7 @@ export default function RequestDetail({ user }: { user: User }) {
   const { getAreaName } = useAreas();
   const { addNotification } = useNotifications();
   const { dispatchEmail } = useEmailDispatcher();
-  const { users, getUsersByRole } = useUsers();
+  const { users } = useUsers();
   const { suppliers } = useSuppliers();
   const { centers } = useCenters();
   
@@ -104,6 +104,27 @@ export default function RequestDetail({ user }: { user: User }) {
   // Resolució de dades completes del sol·licitant
   const destinationCenter = centers.find(c => c.id === request?.destinationCenterId);
   const destinationCenterName = request?.destinationCenterName || destinationCenter?.name || (request?.destinationCenterId ? request.destinationCenterId : 'Sense centre especificat');
+  const centerResponsibleEmails = destinationCenter?.responsibleEmails || [];
+
+  // Notificacions a l'aplicació: mateixos destinataris que els correus de l'esdeveniment
+  const notifyInApp = async (event: WorkflowEvent, updatedRequest: PurchaseRequest) => {
+    const code = updatedRequest.code || updatedRequest.id;
+    const statusLabel = STATUS_LABELS[updatedRequest.status]?.label || updatedRequest.status;
+    const recipients = workflowService.getEventRecipients(event, updatedRequest, users, centerResponsibleEmails);
+    for (const recipient of recipients) {
+      if (!recipient.userId || recipient.userId === user.id) continue;
+      const isTask = recipient.template === 'task' || recipient.variant === 'center';
+      await addNotification({
+        userId: recipient.userId,
+        title: isTask ? `Pendent: ${code}` : `Actualització: ${statusLabel}`,
+        message: isTask
+          ? `Tens l'expedient ${code} pendent d'actuació (${statusLabel}).`
+          : `L'expedient ${code} ha passat a l'estat ${statusLabel}.`,
+        type: isTask ? 'warning' : event === 'rebutjada' ? 'error' : 'success',
+        requestId: updatedRequest.id
+      });
+    }
+  };
   
   const categoryItem = CATEGORIES.find(c => c.id === request?.category);
   const categoryLabel = categoryItem?.name || request?.category || 'No categoritzat';
@@ -329,24 +350,8 @@ export default function RequestDetail({ user }: { user: User }) {
 
       await updateRequest(request.id, updateData);
 
-      // Notificació al creador
-      await addNotification({
-        userId: request.createdByUserId,
-        title: `Comanda Emesa: ${request.code || request.id}`,
-        message: `S'ha emès formalment la comanda al proveïdor ${orderSupplierName.trim()}.`,
-        type: 'success',
-        requestId: request.id
-      });
-
-      if (request.requestingTechnicianId && request.requestingTechnicianId !== request.createdByUserId) {
-        await addNotification({
-          userId: request.requestingTechnicianId,
-          title: `Comanda Emesa: ${request.code || request.id}`,
-          message: `S'ha emès formalment la comanda al proveïdor ${orderSupplierName.trim()}.`,
-          type: 'success',
-          requestId: request.id
-        });
-      }
+      // Notificacions al sol·licitant i al responsable del centre de destí
+      await notifyInApp('compra_tramitada', { ...request, ...updateData } as PurchaseRequest);
 
       // Notificacions Email (Dispatcher)
       await dispatchEmail(
@@ -397,7 +402,14 @@ export default function RequestDetail({ user }: { user: User }) {
     setIsProcessing(true);
     
     try {
-      const newStatus = workflowService.getNextStatus(request.status, action);
+      // En enviar (o reenviar després d'una esmena), cada càrrec se salta el seu nivell i els inferiors.
+      // Si ho fa la supervisió en nom d'algú, compta el càrrec de qui va crear la sol·licitud.
+      const isSubmission = action === 'approve' && ['esborrany', 'retornada'].includes(request.status);
+      const isRequester = request.createdByUserId === user.id || request.requestingTechnicianId === user.id;
+      const submitter = isRequester ? user : (users.find(u => u.id === request.createdByUserId) || user);
+      const newStatus = isSubmission
+        ? workflowService.getInitialStatus(submitter, request.areaId)
+        : workflowService.getNextStatus(request.status, action);
       
       const nowIso = new Date().toISOString();
       const formattedTimestamp = new Date().toLocaleDateString('ca-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -413,6 +425,8 @@ export default function RequestDetail({ user }: { user: User }) {
         status: newStatus,
         observations: newObservations
       };
+
+      if (isSubmission) updateData.initialStatus = newStatus;
 
       // Afegir timestamps d'aprovació i comentaris estructurats segons la fase o acció
       if (action === 'approve') {
@@ -450,48 +464,14 @@ export default function RequestDetail({ user }: { user: User }) {
 
       await updateRequest(request.id, updateData);
 
-      // Gestió de Notificacions
-      const targetRoleOrCreator = workflowService.getTargetRoleForStatus(newStatus);
-      
-      if (targetRoleOrCreator === 'creator') {
-        await addNotification({
-          userId: request.createdByUserId,
-          title: `Actualització: ${STATUS_LABELS[newStatus]?.label}`,
-          message: `L'expedient ${request.code || request.id} ha passat a l'estat ${STATUS_LABELS[newStatus]?.label}.`,
-          type: action === 'reject' ? 'error' : 'success',
-          requestId: request.id
-        });
-      } else if (targetRoleOrCreator) {
-        const needsAreaFilter = ['coordinacio', 'direccio_area'].includes(targetRoleOrCreator);
-        const targetUsers = getUsersByRole(targetRoleOrCreator as any, needsAreaFilter ? request.areaId : undefined);
-        for (const targetUser of targetUsers) {
-          await addNotification({
-            userId: targetUser.id,
-            title: `Pendent: ${request.code || request.id}`,
-            message: `Tens una nova sol·licitud pendent de validació.`,
-            type: 'warning',
-            requestId: request.id
-          });
-        }
-      }
-
-      // Notificacions Email (Dispatcher)
-      let eventKey = '';
-      if (action === 'reject') eventKey = 'rebutjada';
-      else if (action === 'return') eventKey = 'retornada_esmena';
-      else if (newStatus === 'pendent_coordinacio') eventKey = 'solicitud_creada';
-      else if (newStatus === 'aprovada') eventKey = 'compra_aprovada';
-      else if (newStatus === 'pendent_finances') eventKey = 'enviada_finances';
-      else if (newStatus === 'pendent_direccio') eventKey = 'validada_direccio';
-      else if (newStatus === 'comanda_emesa') eventKey = 'compra_tramitada';
-      else if (newStatus === 'rebuda') eventKey = 'compra_rebuda';
-      else if (newStatus === 'tancada') eventKey = 'compra_tancada';
-      else if (newStatus === 'incidencia') eventKey = 'incidencia';
+      // Notificacions (aplicació i correu) segons l'esdeveniment
+      const eventKey = workflowService.getEventForTransition(request.status, newStatus, action);
 
       if (eventKey) {
+        await notifyInApp(eventKey, { ...request, ...updateData } as PurchaseRequest);
         await dispatchEmail(
           eventKey, 
-          { ...request, status: newStatus }, 
+          { ...request, ...updateData } as PurchaseRequest, 
           { 
             comment, 
             previousStatus: request.status,
@@ -803,11 +783,11 @@ export default function RequestDetail({ user }: { user: User }) {
     }
   };
 
-  const canApprove = workflowService.canUserApprove(user, request);
+  const canApprove = workflowService.canUserApprove(user, request, centerResponsibleEmails);
   const canManageQuotes = workflowService.canManageQuotes(user, request);
   const canDeleteAttachment = (file: Attachment) =>
     workflowService.isAdminProfile(user) || file.uploadedByUserId === user.id;
-  const eligibleApprovers = request ? workflowService.getEligibleApprovers(request, users) : null;
+  const eligibleApprovers = request ? workflowService.getEligibleApprovers(request, users, centerResponsibleEmails) : null;
   const isCurrentUserApprover = eligibleApprovers?.users.some(u => u.id === user.id);
 
   const areaCoordinators = users.filter(u => u.active !== false && (u.hierarchyLevel === 2 || u.role === 'coordinacio') && normalizeAreaId(u.areaId) === normalizeAreaId(request?.areaId));

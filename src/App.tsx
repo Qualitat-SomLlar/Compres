@@ -40,6 +40,7 @@ import NotificationBell from './components/NotificationBell';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { User } from './types';
+import { workflowService } from './services/workflowService';
 import { cn } from './lib/utils';
 
 const SidebarItem = ({ to, icon: Icon, label, active, onClick }: { to: string, icon: React.ElementType, label: string, active?: boolean, onClick?: () => void }) => (
@@ -225,10 +226,12 @@ const AppLayout = ({ children, user }: { children: React.ReactNode, user: User }
 
             <NotificationBell user={user} />
             
-            <Link to="/compres/nova" className="btn-primary flex items-center gap-2 text-sm py-2">
-              <PlusCircle size={18} />
-              <span className="hidden sm:inline">Nova sol·licitud</span>
-            </Link>
+            {workflowService.canCreateRequest(user) && (
+              <Link to="/compres/nova" className="btn-primary flex items-center gap-2 text-sm py-2">
+                <PlusCircle size={18} />
+                <span className="hidden sm:inline">Nova sol·licitud</span>
+              </Link>
+            )}
           </div>
         </header>
 

@@ -35,6 +35,7 @@ import { useAreas } from '../hooks/useAreas';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import StatusBadge from '../components/StatusBadge';
+import { workflowService } from '../services/workflowService';
 
 const DONUT_COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#64748b'];
 
@@ -278,13 +279,15 @@ export default function Dashboard() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <Link 
-              to="/compres/nova" 
-              className="btn-primary flex items-center gap-2 py-3 px-5 text-xs font-black uppercase tracking-wider shadow-lg shadow-brand-primary/20 hover:scale-[1.02] transition-transform"
-            >
-              <PlusCircle size={16} />
-              <span>Nova Sol·licitud</span>
-            </Link>
+            {workflowService.canCreateRequest(user ?? undefined) && (
+              <Link 
+                to="/compres/nova" 
+                className="btn-primary flex items-center gap-2 py-3 px-5 text-xs font-black uppercase tracking-wider shadow-lg shadow-brand-primary/20 hover:scale-[1.02] transition-transform"
+              >
+                <PlusCircle size={16} />
+                <span>Nova Sol·licitud</span>
+              </Link>
+            )}
 
             <Link 
               to="/compres" 

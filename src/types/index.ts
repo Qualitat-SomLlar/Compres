@@ -112,7 +112,10 @@ export interface PurchaseRequest {
   // Metadades seguiment
   attachmentsCount: number;
   incidentsCount?: number;
-  
+
+  // Fase on va entrar l'expedient en enviar-lo (els nivells anteriors no calien pel càrrec de qui l'envia)
+  initialStatus?: RequestStatus;
+
   // Timestamps de fases
   coordinationApprovedAt?: string;
   coordinationComment?: string;
@@ -250,6 +253,8 @@ export interface DestinationCenter {
   area: string;
   active: boolean;
   notes?: string;
+  // Correus (en minúscules) de qui confirma la recepció del material al centre
+  responsibleEmails?: string[];
   createdAt: string;
   updatedAt: string;
 }
