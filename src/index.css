@@ -39,7 +39,7 @@ html.light-theme {
   --dashboard-card: #ffffff;
   --dashboard-border: rgba(0, 0, 0, 0.08);
   --text-main: #0f172a;
-  --text-dim: #64748b;
+  --text-dim: #475569;
   --input-bg: #ffffff;
   --sidebar-bg: #ffffff;
   --table-th-bg: #f1f5f9;
@@ -178,10 +178,72 @@ html.light-theme option {
 }
 
 html.light-theme .bg-\[\#151c2c\],
-html.light-theme .bg-\[\#0b0f19\] {
+html.light-theme .bg-\[\#0b0f19\],
+html.light-theme .bg-\[\#0f172a\],
+html.light-theme .bg-brand-secondary {
   background-color: #ffffff !important;
   color: #0f172a !important;
 }
+
+html.light-theme .bg-\[\#1e293b\] {
+  background-color: #f8fafc !important;
+}
+
+/* Contrast en mode clar (WCAG AA ≥ 4.5:1 sobre blanc): els tons -300/-400 pensats
+   per a fons fosc es substitueixen pels tons -700 equivalents. */
+html.light-theme .text-slate-500,
+html.light-theme .text-text-dim { color: #475569; }
+html.light-theme .text-slate-200 { color: #1e293b; }
+
+html.light-theme .text-brand-primary,
+html.light-theme .text-brand-primary\/80,
+html.light-theme .text-emerald-300,
+html.light-theme .text-emerald-400,
+html.light-theme .text-emerald-500 { color: #047857; }
+html.light-theme .text-amber-200,
+html.light-theme .text-amber-200\/80,
+html.light-theme .text-amber-300,
+html.light-theme .text-amber-300\/80,
+html.light-theme .text-amber-400,
+html.light-theme .text-amber-400\/90,
+html.light-theme .text-amber-500 { color: #b45309; }
+html.light-theme .text-red-200,
+html.light-theme .text-red-300,
+html.light-theme .text-red-300\/80,
+html.light-theme .text-red-400,
+html.light-theme .text-red-400\/90,
+html.light-theme .text-red-500 { color: #b91c1c; }
+html.light-theme .text-rose-400 { color: #be123c; }
+html.light-theme .text-blue-400,
+html.light-theme .text-blue-500 { color: #1d4ed8; }
+html.light-theme .text-sky-400,
+html.light-theme .text-sky-500 { color: #0369a1; }
+html.light-theme .text-cyan-400 { color: #0e7490; }
+html.light-theme .text-teal-400 { color: #0f766e; }
+html.light-theme .text-purple-400 { color: #7e22ce; }
+html.light-theme .text-indigo-400,
+html.light-theme .text-indigo-500 { color: #4338ca; }
+html.light-theme .text-orange-400,
+html.light-theme .text-orange-500 { color: #c2410c; }
+
+/* Estats hover: en mode fosc aclareixen el text; en mode clar l'han d'enfosquir */
+html.light-theme .hover\:text-white:hover,
+html.light-theme .group:hover .group-hover\:text-white,
+html.light-theme .hover\:text-slate-300:hover,
+html.light-theme .group:hover .group-hover\:text-slate-300 { color: #0f172a; }
+html.light-theme .hover\:text-brand-primary:hover,
+html.light-theme .group:hover .group-hover\:text-brand-primary,
+html.light-theme .hover\:text-emerald-300:hover,
+html.light-theme .hover\:text-emerald-400:hover,
+html.light-theme .group:hover .group-hover\:text-emerald-400 { color: #047857; }
+html.light-theme .hover\:text-red-400:hover,
+html.light-theme .hover\:text-red-500:hover { color: #b91c1c; }
+html.light-theme .group:hover .group-hover\:text-amber-400 { color: #b45309; }
+html.light-theme .group:hover .group-hover\:text-blue-400 { color: #1d4ed8; }
+html.light-theme .group:hover .group-hover\:text-purple-400 { color: #7e22ce; }
+html.light-theme .group:hover .group-hover\:text-orange-400 { color: #c2410c; }
+
+html.light-theme .input-field::placeholder { color: #64748b; }
 
 /* Specific Immersive Styles */
 .stat-card {
