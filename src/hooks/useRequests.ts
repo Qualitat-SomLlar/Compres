@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { collection, onSnapshot, addDoc, doc, updateDoc, query, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, doc, updateDoc, query, orderBy, Timestamp, where, getDocs, writeBatch } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { PurchaseRequest, RequestStatus } from '../types';
 
@@ -114,6 +114,19 @@ export function useRequests() {
     await updateDoc(docRef, cleanData);
   };
 
+  // Elimina l'expedient juntament amb els seus adjunts i pressupostos (només Superadmin per regles)
+  const deleteRequest = async (id: string) => {
+    const [attachmentsSnap, quotesSnap] = await Promise.all([
+      getDocs(query(collection(db, 'attachments'), where('purchaseRequestId', '==', id))),
+      getDocs(query(collection(db, 'quotes'), where('requestId', '==', id)))
+    ]);
+    const batch = writeBatch(db);
+    attachmentsSnap.docs.forEach(d => batch.delete(d.ref));
+    quotesSnap.docs.forEach(d => batch.delete(d.ref));
+    batch.delete(doc(db, 'purchaseRequests', id));
+    await batch.commit();
+  };
+
   // KPIs i càlculs
   const stats = useMemo(() => {
     return {
@@ -132,6 +145,7 @@ export function useRequests() {
     stats,
     getRequestById,
     addRequest,
-    updateRequest
+    updateRequest,
+    deleteRequest
   };
 }

@@ -421,6 +421,12 @@ export function ActivityLogViewer({ users }: { users: User[] }) {
           bg: "bg-rose-500/10 text-rose-400 border-rose-500/20",
           text: "Rebutjada"
         };
+      case 'request_deleted':
+        return {
+          icon: <Trash2 size={13} className="text-rose-400" />,
+          bg: "bg-rose-500/10 text-rose-400 border-rose-500/20",
+          text: "Sol·licitud Eliminada"
+        };
       case 'file_uploaded':
         return {
           icon: <Upload size={13} className="text-cyan-400" />,

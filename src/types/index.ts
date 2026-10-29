@@ -321,6 +321,7 @@ export type ActivityType =
   | 'request_approved'
   | 'request_returned'
   | 'request_rejected'
+  | 'request_deleted'
   | 'order_issued'
   | 'order_received'
   | 'order_closed'

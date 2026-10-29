@@ -18,7 +18,8 @@ import {
   Download,
   ExternalLink,
   Tag,
-  MapPin
+  MapPin,
+  Trash2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { exportService } from '../services/exportService';
@@ -51,7 +52,7 @@ import { db } from '../lib/firebase';
 export default function RequestDetail({ user }: { user: User }) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getRequestById, updateRequest, loading: loadingRequests } = useRequests();
+  const { getRequestById, updateRequest, deleteRequest, loading: loadingRequests } = useRequests();
   const { getAreaName } = useAreas();
   const { addNotification } = useNotifications();
   const { dispatchEmail } = useEmailDispatcher();
@@ -757,6 +758,30 @@ export default function RequestDetail({ user }: { user: User }) {
     }
   };
 
+  // Eliminar l'expedient complet (només Superadmin)
+  const handleDeleteRequest = async () => {
+    if (!request) return;
+    if (!confirm(`Estàs segur que vols eliminar definitivament l'expedient ${request.code || request.id}? S'esborraran també els seus documents adjunts i pressupostos. Aquesta acció no es pot desfer.`)) return;
+
+    setIsProcessing(true);
+    try {
+      await deleteRequest(request.id);
+      activityService.logRequestAction(
+        user,
+        'request_deleted',
+        'Eliminació d\'Expedient',
+        request,
+        `S'ha eliminat l'expedient ${request.code || request.id} amb els seus adjunts i pressupostos.`
+      );
+      toast.success('Expedient eliminat correctament');
+      navigate('/compres');
+    } catch (err) {
+      console.error("Error eliminant l'expedient:", err);
+      toast.error("No s'ha pogut eliminar l'expedient");
+      setIsProcessing(false);
+    }
+  };
+
   // Eliminar un pressupost
   const handleDeleteQuote = async (quoteId: string) => {
     if (!window.confirm('Vols eliminar aquesta oferta comparativa?')) return;
@@ -839,6 +864,17 @@ export default function RequestDetail({ user }: { user: User }) {
             <Download size={14} />
             <span>Filla de Comanda (PDF)</span>
           </button>
+          {user.role === 'superadmin' && (
+            <button
+              onClick={handleDeleteRequest}
+              disabled={isProcessing}
+              className="btn-secondary py-2 px-4 rounded-xl text-[10px] font-black tracking-widest uppercase flex items-center gap-2 border-rose-500/30 text-rose-400 hover:bg-rose-500/10 transition-all shadow-lg disabled:opacity-50"
+              title="Eliminar definitivament l'expedient (només Superadmin)"
+            >
+              <Trash2 size={14} />
+              <span>Eliminar</span>
+            </button>
+          )}
           <StatusBadge status={request.status} className="px-6 py-2 rounded-xl text-[10px] font-black tracking-[0.2em] shadow-2xl border text-base" />
         </div>
       </div>
