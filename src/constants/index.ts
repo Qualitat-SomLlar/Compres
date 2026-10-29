@@ -86,7 +86,7 @@ export const HIERARCHY_ROLES: HierarchyRoleConfig[] = [
     name: 'Direcció ADM i Finances',
     shortLabel: 'N4 · Finances',
     scope: 'global',
-    description: '3r Nivell d\'aprovació: control fiscal, tresoreria i autorització global de la fundació.',
+    description: '3r Nivell d\'aprovació: control fiscal, tresoreria i autorització global de Som Llar.',
     badgeColor: 'bg-purple-500/10 text-purple-400 border-purple-500/20'
   },
   {

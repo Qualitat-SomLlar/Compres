@@ -155,7 +155,7 @@ export function HierarchyLevelsManager() {
 
         <div className="p-5 rounded-2xl bg-purple-500/[0.03] border border-purple-500/20 space-y-2">
           <p className="text-[10px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-2">
-            <ShieldCheck size={14} /> Nivells Globals (Fundació)
+            <ShieldCheck size={14} /> Nivells Globals (Som Llar)
           </p>
           <p className="text-2xl font-black text-white">
             {hierarchyLevels.filter(l => l.scope === 'global').length} <span className="text-xs text-slate-500 font-normal">potestat institucional</span>
@@ -383,7 +383,7 @@ export function HierarchyLevelsManager() {
                     className="input-field text-xs"
                   >
                     <option value="area">Àrea d'adscripció (només la seva mateixa àrea)</option>
-                    <option value="global">Global de Som Llar (tota la fundació)</option>
+                    <option value="global">Global de Som Llar (tota l'entitat)</option>
                   </select>
                 </div>
               </div>
@@ -429,7 +429,7 @@ export function HierarchyLevelsManager() {
                     <span>{modalCode} · Nivell {modalLevel}</span>
                   </span>
                   <span className="text-[10px] text-slate-400">
-                    {modalScope === 'area' ? "🔒 Limitat a sol·licituds de la seva àrea" : "🌐 Vàlid per a tota la fundació"}
+                    {modalScope === 'area' ? "🔒 Limitat a sol·licituds de la seva àrea" : "🌐 Vàlid per a tot Som Llar"}
                   </span>
                 </div>
               </div>

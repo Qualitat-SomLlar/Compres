@@ -545,12 +545,12 @@ export function UsersManager() {
                         )}
                         {formLevel === 5 && (
                           <span>
-                            Com a <strong>Administració de Compres / Facturació (N5)</strong>, tramitarà les comandes formals i la conformitat de factures per a tota la fundació.
+                            Com a <strong>Administració de Compres / Facturació (N5)</strong>, tramitarà les comandes formals i la conformitat de factures per a tot Som Llar.
                           </span>
                         )}
                         {formLevel === 6 && (
                           <span>
-                            Com a <strong>Gerència (N6)</strong>, disposa de supervisió executiva institucional sobre tots els expedients de la fundació.
+                            Com a <strong>Gerència (N6)</strong>, disposa de supervisió executiva institucional sobre tots els expedients de Som Llar.
                           </span>
                         )}
                         {formLevel === 99 && (

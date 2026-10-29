@@ -51,7 +51,7 @@ export const emailService = {
       `${platformUrl}\n\n` +
       `Recorda que has d'iniciar sessió amb el teu compte de Microsoft (@somllar.cat). No cal contrasenya addicional.\n\n` +
       `Cordialment,\n` +
-      `Equip de Gestió de Compres · Fundació Som Llar`;
+      `Equip de Gestió de Compres · Som Llar`;
 
     const htmlEmail = `
 <!DOCTYPE html>
@@ -72,7 +72,7 @@ export const emailService = {
           <tr>
             <td style="background: linear-gradient(135deg, #059669 0%, #047857 100%); padding: 36px 32px 30px; text-align: center;">
               <div style="background-color: rgba(255,255,255,0.2); display: inline-block; padding: 6px 16px; border-radius: 30px; margin-bottom: 12px;">
-                <span style="font-size: 11px; font-weight: 800; letter-spacing: 0.15em; text-transform: uppercase; color: #ffffff;">FUNDACIÓ SOM LLAR</span>
+                <span style="font-size: 11px; font-weight: 800; letter-spacing: 0.15em; text-transform: uppercase; color: #ffffff;">SOM LLAR</span>
               </div>
               <h1 style="margin: 0; font-size: 24px; font-weight: 800; color: #ffffff; letter-spacing: -0.02em;">Gestió de Compres</h1>
               <p style="margin: 6px 0 0; font-size: 13px; color: #d1fae5; font-weight: 500;">Plataforma Corporativa d'Adquisicions</p>
@@ -140,7 +140,7 @@ export const emailService = {
           <!-- Footer -->
           <tr>
             <td style="border-top: 1px solid #e2e8f0; padding: 22px 32px; background-color: #f8fafc; text-align: center;">
-              <p style="margin: 0 0 4px; font-size: 11px; color: #64748b; font-weight: 600;">Fundació Som Llar · Gestió de Compres</p>
+              <p style="margin: 0 0 4px; font-size: 11px; color: #64748b; font-weight: 600;">Som Llar · Gestió de Compres</p>
               <p style="margin: 0; font-size: 10px; color: #94a3b8;">Missatge automàtic enviat des del sistema corporatiu de compres.</p>
             </td>
           </tr>
@@ -314,7 +314,7 @@ export const emailService = {
       `\nPots revisar i signar la sol·licitud fent clic al següent enllaç:\n` +
       `${requestUrl}\n\n` +
       `Cordialment,\n` +
-      `Circuit de Validacions · Fundació Som Llar`;
+      `Circuit de Validacions · Som Llar`;
 
     const stepperHtml = this.renderEmailStepper(request.status);
 
@@ -448,7 +448,7 @@ export const emailService = {
           <!-- Footer -->
           <tr>
             <td style="border-top: 1px solid #e2e8f0; padding: 20px 32px; background-color: #f8fafc; text-align: center;">
-              <p style="margin: 0 0 4px; font-size: 11px; color: #64748b; font-weight: 600;">Fundació Som Llar · Gestió de Compres</p>
+              <p style="margin: 0 0 4px; font-size: 11px; color: #64748b; font-weight: 600;">Som Llar · Gestió de Compres</p>
               <p style="margin: 0; font-size: 10px; color: #94a3b8;">Notificació automàtica del circuit corporatiu de compres.</p>
             </td>
           </tr>
@@ -623,7 +623,7 @@ export const emailService = {
       `\nPots consultar el seguiment complet fent clic a:\n` +
       `${requestUrl}\n\n` +
       `Cordialment,\n` +
-      `Equip de Gestió de Compres · Fundació Som Llar`;
+      `Equip de Gestió de Compres · Som Llar`;
 
     const stepperHtml = this.renderEmailStepper(newStatus);
 
@@ -755,7 +755,7 @@ export const emailService = {
           <!-- Footer -->
           <tr>
             <td style="border-top: 1px solid #e2e8f0; padding: 20px 32px; background-color: #f8fafc; text-align: center;">
-              <p style="margin: 0 0 4px; font-size: 11px; color: #64748b; font-weight: 600;">Fundació Som Llar · Gestió de Compres</p>
+              <p style="margin: 0 0 4px; font-size: 11px; color: #64748b; font-weight: 600;">Som Llar · Gestió de Compres</p>
               <p style="margin: 0; font-size: 10px; color: #94a3b8;">Notificació automàtica del seguiment de la teva compra.</p>
             </td>
           </tr>
