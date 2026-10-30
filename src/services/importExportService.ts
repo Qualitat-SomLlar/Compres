@@ -12,8 +12,8 @@ export const importExportService = {
 
     switch (entityType) {
       case 'supplier':
-        headers = ['Nom', 'NIF', 'Email', 'Telèfon', 'Persona de Contacte', 'Categoria', 'Adreça', 'Ciutat', 'Estat', 'Homologat'];
-        example = ['Proveïdor d\'Exemple SL', 'B12345678', 'contacte@exemple.com', '930000000', 'Maria Garcia', 'Material d\'oficina', 'Carrer Fals 123', 'Barcelona', 'Actiu', 'Si'];
+        headers = ['Nom', 'NIF', 'Email', 'Telèfon', 'Persona de Contacte', 'Categoria', 'Adreça', 'Ciutat', 'Zona', 'Estat', 'Homologat', 'Observacions'];
+        example = ['Proveïdor d\'Exemple SL', 'B12345678', 'contacte@exemple.com', '930000000', 'Maria Garcia', 'Material d\'oficina', 'Carrer Fals 123', 'Barcelona', 'Zona 1 (Barcelona)', 'Actiu', 'Si', ''];
         fileName = 'plantilla_proveidors.xlsx';
         break;
       case 'user':

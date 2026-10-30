@@ -227,6 +227,12 @@ export interface Supplier {
   rating: number;
   criticality: 'baixa' | 'mitjana' | 'alta';
   documents?: {id: string, name: string, date: string, type: string}[];
+  email?: string;
+  phone?: string;
+  contactPerson?: string;
+  address?: string;
+  zone?: string;
+  notes?: string;
 }
 
 export interface Quote {

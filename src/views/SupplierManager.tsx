@@ -352,7 +352,25 @@ export default function SupplierManager() {
                   />
                 </div>
               </div>
-              
+
+              {[selectedSupplier.contactPerson, selectedSupplier.email, selectedSupplier.phone, selectedSupplier.address, selectedSupplier.zone, selectedSupplier.notes].some(Boolean) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-white/[0.02] rounded-xl border border-white/5">
+                  {[
+                    { label: 'Persona de contacte', value: selectedSupplier.contactPerson },
+                    { label: 'Correu', value: selectedSupplier.email },
+                    { label: 'Telèfon', value: selectedSupplier.phone },
+                    { label: 'Zona de treball', value: selectedSupplier.zone },
+                    { label: 'Domicili fiscal', value: selectedSupplier.address },
+                    { label: 'Observacions', value: selectedSupplier.notes },
+                  ].filter(field => field.value).map(field => (
+                    <div key={field.label} className="min-w-0">
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{field.label}</p>
+                      <p className="text-sm text-white font-medium break-words whitespace-pre-line">{field.value}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div>
                 <div className="flex justify-between items-center mb-3 border-b border-white/5 pb-2">
                   <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Documentació i Enllaços</h5>

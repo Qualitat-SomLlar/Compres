@@ -14,7 +14,7 @@ import { useSuppliers } from '../../hooks/useSuppliers';
 
 export function ImportsManager() {
   const { addUser } = useUsers();
-  const { addSupplier } = useSuppliers();
+  const { suppliers, addSupplier } = useSuppliers();
   const { addCenter } = useCenters();
   const { addAnalyticCode } = useAnalyticCodes();
   const { getAreaName } = useAreas();
@@ -52,6 +52,8 @@ export function ImportsManager() {
       }
 
       let successCount = 0;
+      let skippedCount = 0;
+      const existingSupplierKeys = new Set(suppliers.map(s => (s.nif || s.name || '').trim().toLowerCase()));
 
       for (const row of dataRows) {
         try {
@@ -77,14 +79,37 @@ export function ImportsManager() {
               ? rawStatus as any
               : (row['Homologat'] || 'Si').toLowerCase() === 'si' ? 'homologat' : 'candidat';
 
+            const text = (key: string) => String(row[key] ?? '').trim();
+            const name = text('Nom');
+            const nif = text('NIF').toUpperCase();
+            // No dupliquem proveïdors que ja existeixen (per NIF o, si no en té, per nom)
+            const supplierKey = (nif || name).toLowerCase();
+            if (!name || existingSupplierKeys.has(supplierKey)) {
+              skippedCount++;
+              continue;
+            }
+            existingSupplierKeys.add(supplierKey);
+
+            // Firestore no accepta camps undefined: només desem els que tenen valor
+            const address = [text('Adreça'), text('Ciutat')].filter(Boolean).join(', ');
+            const contact = Object.fromEntries(Object.entries({
+              email: text('Email'),
+              phone: text('Telèfon'),
+              contactPerson: text('Persona de Contacte'),
+              address,
+              zone: text('Zona'),
+              notes: text('Observacions'),
+            }).filter(([, value]) => value));
+
             await addSupplier({
-              name: row['Nom'] || '',
-              nif: row['NIF'] || '',
-              category: row['Categoria'] || 'Serveis Generals',
+              name,
+              nif,
+              category: text('Categoria') || 'Serveis Generals',
               status: validStatus,
-              rating: parseInt(row['Puntuació']) || 80,
+              rating: parseInt(row['Puntuació']) || 0,
               criticality: ['baixa', 'mitjana', 'alta'].includes((row['Criticitat'] || '').toLowerCase()) ? (row['Criticitat'] || '').toLowerCase() as any : 'mitjana',
-              documents: []
+              documents: [],
+              ...contact
             });
           } else if (entityId === 'center') {
             await addCenter({
@@ -111,7 +136,8 @@ export function ImportsManager() {
         }
       }
 
-      toast.success(`S'han importat ${successCount} registres de ${entityId} correctament.`, { id: loadingToast });
+      const skippedText = skippedCount > 0 ? ` (${skippedCount} omesos perquè ja existien o no tenien nom)` : '';
+      toast.success(`S'han importat ${successCount} registres de ${entityId} correctament${skippedText}.`, { id: loadingToast });
     } catch (err) {
       toast.error("Error processant el fitxer. Assegura't que és un CSV o Excel vàlid.", { id: loadingToast });
     } finally {
