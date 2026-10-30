@@ -76,6 +76,51 @@ export const workflowService = {
   },
 
   /**
+   * Indica si l'expedient espera una acció d'aquesta persona pel seu càrrec (sense comptar
+   * la supervisió global, que pot actuar a tot arreu però no n'és la responsable):
+   * esmenar/enviar (sol·licitant), validar (N2/N3/N4), emetre la comanda (N5),
+   * confirmar la recepció (responsable del centre) o conformar la factura (Comptabilitat).
+   */
+  isTaskOwner(user: User | undefined, request: PurchaseRequest, centerResponsibleEmails: string[] = []): boolean {
+    if (!user) return false;
+    switch (request.status) {
+      case 'esborrany':
+        return request.createdByUserId === user.id;
+      case 'retornada':
+        return request.createdByUserId === user.id || request.requestingTechnicianId === user.id;
+      case 'pendent_coordinacio':
+      case 'pendent_direccio':
+      case 'pendent_finances':
+        return (this.getEligibleApprovers(request, [user])?.users.length ?? 0) > 0;
+      case 'aprovada':
+        return user.role === 'admin_compres';
+      case 'comanda_emesa':
+        return centerResponsibleEmails.map(lower).includes(lower(user.email));
+      case 'rebuda':
+        return user.role === 'comptabilitat';
+      default:
+        return false;
+    }
+  },
+
+  /**
+   * Nom curt de l'acció pendent en cada fase.
+   */
+  getTaskActionLabel(status: RequestStatus): string {
+    switch (status) {
+      case 'esborrany': return 'Enviar';
+      case 'retornada': return 'Esmenar';
+      case 'pendent_coordinacio':
+      case 'pendent_direccio':
+      case 'pendent_finances': return 'Validar';
+      case 'aprovada': return 'Emetre comanda';
+      case 'comanda_emesa': return 'Confirmar recepció';
+      case 'rebuda': return 'Conformar factura';
+      default: return 'Obrir';
+    }
+  },
+
+  /**
    * Text curt de qui ha de validar (o tramitar) una sol·licitud que entra a aquesta fase.
    */
   getPhaseLabel(status: RequestStatus, areaName?: string): string {

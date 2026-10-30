@@ -13,7 +13,9 @@ import {
   PlusCircle,
   Bell,
   Sun,
-  Moon
+  Moon,
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -43,19 +45,23 @@ import { User } from './types';
 import { workflowService } from './services/workflowService';
 import { cn } from './lib/utils';
 
-const SidebarItem = ({ to, icon: Icon, label, active, onClick }: { to: string, icon: React.ElementType, label: string, active?: boolean, onClick?: () => void }) => (
-  <Link 
-    to={to} 
+const SidebarItem = ({ to, icon: Icon, label, active, onClick, collapsed }: { to: string, icon: React.ElementType, label: string, active?: boolean, onClick?: () => void, collapsed?: boolean }) => (
+  <Link
+    to={to}
     onClick={onClick}
+    title={collapsed ? label : undefined}
     className={cn(
       "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group text-slate-400 hover:text-white hover:bg-slate-800/50",
-      active && "bg-slate-800 text-white shadow-sm ring-1 ring-white/10"
+      active && "bg-slate-800 text-white shadow-sm ring-1 ring-white/10",
+      collapsed && "lg:justify-center lg:px-0"
     )}
   >
-    <Icon size={20} className={cn("transition-transform group-hover:scale-110", active && "text-brand-accent")} />
-    <span className="font-medium">{label}</span>
+    <Icon size={20} className={cn("shrink-0 transition-transform group-hover:scale-110", active && "text-brand-accent")} />
+    <span className={cn("font-medium", collapsed && "lg:hidden")}>{label}</span>
   </Link>
 );
+
+const SIDEBAR_COLLAPSED_KEY = 'somllar.sidebarCollapsed';
 
 const ProtectedAdminRoute = ({ user, children }: { user: User, children: React.ReactNode }) => {
   if (user.role !== 'admin_compres' && user.role !== 'superadmin' && user.role !== 'gerencia') {
@@ -65,7 +71,17 @@ const ProtectedAdminRoute = ({ user, children }: { user: User, children: React.R
 };
 
 const AppLayout = ({ children, user }: { children: React.ReactNode, user: User }) => {
-  const [isSidebarOpen, setSidebarOpen] = useState(true);
+  // Mòbil: menú desplegable a sobre del contingut. Escriptori: menú fix que es pot plegar a només icones.
+  const [isSidebarOpen, setSidebarOpen] = useState(() => typeof window === 'undefined' || window.innerWidth >= 1024);
+  const [isCollapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1'; } catch { return false; }
+  });
+  const toggleCollapsed = () => {
+    setCollapsed(prev => {
+      try { localStorage.setItem(SIDEBAR_COLLAPSED_KEY, prev ? '0' : '1'); } catch { /* sense emmagatzematge */ }
+      return !prev;
+    });
+  };
   const [isProfileModalOpen, setProfileModalOpen] = useState(false);
   const location = useLocation();
   const { logout } = useAuth();
@@ -91,55 +107,81 @@ const AppLayout = ({ children, user }: { children: React.ReactNode, user: User }
       {/* Sidebar */}
       <aside 
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-72 bg-brand-secondary text-slate-300 transform transition-transform duration-300 ease-in-out border-r border-dashboard-border shadow-2xl",
-          !isSidebarOpen && "-translate-x-full"
+          "fixed inset-y-0 left-0 z-50 w-72 bg-brand-secondary text-slate-300 transform transition-all duration-300 ease-in-out border-r border-dashboard-border shadow-2xl lg:translate-x-0",
+          !isSidebarOpen && "-translate-x-full",
+          isCollapsed && "lg:w-20"
         )}
       >
-        <div className="flex flex-col h-full p-6">
-          <div className="mb-8 px-1">
-            <div className="bg-white/95 rounded-2xl p-3.5 shadow-xl flex items-center justify-center mb-3">
+        <div className={cn("flex flex-col h-full p-6", isCollapsed && "lg:p-3")}>
+          <div className={cn("mb-8 px-1", isCollapsed && "lg:px-0")}>
+            <div className={cn("bg-white/95 rounded-2xl p-3.5 shadow-xl flex items-center justify-center mb-3", isCollapsed && "lg:p-2")}>
               <img 
                 src="/SomLlar_Logo.png" 
                 alt="Som Llar" 
                 className="h-8 w-auto object-contain"
               />
             </div>
-            <div className="px-2 flex items-center justify-between">
+            <div className={cn("px-2 flex items-center justify-between", isCollapsed && "lg:hidden")}>
               <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">Gestió de Compres</p>
               <span className="text-[8px] font-black text-brand-primary bg-brand-primary/10 px-2 py-0.5 rounded-full uppercase tracking-widest border border-brand-primary/20">Som Llar</span>
             </div>
           </div>
 
           <nav className="flex-1 space-y-2">
-            <SidebarItem to="/" icon={LayoutDashboard} label="Dashboard" active={location.pathname === '/'} onClick={handleNavClick} />
-            <SidebarItem to="/compres" icon={ShoppingCart} label="Sol·licituds" active={location.pathname.startsWith('/compres')} onClick={handleNavClick} />
-            <SidebarItem to="/proveidors" icon={Users} label="Proveïdors" active={location.pathname.startsWith('/proveidors')} onClick={handleNavClick} />
-            <SidebarItem to="/informes" icon={FileText} label="Informes" active={location.pathname === '/informes'} onClick={handleNavClick} />
-            
+            <SidebarItem to="/" icon={LayoutDashboard} label="Dashboard" active={location.pathname === '/'} onClick={handleNavClick} collapsed={isCollapsed} />
+            <SidebarItem to="/compres" icon={ShoppingCart} label="Sol·licituds" active={location.pathname.startsWith('/compres')} onClick={handleNavClick} collapsed={isCollapsed} />
+            <SidebarItem to="/proveidors" icon={Users} label="Proveïdors" active={location.pathname.startsWith('/proveidors')} onClick={handleNavClick} collapsed={isCollapsed} />
+            <SidebarItem to="/informes" icon={FileText} label="Informes" active={location.pathname === '/informes'} onClick={handleNavClick} collapsed={isCollapsed} />
+
             {(user.role === 'admin_compres' || user.role === 'superadmin' || user.role === 'gerencia') && (
               <div className="pt-6 pb-2">
-                <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest px-4 mb-2">SISTEMA</p>
-                <SidebarItem to="/admin" icon={Settings} label="Administració" active={location.pathname.startsWith('/admin')} onClick={handleNavClick} />
+                <p className={cn("text-[10px] font-black text-slate-600 uppercase tracking-widest px-4 mb-2", isCollapsed && "lg:hidden")}>SISTEMA</p>
+                <SidebarItem to="/admin" icon={Settings} label="Administració" active={location.pathname.startsWith('/admin')} onClick={handleNavClick} collapsed={isCollapsed} />
               </div>
             )}
           </nav>
 
           <div className="mt-auto space-y-4">
-            <div 
-              onClick={() => setProfileModalOpen(true)}
-              className="p-4 bg-white/[0.03] rounded-2xl border border-white/5 cursor-pointer hover:bg-white/[0.05] transition-all group"
+            <button
+              onClick={toggleCollapsed}
+              className={cn(
+                "hidden lg:flex w-full items-center gap-3 px-4 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors text-sm font-medium",
+                isCollapsed && "justify-center px-0"
+              )}
+              title={isCollapsed ? 'Desplegar el menú' : 'Plegar el menú'}
+              aria-label={isCollapsed ? 'Desplegar el menú' : 'Plegar el menú'}
+              aria-expanded={!isCollapsed}
             >
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-xs font-bold text-white uppercase shadow-lg shadow-blue-500/20 ring-2 ring-white/10 group-hover:ring-brand-primary/50 transition-all">
+              {isCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+              {!isCollapsed && <span>Plegar el menú</span>}
+            </button>
+
+            <div
+              onClick={() => setProfileModalOpen(true)}
+              title={isCollapsed ? (user?.name || 'Perfil') : undefined}
+              className={cn(
+                "p-4 bg-white/[0.03] rounded-2xl border border-white/5 cursor-pointer hover:bg-white/[0.05] transition-all group",
+                isCollapsed && "lg:p-2"
+              )}
+            >
+              <div className={cn("flex items-center gap-3 mb-2", isCollapsed && "lg:justify-center lg:mb-0")}>
+                <div className="w-8 h-8 shrink-0 rounded-full bg-blue-500 flex items-center justify-center text-xs font-bold text-white uppercase shadow-lg shadow-blue-500/20 ring-2 ring-white/10 group-hover:ring-brand-primary/50 transition-all">
                   {(user?.name || 'U').charAt(0)}
                 </div>
-                <div className="overflow-hidden">
+                <div className={cn("overflow-hidden", isCollapsed && "lg:hidden")}>
                   <p className="text-sm font-semibold text-white truncate">{user?.name || 'Usuari Som Llar'}</p>
                   <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">{(user?.role || 'tecnic').replace('_', ' ')}</p>
                 </div>
               </div>
-              <button onClick={(e) => { e.stopPropagation(); logout(); }} className="w-full flex items-center gap-2 justify-center py-2 text-xs font-medium text-slate-500 hover:text-white transition-colors border-t border-white/5 mt-2">
-                <LogOut size={14} /> Tancar sessió
+              <button
+                onClick={(e) => { e.stopPropagation(); logout(); }}
+                title="Tancar sessió"
+                className={cn(
+                  "w-full flex items-center gap-2 justify-center py-2 text-xs font-medium text-slate-500 hover:text-white transition-colors border-t border-white/5 mt-2",
+                  isCollapsed && "lg:mt-2 lg:pt-2 lg:pb-0"
+                )}
+              >
+                <LogOut size={14} /> <span className={cn(isCollapsed && "lg:hidden")}>Tancar sessió</span>
               </button>
             </div>
           </div>
@@ -197,14 +239,15 @@ const AppLayout = ({ children, user }: { children: React.ReactNode, user: User }
 
       {/* Main Content */}
       <main className={cn(
-        "flex-1 transition-all duration-300 ease-in-out w-full",
-        isSidebarOpen ? "lg:ml-72" : "ml-0"
+        "flex-1 min-w-0 transition-all duration-300 ease-in-out w-full",
+        isCollapsed ? "lg:ml-20" : "lg:ml-72"
       )}>
         {/* Header */}
         <header className="sticky top-0 z-40 h-16 bg-dashboard-card/50 backdrop-blur-xl border-b border-dashboard-border px-4 sm:px-8 flex items-center justify-between">
-          <button 
+          <button
             onClick={() => setSidebarOpen(!isSidebarOpen)}
-            className="p-2 hover:bg-white/5 rounded-lg text-slate-400 transition-colors"
+            className="p-2 hover:bg-white/5 rounded-lg text-slate-400 transition-colors lg:invisible"
+            aria-label={isSidebarOpen ? 'Tancar el menú' : 'Obrir el menú'}
           >
             {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
@@ -235,8 +278,8 @@ const AppLayout = ({ children, user }: { children: React.ReactNode, user: User }
           </div>
         </header>
 
-        {/* Viewport */}
-        <div className="p-4 sm:p-8 max-w-7xl mx-auto">
+        {/* Viewport: amb el menú plegat, el contingut ocupa tota l'amplada de la pantalla */}
+        <div className={cn("p-4 sm:p-8", isCollapsed ? "w-full" : "max-w-7xl mx-auto")}>
           {children}
         </div>
       </main>

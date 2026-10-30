@@ -234,6 +234,23 @@ test('getEventRecipients: retornada i rebutjada només al sol·licitant, sense d
   assert.deepEqual(inactiu.map(r => r.email), ['creador@somllar.cat']);
 });
 
+test('isTaskOwner: cada fase és tasca de qui en té la responsabilitat, no de la supervisió', () => {
+  const centre = ['centre@somllar.cat'];
+  assert.equal(workflowService.isTaskOwner(makeUser('coordinacio', 'tics'), makeRequest('pendent_coordinacio')), true);
+  assert.equal(workflowService.isTaskOwner(makeUser('coordinacio', 'social'), makeRequest('pendent_coordinacio')), false);
+  assert.equal(workflowService.isTaskOwner(makeUser('finances', 'admin_finances'), makeRequest('pendent_finances')), true);
+  assert.equal(workflowService.isTaskOwner(makeUser('admin_compres'), makeRequest('aprovada')), true);
+  assert.equal(workflowService.isTaskOwner(makeUser('finances'), makeRequest('aprovada')), false);
+  assert.equal(workflowService.isTaskOwner(makeUser('tecnic', 'tics', 'centre'), makeRequest('comanda_emesa'), centre), true);
+  assert.equal(workflowService.isTaskOwner(makeUser('comptabilitat'), makeRequest('rebuda')), true);
+  assert.equal(workflowService.isTaskOwner(makeUser('tecnic', 'tics', 'tecnic1'), makeRequest('retornada')), true);
+  assert.equal(workflowService.isTaskOwner(makeUser('tecnic', 'tics', 'tecnic1'), makeRequest('esborrany')), false);
+  for (const role of ['superadmin', 'gerencia'] as UserRole[]) {
+    assert.equal(workflowService.isTaskOwner(makeUser(role), makeRequest('pendent_coordinacio')), false, role);
+  }
+  assert.equal(workflowService.isTaskOwner(makeUser('admin_compres'), makeRequest('tancada')), false);
+});
+
 test('getEligibleApprovers: filtra per àrea i exclou usuaris inactius', () => {
   const users = [
     makeUser('coordinacio', 'tics', 'c1'),

@@ -345,7 +345,8 @@ export default function RequestDetail({ user }: { user: User }) {
         supplierId: orderSupplierId || '',
         productUrl: formattedProductUrl || '',
         finalAmount: finalAmount,
-        observations: newObservations
+        observations: newObservations,
+        orderIssuedAt: new Date().toISOString()
       };
 
       await updateRequest(request.id, updateData);
@@ -426,7 +427,10 @@ export default function RequestDetail({ user }: { user: User }) {
         observations: newObservations
       };
 
-      if (isSubmission) updateData.initialStatus = newStatus;
+      if (isSubmission) {
+        updateData.initialStatus = newStatus;
+        updateData.submittedAt = nowIso;
+      }
 
       // Afegir timestamps d'aprovació i comentaris estructurats segons la fase o acció
       if (action === 'approve') {

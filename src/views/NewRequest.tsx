@@ -181,7 +181,7 @@ export default function NewRequest({ user }: { user: User }) {
         areaId: requestAreaId,
         attachmentsCount: attachments.length,
         status: targetStatus,
-        ...(isSubmit ? { initialStatus: targetStatus } : {})
+        ...(isSubmit ? { initialStatus: targetStatus, submittedAt: new Date().toISOString() } : {})
       });
 
       // 2. Desar els enllaços documentals a la col·lecció 'attachments'

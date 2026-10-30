@@ -134,7 +134,7 @@ describe('circuit d\'aprovació', () => {
 
 describe('enviament amb salt de nivells', () => {
   const submit = (uid: string, to: string) =>
-    updateDoc(doc(asUser(uid), 'purchaseRequests', 'r1'), { status: to, initialStatus: to, updatedAt: 't1' });
+    updateDoc(doc(asUser(uid), 'purchaseRequests', 'r1'), { status: to, initialStatus: to, submittedAt: 't1', updatedAt: 't1' });
   const seedAs = async (status: string, creator: string) => {
     await seed(status);
     await env.withSecurityRulesDisabled(ctx =>
@@ -191,7 +191,7 @@ describe('expedients reals (amb molts camps)', () => {
 
 describe('emetre comanda (aprovada → comanda_emesa)', () => {
   const emit = (uid: string) =>
-    updateDoc(doc(asUser(uid), 'purchaseRequests', 'r1'), { status: 'comanda_emesa', updatedAt: 't1' });
+    updateDoc(doc(asUser(uid), 'purchaseRequests', 'r1'), { status: 'comanda_emesa', supplierName: 'P', finalAmount: 10, orderIssuedAt: 't1', updatedAt: 't1' });
 
   test('Finances pot emetre', async () => {
     await seed('aprovada');

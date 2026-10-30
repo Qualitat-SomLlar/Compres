@@ -115,6 +115,7 @@ export interface PurchaseRequest {
 
   // Fase on va entrar l'expedient en enviar-lo (els nivells anteriors no calien pel càrrec de qui l'envia)
   initialStatus?: RequestStatus;
+  submittedAt?: string; // Últim enviament a validació (en crear-la o en reenviar-la)
 
   // Timestamps de fases
   coordinationApprovedAt?: string;
@@ -142,6 +143,7 @@ export interface PurchaseRequest {
   rejectedRole?: string;
   rejectedAt?: string;
 
+  orderIssuedAt?: string;
   receivedAt?: string;
   invoiceValidatedAt?: string;
   closedAt?: string;

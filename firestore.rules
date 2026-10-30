@@ -130,7 +130,7 @@ service cloud.firestore {
     }
     // Camps propis de cada fase
     function stepFields(s) {
-      return s in ['esborrany', 'retornada'] ? ['initialStatus']
+      return s in ['esborrany', 'retornada'] ? ['initialStatus', 'submittedAt']
         : s == 'pendent_coordinacio'
           ? ['coordinationApprovedAt', 'coordinationComment', 'coordinationApprovedBy', 'coordinationApproverRole']
         : s == 'pendent_direccio'
@@ -138,7 +138,7 @@ service cloud.firestore {
         : s == 'pendent_finances'
           ? ['financeApprovedAt', 'financeComment', 'financeApprovedBy', 'financeApproverRole']
         : s == 'aprovada'
-          ? ['supplierName', 'supplierId', 'productUrl', 'finalAmount']
+          ? ['supplierName', 'supplierId', 'productUrl', 'finalAmount', 'orderIssuedAt']
         : s == 'comanda_emesa' ? ['receivedAt']
         : s == 'rebuda' ? ['closedAt']
         : [];

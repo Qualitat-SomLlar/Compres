@@ -27,17 +27,51 @@ import {
   ExternalLink,
   Tag
 } from 'lucide-react';
-import { CATEGORIES, STATUS_LABELS } from '../constants';
+import { CATEGORIES, STATUS_LABELS, normalizeAreaId } from '../constants';
 import { cn } from '../lib/utils';
 import { useRequests } from '../hooks/useRequests';
 import { useSuppliers } from '../hooks/useSuppliers';
 import { useAreas } from '../hooks/useAreas';
+import { useCenters } from '../hooks/useCenters';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import StatusBadge from '../components/StatusBadge';
 import { workflowService } from '../services/workflowService';
+import { averagePhaseDurations, getStuckRequests, getCurrentPhaseLabel } from '../services/metricsService';
+import { PurchaseRequest, RequestStatus } from '../types';
 
 const DONUT_COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#64748b'];
+
+// Imports: els esborranys i les rebutjades no són despesa
+const NOT_SPENDING: RequestStatus[] = ['esborrany', 'rebutjada'];
+const COMMITTED: RequestStatus[] = ['aprovada', 'comanda_emesa', 'rebuda', 'tancada'];
+const EXECUTED: RequestStatus[] = ['comanda_emesa', 'rebuda', 'tancada'];
+const IN_VALIDATION: RequestStatus[] = ['pendent_coordinacio', 'pendent_direccio', 'pendent_finances'];
+const amountOf = (r: PurchaseRequest) => (r.finalAmount ?? r.estimatedAmount) || 0;
+const yearOf = (r: PurchaseRequest) => String(new Date(r.createdAt || 0).getFullYear());
+const formatEuros = (value: number) => `${Math.round(value).toLocaleString('ca-ES')} €`;
+const MY_TASKS_SHOWN = 6;
+const STUCK_THRESHOLD_DAYS = 3;
+const STUCK_SHOWN = 6;
+
+// Fases del circuit amb qui en té la responsabilitat
+const FUNNEL_STEPS: { status: RequestStatus; owner: string; label: string; color: string }[] = [
+  { status: 'esborrany', owner: 'Esborrany', label: 'Sense enviar', color: 'text-slate-500' },
+  { status: 'pendent_coordinacio', owner: 'N2 · Coordinació', label: 'Pendent validar', color: 'text-amber-500' },
+  { status: 'pendent_direccio', owner: 'N3 · Direcció', label: 'Pendent validar', color: 'text-orange-400' },
+  { status: 'pendent_finances', owner: 'N4 · Finances', label: 'Pendent aprovar', color: 'text-purple-400' },
+  { status: 'aprovada', owner: 'N5 · Compres', label: 'Pendent comanda', color: 'text-cyan-400' },
+  { status: 'comanda_emesa', owner: 'Centre', label: 'Pendent recepció', color: 'text-blue-400' },
+  { status: 'rebuda', owner: 'Comptabilitat', label: 'Pendent factura', color: 'text-teal-400' },
+  { status: 'tancada', owner: 'Tancades', label: 'Finalitzades', color: 'text-emerald-400' },
+];
+
+// Fora del circuit normal: una retornada continua viva, una rebutjada s'ha acabat
+const EXCEPTION_STEPS: { status: RequestStatus; label: string; hint: string; color: string; box: string }[] = [
+  { status: 'retornada', label: 'Retornades', hint: 'El sol·licitant ha d\'esmenar-les', color: 'text-amber-400', box: 'bg-amber-500/[0.04] border-amber-500/20' },
+  { status: 'rebutjada', label: 'Rebutjades', hint: 'Finalitzades sense compra', color: 'text-red-400', box: 'bg-red-500/[0.04] border-red-500/20' },
+  { status: 'incidencia', label: 'Incidències', hint: 'Seguiment de Compres (N5)', color: 'text-rose-400', box: 'bg-rose-500/[0.04] border-rose-500/20' },
+];
 
 interface KpiCardProps {
   title: string;
@@ -94,13 +128,52 @@ const KpiCard = ({
 );
 
 export default function Dashboard() {
-  const { requests, stats, loading: loadingRequests } = useRequests();
+  const { requests: allRequests, loading: loadingRequests } = useRequests();
   const { suppliers } = useSuppliers();
   const { areas, getAreaName } = useAreas();
+  const { centers } = useCenters();
   const { user } = useAuth();
   const { theme } = useTheme();
 
   const [activeChartTab, setActiveChartTab] = useState<'category' | 'area'>('category');
+  const currentYear = String(new Date().getFullYear());
+  const [yearFilter, setYearFilter] = useState<string>(currentYear);
+  const [areaFilter, setAreaFilter] = useState<string>('all');
+
+  const yearOptions = useMemo(() => {
+    const years = new Set<string>([currentYear, ...allRequests.map(yearOf)]);
+    return Array.from(years).filter(y => y !== 'NaN' && y !== '1970').sort((a, b) => b.localeCompare(a));
+  }, [allRequests, currentYear]);
+
+  const matchesArea = (r: PurchaseRequest) =>
+    areaFilter === 'all' || normalizeAreaId(r.areaId) === normalizeAreaId(areaFilter);
+
+  // Expedients de l'exercici i l'àrea triats: tots els indicadors i gràfics es calculen sobre aquests
+  const requests = useMemo(
+    () => allRequests.filter(r => (yearFilter === 'all' || yearOf(r) === yearFilter) && matchesArea(r)),
+    [allRequests, yearFilter, areaFilter]
+  );
+
+  const previousYearCount = useMemo(() => {
+    if (yearFilter === 'all') return 0;
+    const previous = String(Number(yearFilter) - 1);
+    return allRequests.filter(r => yearOf(r) === previous && matchesArea(r)).length;
+  }, [allRequests, yearFilter, areaFilter]);
+
+  // Expedients que esperen una acció de l'usuari (no depenen dels filtres: una tasca antiga continua pendent)
+  const myTasks = useMemo(() => {
+    if (!user) return [];
+    return allRequests
+      .filter(r => workflowService.isTaskOwner(user, r, centers.find(c => c.id === r.destinationCenterId)?.responsibleEmails))
+      .sort((a, b) => new Date(a.updatedAt || 0).getTime() - new Date(b.updatedAt || 0).getTime());
+  }, [allRequests, user, centers]);
+
+  const phaseDurations = useMemo(() => averagePhaseDurations(requests), [requests]);
+  const slowestPhaseDays = Math.max(0, ...phaseDurations.map(p => p.avgDays));
+  const stuckRequests = useMemo(() => getStuckRequests(requests, STUCK_THRESHOLD_DAYS), [requests]);
+
+  const daysWaiting = (r: PurchaseRequest) =>
+    Math.max(0, Math.floor((Date.now() - new Date(r.updatedAt || r.createdAt || Date.now()).getTime()) / 86400000));
 
   // Saluda i data formatejada
   const greeting = useMemo(() => {
@@ -127,16 +200,23 @@ export default function Dashboard() {
     const pendentsFinances = requests.filter(r => r.status === 'pendent_finances').length;
     const aprovades = requests.filter(r => r.status === 'aprovada').length;
     const comandaEmesa = requests.filter(r => r.status === 'comanda_emesa').length;
-    const finalitzades = requests.filter(r => ['rebuda', 'tancada'].includes(r.status)).length;
-    const incidencies = requests.filter(r => ['retornada', 'rebutjada', 'incidencia'].includes(r.status)).length;
+    const rebudes = requests.filter(r => r.status === 'rebuda').length;
+    const finalitzades = requests.filter(r => r.status === 'tancada').length;
+    const retornades = requests.filter(r => r.status === 'retornada').length;
+    const rebutjades = requests.filter(r => r.status === 'rebutjada').length;
+    const incidencies = requests.filter(r => r.status === 'incidencia').length;
     
     const totalPendents = pendentsCoordinacio + pendentsDireccio + pendentsFinances;
 
-    // Despesa adjudicada real vs estimada
-    const totalEstimated = requests.reduce((acc, r) => acc + (r.estimatedAmount || 0), 0);
-    const totalAwarded = requests
-      .filter(r => ['comanda_emesa', 'rebuda', 'tancada'].includes(r.status))
-      .reduce((acc, r) => acc + (r.finalAmount !== undefined ? r.finalAmount : (r.estimatedAmount || 0)), 0);
+    // Imports: compromès (aprovat o més enllà), executat (amb comanda) i en validació
+    const sumOf = (statuses: RequestStatus[]) =>
+      requests.filter(r => statuses.includes(r.status)).reduce((acc, r) => acc + amountOf(r), 0);
+    const totalCommitted = sumOf(COMMITTED);
+    const totalExecuted = sumOf(EXECUTED);
+    const totalInValidation = sumOf(IN_VALIDATION);
+    const urgentCount = requests.filter(r =>
+      (r.urgency === 'alta' || r.urgency === 'critica') && !['tancada', 'rebutjada', 'esborrany'].includes(r.status)
+    ).length;
 
     return {
       pendentsCoordinacio,
@@ -144,27 +224,32 @@ export default function Dashboard() {
       pendentsFinances,
       aprovades,
       comandaEmesa,
+      rebudes,
       finalitzades,
+      retornades,
+      rebutjades,
       incidencies,
       totalPendents,
-      totalEstimated,
-      totalAwarded
+      totalCommitted,
+      totalExecuted,
+      totalInValidation,
+      urgentCount
     };
   }, [requests]);
 
   // Distribució per a gràfic donut
   const statusData = useMemo(() => {
     const pendents = pipelineStats.totalPendents;
-    const tramitacio = pipelineStats.aprovades + pipelineStats.comandaEmesa;
-    const finalitzades = pipelineStats.finalitzades;
-    const retornades = pipelineStats.incidencies;
+    const tramitacio = pipelineStats.aprovades + pipelineStats.comandaEmesa + pipelineStats.rebudes;
     const esborranys = requests.filter(r => r.status === 'esborrany').length;
 
     const result = [
       { name: 'Pendents Validació', value: pendents, color: '#f59e0b' },
-      { name: 'En Tramitació / Comanda', value: tramitacio, color: '#3b82f6' },
-      { name: 'Finalitzades', value: finalitzades, color: '#10b981' },
-      { name: 'Retornades / Incidències', value: retornades, color: '#ef4444' },
+      { name: 'Comanda / Recepció / Factura', value: tramitacio, color: '#3b82f6' },
+      { name: 'Tancades', value: pipelineStats.finalitzades, color: '#10b981' },
+      { name: 'Retornades', value: pipelineStats.retornades, color: '#f97316' },
+      { name: 'Rebutjades', value: pipelineStats.rebutjades, color: '#ef4444' },
+      { name: 'Incidències', value: pipelineStats.incidencies, color: '#e11d48' },
       { name: 'Esborranys', value: esborranys, color: '#64748b' },
     ].filter(item => item.value > 0);
 
@@ -174,8 +259,8 @@ export default function Dashboard() {
   // Gràfic de despesa per Categoria
   const categoryChartData = useMemo(() => {
     return CATEGORIES.map(cat => {
-      const catRequests = requests.filter(r => r.category === cat.id);
-      const totalAmount = catRequests.reduce((acc, r) => acc + ((r.finalAmount ?? r.estimatedAmount) || 0), 0);
+      const catRequests = requests.filter(r => r.category === cat.id && !NOT_SPENDING.includes(r.status));
+      const totalAmount = catRequests.reduce((acc, r) => acc + amountOf(r), 0);
       return {
         name: cat.name,
         import: Math.round(totalAmount),
@@ -193,9 +278,9 @@ export default function Dashboard() {
       areaMap[a.id] = { name: a.name, import: 0, count: 0 };
     });
 
-    requests.forEach(r => {
+    requests.filter(r => !NOT_SPENDING.includes(r.status)).forEach(r => {
       const areaKey = r.areaId || 'sense_area';
-      const amount = (r.finalAmount ?? r.estimatedAmount) || 0;
+      const amount = amountOf(r);
       if (!areaMap[areaKey]) {
         areaMap[areaKey] = { name: getAreaName(areaKey), import: 0, count: 0 };
       }
@@ -300,14 +385,81 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* 1b. EXPEDIENTS QUE ESPEREN UNA ACCIÓ DE L'USUARI */}
+      <div className="card p-6 md:p-8 space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-sm font-black uppercase tracking-[0.2em] text-text-main flex items-center gap-2.5">
+            <CheckCircle size={18} className="text-brand-primary" /> Et toca a tu
+            <span className="px-2 py-0.5 rounded-full bg-brand-primary/15 text-brand-primary text-[11px] tracking-normal">{myTasks.length}</span>
+          </h3>
+          {myTasks.length > MY_TASKS_SHOWN && (
+            <Link to="/compres" className="text-xs font-bold text-brand-primary flex items-center gap-1 hover:underline">
+              Veure'ls tots <ChevronRight size={14} />
+            </Link>
+          )}
+        </div>
+        {myTasks.length === 0 ? (
+          <p className="text-sm text-slate-400 flex items-center gap-2">
+            <CheckCircle2 size={16} className="text-emerald-400" /> No tens cap expedient pendent d'actuar.
+          </p>
+        ) : (
+          <div className="divide-y divide-dashboard-border">
+            {myTasks.slice(0, MY_TASKS_SHOWN).map(r => {
+              const days = daysWaiting(r);
+              return (
+                <Link
+                  key={r.id}
+                  to={`/compres/${r.id}`}
+                  className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 py-3 group"
+                >
+                  <span className="text-[11px] font-black text-brand-primary tracking-wider shrink-0 w-28">{r.code || r.id}</span>
+                  <span className="text-sm text-text-main font-semibold truncate flex-1 min-w-0">{r.itemDescription}</span>
+                  <StatusBadge status={r.status} className="shrink-0" />
+                  <span className={cn("text-[11px] font-bold shrink-0 w-20", days >= 3 ? "text-amber-400" : "text-slate-500")}>
+                    {days === 0 ? 'Avui' : `Fa ${days} ${days === 1 ? 'dia' : 'dies'}`}
+                  </span>
+                  <span className="btn-primary text-[10px] font-black uppercase tracking-wider py-1.5 px-3 flex items-center gap-1 shrink-0 w-fit">
+                    {workflowService.getTaskActionLabel(r.status)} <ArrowRight size={12} />
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* 1c. FILTRES D'EXERCICI I ÀREA */}
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Indicadors de</span>
+        <select
+          className="input-field w-auto py-2 text-xs"
+          value={yearFilter}
+          onChange={e => setYearFilter(e.target.value)}
+          aria-label="Exercici"
+        >
+          {yearOptions.map(y => <option key={y} value={y}>Exercici {y}</option>)}
+          <option value="all">Tots els exercicis</option>
+        </select>
+        <select
+          className="input-field w-auto py-2 text-xs"
+          value={areaFilter}
+          onChange={e => setAreaFilter(e.target.value)}
+          aria-label="Àrea"
+        >
+          <option value="all">Totes les àrees</option>
+          {areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+        </select>
+        <span className="text-[11px] text-slate-500">{requests.length} expedients</span>
+      </div>
+
       {/* 2. GRID PRINCIPAL DE KPIS EXECUTIUS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <KpiCard 
-          title="Volum Econòmic Gestionat" 
-          value={`${pipelineStats.totalEstimated.toLocaleString('ca-ES')} €`} 
-          subtitle={`Adjudicat: ${pipelineStats.totalAwarded.toLocaleString('ca-ES')} €`}
-          icon={Euro} 
-          trend="Total estimat"
+        <KpiCard
+          title="Import Compromès"
+          value={formatEuros(pipelineStats.totalCommitted)}
+          subtitle={`Executat: ${formatEuros(pipelineStats.totalExecuted)} · En validació: ${formatEuros(pipelineStats.totalInValidation)}`}
+          icon={Euro}
+          trend="Aprovat o amb comanda"
           trendType="neutral"
           colorClass="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
           bgGradient="from-emerald-500/20 to-transparent"
@@ -316,10 +468,12 @@ export default function Dashboard() {
         <KpiCard 
           title="Total Expedients" 
           value={requests.length} 
-          subtitle={`${pipelineStats.finalitzades} finalitzats · ${requests.length - pipelineStats.finalitzades} actius`}
+          subtitle={`${pipelineStats.finalitzades} tancats · ${pipelineStats.rebutjades} rebutjats · ${requests.length - pipelineStats.finalitzades - pipelineStats.rebutjades} actius`}
           icon={TrendingUp} 
-          trend="+12% respecte mes ant."
-          trendType="positive"
+          trend={yearFilter !== 'all' && previousYearCount > 0
+            ? `${requests.length >= previousYearCount ? '+' : ''}${Math.round(((requests.length - previousYearCount) / previousYearCount) * 100)}% respecte ${Number(yearFilter) - 1}`
+            : undefined}
+          trendType="neutral"
           colorClass="bg-blue-500/15 text-blue-400 border border-blue-500/30"
           bgGradient="from-blue-500/20 to-transparent"
         />
@@ -337,14 +491,14 @@ export default function Dashboard() {
 
         <KpiCard 
           title="Compres d'Alta Urgència" 
-          value={stats.urgentCount} 
-          subtitle="Peticions amb prioritat alta o crítica"
-          icon={AlertCircle} 
-          trend={stats.urgentCount > 0 ? "Prioritari" : "Sense urgències"}
-          trendType={stats.urgentCount > 0 ? "warning" : "positive"}
+          value={pipelineStats.urgentCount}
+          subtitle="Actives amb prioritat alta o crítica"
+          icon={AlertCircle}
+          trend={pipelineStats.urgentCount > 0 ? "Prioritari" : "Sense urgències"}
+          trendType={pipelineStats.urgentCount > 0 ? "warning" : "positive"}
           colorClass="bg-red-500/15 text-red-400 border border-red-500/30"
           bgGradient="from-red-500/20 to-transparent"
-          isAlert={stats.urgentCount > 0}
+          isAlert={pipelineStats.urgentCount > 0}
         />
       </div>
 
@@ -363,96 +517,98 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {/* Pas 1: Esborrany / Nova */}
-          <Link 
-            to="/compres" 
-            className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-brand-primary/40 hover:bg-brand-primary/[0.02] transition-all group flex flex-col justify-between"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">N1 · Creades</span>
-              <span className="w-2 h-2 rounded-full bg-slate-500" />
-            </div>
-            <p className="text-2xl font-black text-text-main group-hover:text-brand-primary transition-colors">
-              {requests.filter(r => r.status === 'esborrany').length}
-            </p>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">Esborranys</p>
-          </Link>
+        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
+          {FUNNEL_STEPS.map(step => {
+            const count = requests.filter(r => r.status === step.status).length;
+            return (
+              <Link
+                key={step.status}
+                to="/compres"
+                className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-brand-primary/40 transition-all group flex flex-col justify-between"
+              >
+                <span className={cn("text-[10px] font-black uppercase tracking-widest mb-2", step.color)}>{step.owner}</span>
+                <p className="text-2xl font-black text-text-main group-hover:text-brand-primary transition-colors">{count}</p>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">{step.label}</p>
+              </Link>
+            );
+          })}
+        </div>
 
-          {/* Pas 2: Coordinació */}
-          <Link 
-            to="/compres" 
-            className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-amber-500/40 hover:bg-amber-500/[0.02] transition-all group flex flex-col justify-between"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">N2 · Coordinació</span>
-              <span className={cn("w-2 h-2 rounded-full", pipelineStats.pendentsCoordinacio > 0 ? "bg-amber-500 animate-pulse" : "bg-slate-600")} />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {EXCEPTION_STEPS.map(step => (
+            <div key={step.status} className={cn("px-4 py-3 rounded-2xl border flex items-center justify-between gap-3", step.box)}>
+              <div>
+                <p className={cn("text-[10px] font-black uppercase tracking-widest", step.color)}>{step.label}</p>
+                <p className="text-[11px] text-slate-500">{step.hint}</p>
+              </div>
+              <span className="text-xl font-black text-text-main">{requests.filter(r => r.status === step.status).length}</span>
             </div>
-            <p className="text-2xl font-black text-text-main group-hover:text-amber-400 transition-colors">
-              {pipelineStats.pendentsCoordinacio}
-            </p>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">Pendent validar</p>
-          </Link>
+          ))}
+        </div>
+      </div>
 
-          {/* Pas 3: Direcció Àrea */}
-          <Link 
-            to="/compres" 
-            className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-orange-500/40 hover:bg-orange-500/[0.02] transition-all group flex flex-col justify-between"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest">N3 · Direcció</span>
-              <span className={cn("w-2 h-2 rounded-full", pipelineStats.pendentsDireccio > 0 ? "bg-orange-500 animate-pulse" : "bg-slate-600")} />
-            </div>
-            <p className="text-2xl font-black text-text-main group-hover:text-orange-400 transition-colors">
-              {pipelineStats.pendentsDireccio}
-            </p>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">Pendent validar</p>
-          </Link>
+      {/* 3b. TEMPS PER FASE I EXPEDIENTS ATURATS */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="card p-6 md:p-8 space-y-5">
+          <div className="space-y-1">
+            <h4 className="text-base font-bold text-text-main flex items-center gap-2"><Clock size={16} className="text-brand-primary" /> Temps mitjà per fase</h4>
+            <p className="text-xs text-slate-500">Dies laborables que han passat els expedients a cada fase ja completada.</p>
+          </div>
+          <div className="space-y-3">
+            {phaseDurations.map(phase => {
+              const isBottleneck = phase.count > 0 && phase.avgDays === slowestPhaseDays && slowestPhaseDays > 0;
+              return (
+                <div key={phase.status} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className={cn("font-bold", isBottleneck ? "text-amber-400" : "text-slate-300")}>
+                      {phase.label}{isBottleneck && ' · coll d\'ampolla'}
+                    </span>
+                    <span className="text-slate-400">
+                      {phase.count > 0 ? `${phase.avgDays.toLocaleString('ca-ES', { maximumFractionDigits: 1 })} dies` : 'Sense dades'}
+                      {phase.count > 0 && <span className="text-slate-500"> · {phase.count} exp.</span>}
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-white/[0.04] overflow-hidden">
+                    <div
+                      className={cn("h-full rounded-full", isBottleneck ? "bg-amber-500" : "bg-brand-primary")}
+                      style={{ width: `${slowestPhaseDays > 0 ? Math.max(4, (phase.avgDays / slowestPhaseDays) * 100) : 0}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
-          {/* Pas 4: Finances */}
-          <Link 
-            to="/compres" 
-            className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-purple-500/40 hover:bg-purple-500/[0.02] transition-all group flex flex-col justify-between"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest">N4 · Finances</span>
-              <span className={cn("w-2 h-2 rounded-full", pipelineStats.pendentsFinances > 0 ? "bg-purple-500 animate-pulse" : "bg-slate-600")} />
+        <div className="card p-6 md:p-8 space-y-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1">
+              <h4 className="text-base font-bold text-text-main flex items-center gap-2"><AlertTriangle size={16} className="text-amber-400" /> Expedients aturats</h4>
+              <p className="text-xs text-slate-500">Porten {STUCK_THRESHOLD_DAYS} dies laborables o més sense avançar de fase.</p>
             </div>
-            <p className="text-2xl font-black text-text-main group-hover:text-purple-400 transition-colors">
-              {pipelineStats.pendentsFinances}
+            <span className={cn("px-2.5 py-1 rounded-full text-xs font-black", stuckRequests.length > 0 ? "bg-amber-500/15 text-amber-400" : "bg-emerald-500/15 text-emerald-400")}>
+              {stuckRequests.length}
+            </span>
+          </div>
+          {stuckRequests.length === 0 ? (
+            <p className="text-sm text-slate-400 flex items-center gap-2">
+              <CheckCircle2 size={16} className="text-emerald-400" /> Cap expedient aturat.
             </p>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">Pendent aprovar</p>
-          </Link>
-
-          {/* Pas 5: Comanda Emesa */}
-          <Link 
-            to="/compres" 
-            className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-blue-500/40 hover:bg-blue-500/[0.02] transition-all group flex flex-col justify-between"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">N5 · Comanda</span>
-              <span className="w-2 h-2 rounded-full bg-blue-500" />
+          ) : (
+            <div className="divide-y divide-dashboard-border">
+              {stuckRequests.slice(0, STUCK_SHOWN).map(({ request: r, days }) => (
+                <Link key={r.id} to={`/compres/${r.id}`} className="flex items-center gap-3 py-2.5 group">
+                  <span className="text-[11px] font-black text-brand-primary tracking-wider shrink-0 w-24">{r.code || r.id}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs text-text-main font-semibold truncate">{r.itemDescription}</p>
+                    <p className="text-[11px] text-slate-500">{getCurrentPhaseLabel(r.status)}</p>
+                  </div>
+                  <span className="text-[11px] font-black text-amber-400 shrink-0">{days} dies</span>
+                  <ChevronRight size={14} className="text-slate-500 group-hover:text-brand-primary shrink-0" />
+                </Link>
+              ))}
             </div>
-            <p className="text-2xl font-black text-text-main group-hover:text-blue-400 transition-colors">
-              {pipelineStats.comandaEmesa + pipelineStats.aprovades}
-            </p>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">Emesa / En curs</p>
-          </Link>
-
-          {/* Pas 6: Finalitzades */}
-          <Link 
-            to="/compres" 
-            className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-emerald-500/40 hover:bg-emerald-500/[0.02] transition-all group flex flex-col justify-between"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Finalitzades</span>
-              <CheckCircle size={12} className="text-emerald-400" />
-            </div>
-            <p className="text-2xl font-black text-text-main group-hover:text-emerald-400 transition-colors">
-              {pipelineStats.finalitzades}
-            </p>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">Rebudes / Tancades</p>
-          </Link>
+          )}
         </div>
       </div>
 
