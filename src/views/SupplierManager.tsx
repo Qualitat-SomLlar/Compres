@@ -19,6 +19,8 @@ import {
   Link2
 } from 'lucide-react';
 import { useSuppliers } from '../hooks/useSuppliers';
+import { useAuth } from '../contexts/AuthContext';
+import { activityService } from '../services/activityService';
 import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -51,6 +53,32 @@ export default function SupplierManager() {
   const [docType, setDocType] = useState('Normatiu');
   const [isSavingDoc, setIsSavingDoc] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { user } = useAuth();
+
+  // Eliminar el proveïdor (només Superadmin)
+  const handleDeleteSupplier = async () => {
+    if (!selectedSupplier || !user) return;
+    if (!window.confirm(`Estàs segur que vols eliminar definitivament el proveïdor ${selectedSupplier.name}? Aquesta acció no es pot desfer.`)) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteSupplier(selectedSupplier.id);
+      activityService.logAdminAction(
+        user,
+        'supplier_deleted',
+        'Eliminació de Proveïdor',
+        `S'ha eliminat el proveïdor ${selectedSupplier.name}${selectedSupplier.nif ? ` (${selectedSupplier.nif})` : ''}.`
+      );
+      toast.success('Proveïdor eliminat correctament');
+      setSelectedSupplier(null);
+    } catch (err) {
+      console.error('Error eliminant el proveïdor:', err);
+      toast.error("No s'ha pogut eliminar el proveïdor");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handleAddDocumentLink = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -297,9 +325,22 @@ export default function SupplierManager() {
           <div className="bg-[#151c2c] border border-white/10 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh]">
             <div className="flex justify-between items-center p-6 border-b border-white/5">
               <h3 className="text-xl font-bold text-white flex items-center gap-2">Fitxa de {selectedSupplier.name}</h3>
-              <button onClick={() => setSelectedSupplier(null)} className="p-2 hover:bg-white/5 rounded-lg text-slate-400">
-                <X size={20} />
-              </button>
+              <div className="flex items-center gap-2">
+                {user?.role === 'superadmin' && (
+                  <button
+                    onClick={handleDeleteSupplier}
+                    disabled={isDeleting}
+                    className="btn-secondary py-2 px-4 rounded-xl text-[10px] font-black tracking-widest uppercase flex items-center gap-2 border-rose-500/30 text-rose-400 hover:bg-rose-500/10 transition-all disabled:opacity-50"
+                    title="Eliminar definitivament el proveïdor (només Superadmin)"
+                  >
+                    {isDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                    <span>Eliminar</span>
+                  </button>
+                )}
+                <button onClick={() => setSelectedSupplier(null)} className="p-2 hover:bg-white/5 rounded-lg text-slate-400">
+                  <X size={20} />
+                </button>
+              </div>
             </div>
             <div className="p-6 overflow-y-auto space-y-8">
               <div className="flex justify-between items-start">
