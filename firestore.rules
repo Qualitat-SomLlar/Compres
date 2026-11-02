@@ -274,6 +274,21 @@ service cloud.firestore {
         && (isSupervisorU(u) || onlyChanges(['isSelected']));
     }
 
+    // Comentaris dels expedients: qualsevol usuari corporatiu, sempre a nom propi.
+    // No es poden editar; l'autor (o el Superadmin) els pot esborrar.
+    match /requestComments/{commentId} {
+      allow read: if isCorporate();
+      allow create: if isCorporate()
+        && request.resource.data.keys().hasOnly(['requestId', 'userId', 'userName', 'userRole', 'text', 'createdAt'])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 2000
+        && request.resource.data.requestId is string
+        && exists(/databases/$(database)/documents/purchaseRequests/$(request.resource.data.requestId));
+      allow delete: if isCorporate() && resource.data.userId == request.auth.uid;
+    }
+
     // Suppliers
     match /suppliers/{supplierId} {
       allow read: if isCorporate();

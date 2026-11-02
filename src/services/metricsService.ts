@@ -1,4 +1,4 @@
-import { PurchaseRequest, RequestStatus } from '../types';
+import { PurchaseRequest, RequestStatus, Supplier } from '../types';
 
 const toTime = (iso?: string) => (iso ? new Date(iso).getTime() : NaN);
 const submittedOf = (r: PurchaseRequest) => r.submittedAt || r.createdAt;
@@ -112,4 +112,28 @@ export function getStuckRequests(requests: PurchaseRequest[], thresholdDays = 3,
 export function getCurrentPhaseLabel(status: RequestStatus): string {
   if (status === 'retornada') return 'Esmena (sol·licitant)';
   return WORKFLOW_PHASES.find(p => p.status === status)?.label || status;
+}
+
+// Estats en què la comanda ja s'ha emès al proveïdor
+const ORDERED_STATUSES = new Set<RequestStatus>(['comanda_emesa', 'rebuda', 'tancada', 'incidencia']);
+
+const normalizeName = (name?: string) => (name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+/**
+ * Historial de compres d'un proveïdor: comandes emeses, import total i última compra.
+ * Les comandes antigues sense supplierId s'associen pel nom del proveïdor.
+ */
+export function getSupplierHistory(supplier: Pick<Supplier, 'id' | 'name'>, requests: PurchaseRequest[]) {
+  const name = normalizeName(supplier.name);
+  const orders = requests
+    .filter(r => ORDERED_STATUSES.has(r.status))
+    .filter(r => r.supplierId ? r.supplierId === supplier.id : (!!name && normalizeName(r.supplierName) === name))
+    .map(r => ({ request: r, date: r.orderIssuedAt || r.updatedAt || r.createdAt }))
+    .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  return {
+    orders,
+    orderCount: orders.length,
+    totalSpent: orders.reduce((sum, o) => sum + (o.request.finalAmount ?? o.request.estimatedAmount ?? 0), 0),
+    lastOrderAt: orders[0]?.date as string | undefined,
+  };
 }

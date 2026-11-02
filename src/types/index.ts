@@ -372,3 +372,14 @@ export interface ActivityLog {
   device?: string;
   createdAt: string;
 }
+
+// Comentari del fil de conversa d'un expedient (col·lecció requestComments)
+export interface RequestComment {
+  id: string;
+  requestId: string;
+  userId: string;
+  userName: string;
+  userRole?: string;
+  text: string;
+  createdAt: string;
+}

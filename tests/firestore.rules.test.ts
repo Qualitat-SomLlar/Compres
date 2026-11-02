@@ -8,7 +8,7 @@ import {
   assertSucceeds,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 let env: RulesTestEnvironment;
 
@@ -330,5 +330,35 @@ describe('dades mestres', () => {
     await seed('esborrany');
     await assertSucceeds(setDoc(doc(asUser('tecnic1'), 'auditLogs', 'l1'), { action: 'x' }));
     await assertFails(updateDoc(doc(asUser('finances'), 'auditLogs', 'l1'), { action: 'y' }));
+  });
+});
+
+describe('comentaris dels expedients', () => {
+  const comment = (userId: string, extra: Record<string, unknown> = {}) => ({
+    requestId: 'r1', userId, userName: 'Nom', userRole: 'tecnic', text: 'Dubte sobre el pressupost', createdAt: 't1', ...extra,
+  });
+
+  test('qualsevol usuari corporatiu comenta a nom propi', async () => {
+    await seed('pendent_direccio');
+    await assertSucceeds(setDoc(doc(asUser('tecnic1'), 'requestComments', 'c1'), comment('tecnic1')));
+    await assertSucceeds(getDoc(doc(asUser('altre'), 'requestComments', 'c1')));
+  });
+  test('no es pot comentar a nom d\'un altre ni en un expedient inexistent', async () => {
+    await seed('pendent_direccio');
+    await assertFails(setDoc(doc(asUser('tecnic1'), 'requestComments', 'c1'), comment('altre')));
+    await assertFails(setDoc(doc(asUser('tecnic1'), 'requestComments', 'c2'), comment('tecnic1', { requestId: 'no-existeix' })));
+  });
+  test('el text no pot ser buit ni massa llarg, ni portar camps extra', async () => {
+    await seed('pendent_direccio');
+    await assertFails(setDoc(doc(asUser('tecnic1'), 'requestComments', 'c1'), comment('tecnic1', { text: '' })));
+    await assertFails(setDoc(doc(asUser('tecnic1'), 'requestComments', 'c2'), comment('tecnic1', { text: 'x'.repeat(2001) })));
+    await assertFails(setDoc(doc(asUser('tecnic1'), 'requestComments', 'c3'), comment('tecnic1', { pinned: true })));
+  });
+  test('només l\'autor l\'esborra i ningú no l\'edita', async () => {
+    await seed('pendent_direccio');
+    await assertSucceeds(setDoc(doc(asUser('tecnic1'), 'requestComments', 'c1'), comment('tecnic1')));
+    await assertFails(updateDoc(doc(asUser('tecnic1'), 'requestComments', 'c1'), { text: 'canviat' }));
+    await assertFails(deleteDoc(doc(asUser('finances'), 'requestComments', 'c1')));
+    await assertSucceeds(deleteDoc(doc(asUser('tecnic1'), 'requestComments', 'c1')));
   });
 });

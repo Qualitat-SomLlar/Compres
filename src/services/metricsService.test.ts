@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { workingDaysBetween, averagePhaseDurations, getStuckRequests, getCurrentPhaseStart } from './metricsService';
+import { workingDaysBetween, averagePhaseDurations, getStuckRequests, getCurrentPhaseStart, getSupplierHistory } from './metricsService';
 import type { PurchaseRequest, RequestStatus } from '../types';
 
 // Dates locals (octubre de 2026: el dia 23 és divendres i el 26, dilluns)
@@ -48,4 +48,18 @@ test('getStuckRequests: 3 dies laborables o més, del més antic al més recent;
     makeRequest('tancada', { id: 'd', closedAt: day(1) }),
   ], 3, now);
   assert.deepEqual(stuck.map(s => [s.request.id, s.days]), [['b', 7], ['c', 4], ['a', 3]]);
+});
+
+test('getSupplierHistory: comandes emeses per id o, si no en tenen, pel nom', () => {
+  const supplier = { id: 's1', name: 'Leroy Merlin' };
+  const history = getSupplierHistory(supplier, [
+    makeRequest('tancada', { id: 'a', supplierId: 's1', finalAmount: 100, orderIssuedAt: day(5) }),
+    makeRequest('comanda_emesa', { id: 'b', supplierName: ' leroy  merlin ', estimatedAmount: 50, orderIssuedAt: day(20) }),
+    makeRequest('comanda_emesa', { id: 'c', supplierId: 's2', supplierName: 'Leroy Merlin', finalAmount: 999 }),
+    makeRequest('aprovada', { id: 'd', supplierId: 's1', finalAmount: 999 }),
+  ]);
+  assert.deepEqual(history.orders.map(o => o.request.id), ['b', 'a']);
+  assert.equal(history.orderCount, 2);
+  assert.equal(history.totalSpent, 150);
+  assert.equal(history.lastOrderAt, day(20));
 });

@@ -1,6 +1,116 @@
-import React from 'react';
-import { FileCheck, Loader2, X } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { FileCheck, Loader2, Plus, Search, X } from 'lucide-react';
 import { Supplier } from '../types';
+
+const MAX_RESULTS = 8;
+const UNAVAILABLE: Record<string, string> = { bloquejat: 'Bloquejat', baixa: 'De baixa' };
+const normalize = (text?: string) => (text || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+
+// Cercador de proveïdors del registre, amb alta ràpida si encara no hi és
+function SupplierPicker({ suppliers, selectedId, selectedName, onSelect, onClear, onCreateSupplier }: {
+  suppliers: Supplier[];
+  selectedId: string;
+  selectedName: string;
+  onSelect: (supplier: Supplier) => void;
+  onClear: () => void;
+  onCreateSupplier: (name: string) => Promise<Supplier | null>;
+}) {
+  const [search, setSearch] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const selected = suppliers.find(s => s.id === selectedId);
+
+  const results = useMemo(() => {
+    const term = normalize(search);
+    if (!term) return [];
+    return suppliers
+      .filter(s => [s.name, s.nif, s.category].some(field => normalize(field).includes(term)))
+      .slice(0, MAX_RESULTS);
+  }, [search, suppliers]);
+
+  const handleCreate = async () => {
+    setIsCreating(true);
+    try {
+      const created = await onCreateSupplier(search.trim());
+      if (created) {
+        onSelect(created);
+        setSearch('');
+      }
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  if (selectedId) {
+    return (
+      <div className="flex items-center justify-between gap-3 p-3 rounded-xl border border-brand-primary/30 bg-brand-primary/[0.05]">
+        <div className="min-w-0">
+          <p className="text-xs font-bold text-white truncate">{selected?.name || selectedName}</p>
+          <p className="text-[10px] text-slate-400 truncate">
+            {[selected?.nif && `NIF ${selected.nif}`, selected?.category, selected?.zone].filter(Boolean).join(' · ') || 'Proveïdor del registre'}
+          </p>
+        </div>
+        <button type="button" onClick={onClear} className="text-[10px] font-black uppercase tracking-widest text-brand-primary hover:underline shrink-0">
+          Canviar
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {selectedName && (
+        <p className="text-[10px] text-amber-400">
+          Proveïdor indicat abans: «{selectedName}». Busca'l al registre o dona'l d'alta.
+        </p>
+      )}
+      <div className="relative">
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+        <input
+          type="text"
+          autoFocus
+          placeholder="Cerca per nom, NIF o categoria..."
+          className="input-field text-xs pl-9"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+      {search.trim() && (
+        <div className="rounded-xl border border-white/10 divide-y divide-white/5 max-h-60 overflow-y-auto">
+          {results.map(s => {
+            const unavailable = UNAVAILABLE[s.status];
+            return (
+              <button
+                key={s.id}
+                type="button"
+                disabled={!!unavailable}
+                onClick={() => { onSelect(s); setSearch(''); }}
+                className="w-full text-left px-3 py-2 hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-between gap-3"
+              >
+                <span className="min-w-0">
+                  <span className="block text-xs font-bold text-white truncate">{s.name}</span>
+                  <span className="block text-[10px] text-slate-500 truncate">{[s.nif, s.category, s.zone].filter(Boolean).join(' · ')}</span>
+                </span>
+                {unavailable && <span className="text-[9px] font-black uppercase text-red-400 shrink-0">{unavailable}</span>}
+              </button>
+            );
+          })}
+          {results.length === 0 && (
+            <p className="px-3 py-2 text-[11px] text-slate-500">Cap proveïdor del registre coincideix amb la cerca.</p>
+          )}
+          <button
+            type="button"
+            onClick={handleCreate}
+            disabled={isCreating}
+            className="w-full text-left px-3 py-2 text-xs font-bold text-brand-primary hover:bg-brand-primary/10 flex items-center gap-2 disabled:opacity-50"
+          >
+            {isCreating ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+            Donar d'alta «{search.trim()}» al registre
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface EmitOrderModalProps {
   suppliers: Supplier[];
@@ -15,6 +125,7 @@ interface EmitOrderModalProps {
   orderNotes: string;
   setOrderNotes: (value: string) => void;
   isProcessing: boolean;
+  onCreateSupplier: (name: string) => Promise<Supplier | null>;
   onSubmit: (e: React.FormEvent) => void;
   onClose: () => void;
 }
@@ -22,7 +133,7 @@ interface EmitOrderModalProps {
 export function EmitOrderModal({
   suppliers, orderSupplierId, setOrderSupplierId, orderSupplierName, setOrderSupplierName,
   orderProductUrl, setOrderProductUrl, orderFinalAmount, setOrderFinalAmount,
-  orderNotes, setOrderNotes, isProcessing, onSubmit, onClose
+  orderNotes, setOrderNotes, isProcessing, onCreateSupplier, onSubmit, onClose
 }: EmitOrderModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
@@ -37,37 +148,27 @@ export function EmitOrderModal({
           <FileCheck size={20} className="text-brand-primary" /> Emissió Formal de Comanda
         </h3>
         <p className="text-xs text-slate-400 mb-6">
-          Per emetre la comanda és obligatori indicar el proveïdor oficial adjudicatari i l'import acordat.
+          Per emetre la comanda és obligatori triar el proveïdor adjudicatari del registre i indicar l'import acordat.
         </p>
       
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
             <label className="text-[10px] font-black text-brand-primary uppercase tracking-widest block mb-1">
-              Empresa Proveïdora * (Obligatori)
+              Proveïdor del registre * (Obligatori)
             </label>
-            {suppliers.length > 0 && (
-              <select 
-                className="input-field text-xs mb-2"
-                value={orderSupplierId}
-                onChange={(e) => {
-                  const sel = suppliers.find(s => s.id === e.target.value);
-                  setOrderSupplierId(e.target.value);
-                  if (sel) setOrderSupplierName(sel.name);
-                }}
-              >
-                <option value="">-- Selecciona de la base de dades o escriu a sota --</option>
-                {suppliers.map(s => (
-                  <option key={s.id} value={s.id}>{s.name} ({s.nif})</option>
-                ))}
-              </select>
-            )}
-            <input 
-              type="text"
-              placeholder="Nom de l'empresa proveïdora"
-              className="input-field text-xs font-bold"
-              value={orderSupplierName}
-              onChange={(e) => setOrderSupplierName(e.target.value)}
-              required
+            <SupplierPicker
+              suppliers={suppliers}
+              selectedId={orderSupplierId}
+              selectedName={orderSupplierName}
+              onSelect={(supplier) => {
+                setOrderSupplierId(supplier.id);
+                setOrderSupplierName(supplier.name);
+              }}
+              onClear={() => {
+                setOrderSupplierId('');
+                setOrderSupplierName('');
+              }}
+              onCreateSupplier={onCreateSupplier}
             />
           </div>
 

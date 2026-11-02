@@ -20,9 +20,16 @@ import {
 } from 'lucide-react';
 import { useSuppliers } from '../hooks/useSuppliers';
 import { useAuth } from '../contexts/AuthContext';
+import { useRequests } from '../hooks/useRequests';
+import { getSupplierHistory } from '../services/metricsService';
+import { Link } from 'react-router-dom';
 import { activityService } from '../services/activityService';
 import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+const HISTORY_SHOWN = 5;
+const formatEuros = (amount: number) => amount.toLocaleString('ca-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+const formatDate = (iso?: string) => (iso ? new Date(iso).toLocaleDateString('ca-ES') : '—');
 
 const StatusBadge = ({ status }: { status: string }) => {
   const configs: Record<string, { label: string, color: string, icon: any }> = {
@@ -55,6 +62,12 @@ export default function SupplierManager() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const { user } = useAuth();
+  const { requests } = useRequests();
+  const historyById = React.useMemo(
+    () => new Map(suppliers.map(s => [s.id, getSupplierHistory(s, requests)])),
+    [suppliers, requests]
+  );
+  const selectedHistory = selectedSupplier ? historyById.get(selectedSupplier.id) : undefined;
 
   // Eliminar el proveïdor (només Superadmin)
   const handleDeleteSupplier = async () => {
@@ -261,6 +274,11 @@ export default function SupplierManager() {
                   </p>
                 </div>
               </div>
+              <p className="text-[11px] text-slate-500">
+                {historyById.get(supplier.id)?.orderCount
+                  ? `${historyById.get(supplier.id)!.orderCount} comandes · ${formatEuros(historyById.get(supplier.id)!.totalSpent)} · última ${formatDate(historyById.get(supplier.id)!.lastOrderAt)}`
+                  : 'Sense comandes'}
+              </p>
             </div>
 
             <button 
@@ -411,6 +429,36 @@ export default function SupplierManager() {
                   ))}
                 </div>
               )}
+
+              <div>
+                <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 border-b border-white/5 pb-2">Historial de compres</h5>
+                <div className="grid grid-cols-3 gap-4 mb-3">
+                  {[
+                    { label: 'Comandes', value: String(selectedHistory?.orderCount || 0) },
+                    { label: 'Import total', value: formatEuros(selectedHistory?.totalSpent || 0) },
+                    { label: 'Última compra', value: formatDate(selectedHistory?.lastOrderAt) },
+                  ].map(stat => (
+                    <div key={stat.label} className="p-3 bg-white/[0.02] rounded-xl border border-white/5">
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{stat.label}</p>
+                      <p className="text-sm text-white font-bold">{stat.value}</p>
+                    </div>
+                  ))}
+                </div>
+                {selectedHistory && selectedHistory.orderCount > 0 ? (
+                  <div className="divide-y divide-white/5">
+                    {selectedHistory.orders.slice(0, HISTORY_SHOWN).map(({ request: r, date }) => (
+                      <Link key={r.id} to={`/compres/${r.id}`} className="flex items-center gap-3 py-2 text-xs hover:text-brand-primary">
+                        <span className="font-black text-brand-primary shrink-0 w-24">{r.code || r.id}</span>
+                        <span className="flex-1 min-w-0 truncate text-slate-300">{r.itemDescription}</span>
+                        <span className="text-slate-500 shrink-0">{formatDate(date)}</span>
+                        <span className="font-bold text-white shrink-0">{formatEuros(r.finalAmount ?? r.estimatedAmount ?? 0)}</span>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500">Encara no s'ha emès cap comanda a aquest proveïdor.</p>
+                )}
+              </div>
 
               <div>
                 <div className="flex justify-between items-center mb-3 border-b border-white/5 pb-2">

@@ -116,13 +116,15 @@ export function useRequests() {
 
   // Elimina l'expedient juntament amb els seus adjunts i pressupostos (només Superadmin per regles)
   const deleteRequest = async (id: string) => {
-    const [attachmentsSnap, quotesSnap] = await Promise.all([
+    const [attachmentsSnap, quotesSnap, commentsSnap] = await Promise.all([
       getDocs(query(collection(db, 'attachments'), where('purchaseRequestId', '==', id))),
-      getDocs(query(collection(db, 'quotes'), where('requestId', '==', id)))
+      getDocs(query(collection(db, 'quotes'), where('requestId', '==', id))),
+      getDocs(query(collection(db, 'requestComments'), where('requestId', '==', id)))
     ]);
     const batch = writeBatch(db);
     attachmentsSnap.docs.forEach(d => batch.delete(d.ref));
     quotesSnap.docs.forEach(d => batch.delete(d.ref));
+    commentsSnap.docs.forEach(d => batch.delete(d.ref));
     batch.delete(doc(db, 'purchaseRequests', id));
     await batch.commit();
   };

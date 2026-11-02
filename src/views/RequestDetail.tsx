@@ -24,11 +24,13 @@ import {
 import toast from 'react-hot-toast';
 import { exportService } from '../services/exportService';
 import { STATUS_LABELS, getHierarchyRole, normalizeAreaId, CATEGORIES } from '../constants';
-import { User, RequestStatus, AttachmentCategory, PurchaseRequest, Attachment, Quote, ActivityLog } from '../types';
+import { User, RequestStatus, AttachmentCategory, PurchaseRequest, Attachment, Quote, ActivityLog, Supplier, RequestComment } from '../types';
 import { cn } from '../lib/utils';
 import StatusBadge from '../components/StatusBadge';
 import { AddQuoteModal } from '../components/AddQuoteModal';
 import { EmitOrderModal } from '../components/EmitOrderModal';
+import { RequestCommentsSection } from '../components/RequestCommentsSection';
+import { useRequestComments } from '../hooks/useRequestComments';
 import { RequestSignatureFlow } from '../components/RequestSignatureFlow';
 import { EligibleApproversBox } from '../components/EligibleApproversBox';
 import { ValidationCommentsList } from '../components/ValidationCommentsList';
@@ -57,10 +59,11 @@ export default function RequestDetail({ user }: { user: User }) {
   const { addNotification } = useNotifications();
   const { dispatchEmail } = useEmailDispatcher();
   const { users } = useUsers();
-  const { suppliers } = useSuppliers();
+  const { suppliers, addSupplier } = useSuppliers();
   const { centers } = useCenters();
   
   const request = id ? getRequestById(id) : undefined;
+  const { comments, loading: loadingComments, addComment, deleteComment } = useRequestComments(id);
   const [comment, setComment] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -126,6 +129,45 @@ export default function RequestDetail({ user }: { user: User }) {
     }
   };
   
+  // Comentaris: avisa el sol·licitant, qui ja hi ha participat i qui té l'expedient a la fase actual
+  const handleSendComment = async (text: string) => {
+    if (!request) return;
+    try {
+      await addComment({ requestId: request.id, userId: user.id, userName: user.name, userRole: user.role, text });
+    } catch (err) {
+      console.error('Error desant el comentari:', err);
+      toast.error("No s'ha pogut enviar el comentari");
+      throw err;
+    }
+
+    const recipientIds = new Set<string>([
+      request.createdByUserId,
+      request.requestingTechnicianId,
+      ...comments.map(c => c.userId),
+      ...users.filter(u => workflowService.isTaskOwner(u, request, centerResponsibleEmails)).map(u => u.id),
+    ].filter((uid): uid is string => !!uid && uid !== user.id));
+
+    const code = request.code || request.id;
+    const preview = text.length > 120 ? `${text.slice(0, 120)}…` : text;
+    await Promise.all([...recipientIds].map(userId => addNotification({
+      userId,
+      title: `Comentari a ${code}`,
+      message: `${user.name}: ${preview}`,
+      type: 'info',
+      requestId: request.id
+    }).catch(err => console.warn("No s'ha pogut crear la notificació del comentari:", err))));
+  };
+
+  const handleDeleteComment = async (c: RequestComment) => {
+    if (!window.confirm('Vols eliminar aquest comentari?')) return;
+    try {
+      await deleteComment(c.id);
+    } catch (err) {
+      console.error('Error eliminant el comentari:', err);
+      toast.error("No s'ha pogut eliminar el comentari");
+    }
+  };
+
   const categoryItem = CATEGORIES.find(c => c.id === request?.category);
   const categoryLabel = categoryItem?.name || request?.category || 'No categoritzat';
   const subcategoryLabel = request?.subcategory || 'Sense subcategoria';
@@ -306,20 +348,46 @@ export default function RequestDetail({ user }: { user: User }) {
 
   const handleOpenEmitOrderModal = () => {
     if (!request) return;
-    setOrderSupplierName(request.supplierName || '');
-    setOrderSupplierId(request.supplierId || '');
+    // Expedients antics sense supplierId: s'intenta trobar el proveïdor del registre pel nom
+    const knownSupplier = suppliers.find(s => s.id === request.supplierId)
+      || suppliers.find(s => request.supplierName && s.name.trim().toLowerCase() === request.supplierName.trim().toLowerCase());
+    setOrderSupplierName(knownSupplier?.name || request.supplierName || '');
+    setOrderSupplierId(knownSupplier?.id || '');
     setOrderProductUrl(request.productUrl || '');
     setOrderFinalAmount(request.finalAmount !== undefined ? request.finalAmount : (request.estimatedAmount || 0));
     setOrderNotes(comment || '');
     setShowEmitOrderModal(true);
   };
 
+  // Alta ràpida d'un proveïdor des de l'emissió de la comanda (queda com a candidat)
+  const handleCreateSupplierFromOrder = async (name: string): Promise<Supplier | null> => {
+    if (!name) return null;
+    const newSupplier: Omit<Supplier, 'id'> = {
+      name,
+      nif: '',
+      category: 'Sense categoria',
+      status: 'candidat',
+      rating: 0,
+      criticality: 'mitjana',
+      documents: []
+    };
+    try {
+      const id = await addSupplier(newSupplier);
+      toast.success(`Proveïdor «${name}» donat d'alta al registre com a candidat`);
+      return { ...newSupplier, id };
+    } catch (err) {
+      console.error("Error donant d'alta el proveïdor:", err);
+      toast.error("No s'ha pogut donar d'alta el proveïdor. Demana-ho a un administrador.");
+      return null;
+    }
+  };
+
   const handleConfirmEmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!request) return;
 
-    if (!orderSupplierName.trim()) {
-      toast.error('El proveïdor és obligatori per emetre la comanda');
+    if (!orderSupplierId || !orderSupplierName.trim()) {
+      toast.error('Tria el proveïdor del registre per emetre la comanda');
       return;
     }
 
@@ -1076,6 +1144,15 @@ export default function RequestDetail({ user }: { user: User }) {
             />
           )}
 
+          {/* Fil de comentaris de l'expedient */}
+          <RequestCommentsSection
+            comments={comments}
+            loading={loadingComments}
+            user={user}
+            onSend={handleSendComment}
+            onDelete={handleDeleteComment}
+          />
+
           {/* Historial d'Auditoria i Traçabilitat de la Sol·licitud */}
           <RequestAuditHistory requestLogs={requestLogs} loadingLogs={loadingLogs} />
         </div>
@@ -1208,6 +1285,7 @@ export default function RequestDetail({ user }: { user: User }) {
           setOrderNotes={setOrderNotes}
           isProcessing={isProcessing}
           onSubmit={handleConfirmEmitOrder}
+          onCreateSupplier={handleCreateSupplierFromOrder}
           onClose={() => setShowEmitOrderModal(false)}
         />
       )}
