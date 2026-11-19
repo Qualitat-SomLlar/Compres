@@ -232,7 +232,7 @@ export default function SupplierManager() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input 
               type="text" 
-              placeholder="Cerca per nom o NIF..." 
+              placeholder="Cerca per nom, NIF o categoria..."
               className="input-field input-search w-64 text-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -249,7 +249,12 @@ export default function SupplierManager() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {suppliers.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()) || s.nif.toLowerCase().includes(searchTerm.toLowerCase())).map(supplier => (
+        {suppliers.filter(s => {
+          // Cerca sense distingir majúscules ni accents (p. ex. "domotica" troba "Domòtica")
+          const norm = (v?: string) => (v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+          const term = norm(searchTerm.trim());
+          return !term || [s.name, s.nif, s.category].some(v => norm(v).includes(term));
+        }).map(supplier => (
           <div key={supplier.id} className="card p-8 flex flex-col hover:border-brand-primary/50 transition-all duration-500 group">
             <div className="flex items-start justify-between mb-8">
               <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center text-slate-500 group-hover:bg-brand-primary/10 group-hover:text-brand-primary transition-all duration-500 shadow-inner">
