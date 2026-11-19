@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Users, Search, Plus, Edit2, Trash2, AlertCircle, AlertTriangle, UserX, X, Save, Loader2, ShieldCheck, Building2, Info, Mail } from 'lucide-react';
+import { Users, Search, Plus, Edit2, Trash2, AlertCircle, AlertTriangle, UserX, X, Save, Loader2, ShieldCheck, Building2, Info, Mail, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUsers } from '../../hooks/useUsers';
 import { useAreas } from '../../hooks/useAreas';
@@ -10,6 +10,8 @@ import toast from 'react-hot-toast';
 import { cn } from '../../lib/utils';
 import { normalizeAreaId } from '../../constants';
 import { HierarchyLevel, User } from '../../types';
+
+type SortKey = 'name' | 'area' | 'level' | 'scope' | 'status';
 
 export function UsersManager() {
   const { user: currentUser } = useAuth();
@@ -26,6 +28,8 @@ export function UsersManager() {
   const [searchTerm, setSearchTerm] = useState('');
   const [areaFilter, setAreaFilter] = useState('all');
   const [levelFilter, setLevelFilter] = useState('all');
+  const [sortKey, setSortKey] = useState<SortKey>('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   const linkedRequests = useMemo(() => {
     if (!userToDelete) return [];
@@ -127,6 +131,46 @@ export function UsersManager() {
     const matchLevel = levelFilter === 'all' || String(userLevel) === String(levelFilter);
     return matchSearch && matchArea && matchLevel;
   });
+
+  const sortValue = (u: User, key: SortKey): string | number => {
+    const lvl = u.hierarchyLevel || dynamicGetHierarchyRole(u.role).level;
+    switch (key) {
+      case 'name': return (u.name || '').toLowerCase();
+      case 'area': return dynamicGetAreaName(u.areaId).toLowerCase();
+      case 'level': return lvl;
+      case 'scope': return dynamicGetHierarchyRole(lvl).scope === 'area' ? 0 : 1;
+      case 'status': return u.active !== false ? 0 : 1;
+    }
+  };
+
+  const sortedUsers = [...filteredUsers].sort((a, b) => {
+    const va = sortValue(a, sortKey);
+    const vb = sortValue(b, sortKey);
+    const cmp = typeof va === 'number' && typeof vb === 'number'
+      ? va - vb
+      : String(va).localeCompare(String(vb), 'ca');
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
+  const toggleSort = (key: SortKey) => {
+    if (key === sortKey) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSortKey(key); setSortDir('asc'); }
+  };
+
+  const SortHeader = ({ label, colKey, className }: { label: string; colKey: SortKey; className?: string }) => (
+    <th className={cn("pb-4", className)}>
+      <button
+        type="button"
+        onClick={() => toggleSort(colKey)}
+        className={cn("inline-flex items-center gap-1 uppercase tracking-widest hover:text-white transition-colors", sortKey === colKey && "text-white")}
+      >
+        {label}
+        {sortKey === colKey
+          ? (sortDir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)
+          : <ChevronsUpDown size={12} className="opacity-40" />}
+      </button>
+    </th>
+  );
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -299,11 +343,11 @@ export function UsersManager() {
         <table className="w-full text-left">
           <thead>
             <tr className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-white/[0.05]">
-              <th className="pb-4">Treballador/a</th>
-              <th className="pb-4">Dada 1: Àrea d'Adscripció</th>
-              <th className="pb-4">Dada 2: Nivell Jeràrquic</th>
-              <th className="pb-4">Àmbit d'Autorització al Circuit</th>
-              <th className="pb-4 text-center">Estat</th>
+              <SortHeader label="Treballador/a" colKey="name" />
+              <SortHeader label="Dada 1: Àrea d'Adscripció" colKey="area" />
+              <SortHeader label="Dada 2: Nivell Jeràrquic" colKey="level" />
+              <SortHeader label="Àmbit d'Autorització al Circuit" colKey="scope" />
+              <SortHeader label="Estat" colKey="status" className="text-center" />
               <th className="pb-4 text-right">Accions</th>
             </tr>
           </thead>
@@ -315,7 +359,7 @@ export function UsersManager() {
                 </td>
               </tr>
             ) : (
-              filteredUsers.map(u => {
+              sortedUsers.map(u => {
                 const userLevel = u.hierarchyLevel || dynamicGetHierarchyRole(u.role).level;
                 const roleConfig = dynamicGetHierarchyRole(userLevel);
                 const areaName = dynamicGetAreaName(u.areaId);
