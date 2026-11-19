@@ -50,9 +50,14 @@ export function useHierarchyLevels() {
           createdAt: raw.createdAt,
           updatedAt: raw.updatedAt
         } as HierarchyRoleConfig;
-      }).sort((a, b) => a.level - b.level);
+      });
 
-      setHierarchyLevels(list);
+      // Els nivells de sèrie del circuit (p. ex. N5 · Compres) han d'estar sempre disponibles,
+      // encara que el seu document s'hagi esborrat o no existeixi a Firestore.
+      const missingDefaults = DEFAULT_ROLES.filter(def => !list.some(l => l.key === def.key || l.level === def.level));
+      const merged = [...list, ...missingDefaults].sort((a, b) => a.level - b.level);
+
+      setHierarchyLevels(merged);
       setLoading(false);
     }, (error) => {
       console.error("Error fetching hierarchy levels:", error);
