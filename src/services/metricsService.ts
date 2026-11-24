@@ -85,6 +85,27 @@ export function averagePhaseDurations(requests: PurchaseRequest[]) {
 }
 
 /**
+ * Temps de servei (en dies laborables), des que es crea la sol·licitud:
+ * - response: fins que s'emet la comanda al proveïdor (temps de resposta de l'entitat).
+ * - delivery: fins que el centre confirma la recepció del material (temps total fins a l'entrega).
+ * Només compten els expedients que ja han arribat a cada punt.
+ */
+export function averageLeadTimes(requests: PurchaseRequest[]) {
+  const average = (end: (r: PurchaseRequest) => string | undefined) => {
+    const durations = requests
+      .map(r => ({ start: r.createdAt, end: end(r) }))
+      .filter(d => d.start && d.end && toTime(d.end) >= toTime(d.start))
+      .map(d => workingDaysBetween(d.start, new Date(d.end!)));
+    const avgDays = durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
+    return { avgDays, count: durations.length };
+  };
+  return {
+    response: average(r => r.orderIssuedAt),
+    delivery: average(r => r.receivedAt),
+  };
+}
+
+/**
  * Moment en què l'expedient va entrar a la fase on és ara.
  */
 export function getCurrentPhaseStart(r: PurchaseRequest): string | undefined {

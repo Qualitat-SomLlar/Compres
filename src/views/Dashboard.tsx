@@ -21,7 +21,6 @@ import {
   Layers,
   Sparkles,
   Users,
-  Award,
   ArrowRight,
   CheckCircle,
   ExternalLink,
@@ -37,7 +36,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import StatusBadge from '../components/StatusBadge';
 import { workflowService } from '../services/workflowService';
-import { averagePhaseDurations, getStuckRequests, getCurrentPhaseLabel } from '../services/metricsService';
+import { averagePhaseDurations, averageLeadTimes, getStuckRequests, getCurrentPhaseLabel } from '../services/metricsService';
 import { PurchaseRequest, RequestStatus } from '../types';
 
 const DONUT_COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#64748b'];
@@ -169,6 +168,7 @@ export default function Dashboard() {
   }, [allRequests, user, centers]);
 
   const phaseDurations = useMemo(() => averagePhaseDurations(requests), [requests]);
+  const leadTimes = useMemo(() => averageLeadTimes(requests), [requests]);
   const slowestPhaseDays = Math.max(0, ...phaseDurations.map(p => p.avgDays));
   const stuckRequests = useMemo(() => getStuckRequests(requests, STUCK_THRESHOLD_DAYS), [requests]);
 
@@ -318,17 +318,11 @@ export default function Dashboard() {
     const total = suppliers.length;
     const homologats = suppliers.filter(s => s.status === 'homologat').length;
     const percentHomologats = total > 0 ? Math.round((homologats / total) * 100) : 100;
-    
-    const rated = suppliers.filter(s => typeof s.rating === 'number' && s.rating > 0);
-    const avgRating = rated.length > 0
-      ? Math.round(rated.reduce((acc, s) => acc + s.rating, 0) / rated.length)
-      : (total > 0 ? 92 : 100);
 
     return {
       total,
       homologats,
-      percentHomologats,
-      avgRating
+      percentHomologats
     };
   }, [suppliers]);
 
@@ -894,7 +888,7 @@ export default function Dashboard() {
             <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
               <Building size={16} className="text-brand-primary" /> Qualitat de la Cadena de Subministrament
             </h3>
-            <p className="text-xs text-slate-500 font-medium">Homologació de proveïdors i nivell d'avaluació de qualitat.</p>
+            <p className="text-xs text-slate-500 font-medium">Homologació de proveïdors i temps de servei de les compres.</p>
           </div>
           
           <Link to="/proveidors" className="text-xs font-bold text-brand-primary hover:underline flex items-center gap-1">
@@ -914,15 +908,34 @@ export default function Dashboard() {
             colorClass="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
           />
 
-          <KpiCard 
-            title="Avaluació Mitjana" 
-            value={`${supplierStats.avgRating}/100`} 
-            subtitle="Puntuació tècnica i de qualitat dels serveis"
-            icon={Award} 
-            trend="Qualitat i compliment"
-            trendType="positive"
-            colorClass="bg-blue-500/15 text-blue-400 border border-blue-500/30"
-          />
+          {/* Temps de servei: de la sol·licitud a la comanda i a l'entrega */}
+          <div className="card p-6 relative overflow-hidden group cursor-default transition-all duration-300 hover:shadow-2xl hover:-translate-y-0.5">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-brand-primary/10 to-transparent blur-2xl opacity-40 group-hover:opacity-70 transition-opacity rounded-full -mr-10 -mt-10" />
+            <div className="relative z-10 flex items-start justify-between gap-3">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Temps de Servei</p>
+              <div className="p-3.5 rounded-2xl transition-all duration-300 group-hover:scale-110 shadow-lg bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                <Clock size={24} />
+              </div>
+            </div>
+            <div className="relative z-10 grid grid-cols-2 gap-4 -mt-4">
+              {[
+                { label: 'Resposta', hint: 'Fins a emetre la comanda', data: leadTimes.response },
+                { label: 'Total', hint: "Fins a l'entrega al centre", data: leadTimes.delivery },
+              ].map(item => (
+                <div key={item.label} className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{item.label}</p>
+                  <h3 className="text-3xl font-black text-text-main tracking-tight">
+                    {item.data.count > 0
+                      ? <>{item.data.avgDays.toLocaleString('ca-ES', { maximumFractionDigits: 1 })}<span className="text-sm font-bold text-slate-500 ml-1">dies</span></>
+                      : <span className="text-base font-bold text-slate-500">Sense dades</span>}
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium leading-snug">{item.hint}</p>
+                  <p className="text-[10px] text-slate-500">{item.data.count} expedients</p>
+                </div>
+              ))}
+            </div>
+            <p className="relative z-10 mt-3 text-[10px] text-slate-500">Mitjana en dies laborables des que es crea la sol·licitud.</p>
+          </div>
 
           <KpiCard 
             title="Empreses Registrades" 

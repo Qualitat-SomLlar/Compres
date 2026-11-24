@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { workingDaysBetween, averagePhaseDurations, getStuckRequests, getCurrentPhaseStart, getSupplierHistory } from './metricsService';
+import { workingDaysBetween, averagePhaseDurations, averageLeadTimes, getStuckRequests, getCurrentPhaseStart, getSupplierHistory } from './metricsService';
 import type { PurchaseRequest, RequestStatus } from '../types';
 
 // Dates locals (octubre de 2026: el dia 23 és divendres i el 26, dilluns)
@@ -31,6 +31,17 @@ test('averagePhaseDurations: mitjana de les fases completades i salt de nivells'
   assert.equal(byStatus.aprovada.avgDays, 1); // de divendres 9 a dilluns 12
   assert.equal(byStatus.comanda_emesa.avgDays, 5);
   assert.equal(byStatus.rebuda.avgDays, 1);
+});
+
+test('averageLeadTimes: de la creació a la comanda i a la recepció', () => {
+  const { response, delivery } = averageLeadTimes([
+    makeRequest('tancada', { createdAt: day(5), orderIssuedAt: day(12), receivedAt: day(19) }),
+    makeRequest('comanda_emesa', { createdAt: day(19), orderIssuedAt: day(21) }),
+    makeRequest('pendent_coordinacio', { createdAt: day(26) }),
+  ]);
+  assert.deepEqual([response.avgDays, response.count], [3.5, 2]); // 5 i 2 dies laborables
+  assert.deepEqual([delivery.avgDays, delivery.count], [10, 1]);
+  assert.deepEqual(averageLeadTimes([]).delivery, { avgDays: 0, count: 0 });
 });
 
 test('getCurrentPhaseStart: inici de la fase actual', () => {
