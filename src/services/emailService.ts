@@ -1,4 +1,6 @@
-import { PurchaseRequest, RequestStatus } from '../types';
+import { PurchaseRequest, RequestStatus, EmailLog } from '../types';
+import { collection, addDoc } from 'firebase/firestore';
+import { db, auth } from '../lib/firebase';
 import { STATUS_LABELS } from '../constants';
 import { hasItems, lineEstimated, lineFinal } from '../lib/requestItems';
 
@@ -202,6 +204,7 @@ export const emailService = {
 
     await this.postWebhook({
       type: 'welcome',
+      eventKey: 'alta_treballador',
       to: worker.email,
       subject,
       name: worker.name,
@@ -336,6 +339,7 @@ export const emailService = {
       actorName?: string;
       comment?: string;
       task?: 'approve' | 'emit_order' | 'close_invoice';
+      eventKey?: string;
     }
   ) {
     const platformUrl = getPlatformUrl(customAppUrl);
@@ -552,6 +556,7 @@ export const emailService = {
 
     await this.postWebhook({
       type: 'pending_approval',
+      eventKey: extraData?.eventKey,
       to: approverEmail,
       subject,
       requestId: request.id,
@@ -585,6 +590,7 @@ export const emailService = {
       previousStatus?: RequestStatus;
       // 'registered': confirmació d'enviament; 'center': avís al responsable del centre de destí
       variant?: 'registered' | 'center' | 'partial';
+      eventKey?: string;
     }
   ) {
     const platformUrl = getPlatformUrl(customAppUrl);
@@ -913,6 +919,7 @@ export const emailService = {
 
     await this.postWebhook({
       type: 'status_update',
+      eventKey: extraData?.eventKey,
       to: targetEmail,
       subject,
       requestId: request.id,
@@ -942,6 +949,7 @@ export const emailService = {
   async postWebhook(payload: Record<string, any>) {
     if (!GOOGLE_SCRIPT_WEBHOOK_URL) {
       console.log('📨 Simulació de correu enviat (sense webhook definit):', payload);
+      await this.logEmail(payload, 'simulat');
       return;
     }
 
@@ -969,8 +977,37 @@ export const emailService = {
         body: JSON.stringify(fullPayload),
       });
       console.log(`📧 Correu [${payload.type || 'generic'}] enviat a ${payload.to}: "${payload.subject}"`);
+      await this.logEmail(payload, 'enviat');
     } catch (error) {
       console.error('Error enviant webhook de correu:', error);
+      await this.logEmail(payload, 'error', error instanceof Error ? error.message : String(error));
+    }
+  },
+
+  /**
+   * Desa el registre de l'enviament (destinatari, assumpte, esdeveniment, expedient i qui l'ha provocat).
+   * No es desa el cos del correu. Un error en el registre no atura l'enviament.
+   */
+  async logEmail(payload: Record<string, any>, status: EmailLog['status'], error?: string) {
+    const current = auth.currentUser;
+    if (!current) return;
+    const entry: Omit<EmailLog, 'id'> = {
+      to: String(payload.to || '').toLowerCase().trim(),
+      subject: String(payload.subject || '').slice(0, 300),
+      type: String(payload.type || 'generic'),
+      ...(payload.eventKey ? { eventKey: String(payload.eventKey) } : {}),
+      ...(payload.requestId ? { requestId: String(payload.requestId) } : {}),
+      ...(payload.requestCode ? { requestCode: String(payload.requestCode) } : {}),
+      status,
+      ...(error ? { error: error.slice(0, 500) } : {}),
+      createdAt: new Date().toISOString(),
+      triggeredByUserId: current.uid,
+      ...(current.email ? { triggeredByEmail: current.email.toLowerCase() } : {}),
+    };
+    try {
+      await addDoc(collection(db, 'emailLogs'), entry);
+    } catch (err) {
+      console.warn("No s'ha pogut registrar l'enviament del correu:", err);
     }
   }
 };

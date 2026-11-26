@@ -335,6 +335,17 @@ service cloud.firestore {
       allow update: if isCorporate() && request.auth.uid == resource.data.userId;
     }
 
+    // Registre de correus enviats: el crea qui provoca l'enviament; només el consulta superadmin
+    match /emailLogs/{logId} {
+      allow read: if isSuperAdmin();
+      allow create: if isCorporate()
+        && request.resource.data.triggeredByUserId == request.auth.uid
+        && request.resource.data.status in ['enviat', 'error', 'simulat']
+        && request.resource.data.keys().hasOnly(['to', 'subject', 'type', 'eventKey', 'requestId', 'requestCode',
+             'status', 'error', 'createdAt', 'triggeredByUserId', 'triggeredByEmail']);
+      allow update, delete: if isSuperAdmin();
+    }
+
     // Activity Logs & Audit Logs
     match /activityLogs/{logId} {
       // Els administradors ho veuen tot; la resta, l'historial d'un expedient concret

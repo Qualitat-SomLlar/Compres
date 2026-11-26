@@ -409,3 +409,28 @@ describe('recepció parcial', () => {
     await assertFails(receive('altre'));
   });
 });
+
+describe('registre de correus', () => {
+  const entry = (uid: string, extra: Record<string, unknown> = {}) => ({
+    to: 'algu@somllar.cat', subject: 'Assumpte', type: 'status_update', eventKey: 'compra_rebuda',
+    requestId: 'r1', requestCode: 'PR-2026-001', status: 'enviat', createdAt: 't1', triggeredByUserId: uid, ...extra,
+  });
+  const write = (uid: string, data: Record<string, unknown>) => setDoc(doc(asUser(uid), 'emailLogs', 'e1'), data);
+
+  test('qui provoca l\'enviament en crea el registre a nom propi', async () => {
+    await seed('pendent_coordinacio');
+    await assertSucceeds(write('coordTics', entry('coordTics')));
+  });
+  test('no es pot crear a nom d\'un altre ni amb camps extra', async () => {
+    await seed('pendent_coordinacio');
+    await assertFails(write('coordTics', entry('tecnic1')));
+    await assertFails(write('coordTics', entry('coordTics', { htmlBody: '<p>' })));
+    await assertFails(write('coordTics', entry('coordTics', { status: 'llegit' })));
+  });
+  test('només superadmin el pot llegir', async () => {
+    await seed('pendent_coordinacio');
+    await env.withSecurityRulesDisabled(ctx => setDoc(doc(ctx.firestore(), 'emailLogs', 'e1'), entry('coordTics')));
+    await assertFails(getDoc(doc(asUser('coordTics'), 'emailLogs', 'e1')));
+    await assertFails(getDoc(doc(asUser('finances'), 'emailLogs', 'e1')));
+  });
+});

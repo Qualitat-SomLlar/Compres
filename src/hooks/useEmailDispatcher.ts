@@ -73,7 +73,7 @@ export function useEmailDispatcher() {
           r.email,
           r.roleName || '',
           undefined,
-          { actorName: extra?.actorName, comment: extra?.comment, task: r.task }
+          { actorName: extra?.actorName, comment: extra?.comment, task: r.task, eventKey }
         )
       : emailService.sendStatusUpdateNotification(
           request,
@@ -81,7 +81,7 @@ export function useEmailDispatcher() {
           request.status,
           extra?.comment,
           undefined,
-          { actorName: extra?.actorName, actorRole: extra?.actorRole, previousStatus: extra?.previousStatus, variant: r.variant }
+          { actorName: extra?.actorName, actorRole: extra?.actorRole, previousStatus: extra?.previousStatus, variant: r.variant, eventKey }
         )
     );
 

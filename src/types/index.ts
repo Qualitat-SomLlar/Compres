@@ -406,6 +406,23 @@ export interface ActivityLog {
   createdAt: string;
 }
 
+// Registre d'un correu enviat per l'aplicació (col·lecció emailLogs, només lectura per a superadmin).
+// 'enviat' vol dir que s'ha lliurat al servei d'enviament (Apps Script); no confirma la recepció.
+export interface EmailLog {
+  id: string;
+  to: string;
+  subject: string;
+  type: string; // Plantilla: 'pending_approval' | 'status_update' | 'welcome'
+  eventKey?: string; // Esdeveniment del circuit (NOTIFICATION_EVENTS)
+  requestId?: string;
+  requestCode?: string;
+  status: 'enviat' | 'error' | 'simulat';
+  error?: string;
+  createdAt: string;
+  triggeredByUserId: string;
+  triggeredByEmail?: string;
+}
+
 // Comentari del fil de conversa d'un expedient (col·lecció requestComments)
 export interface RequestComment {
   id: string;

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Users, Upload, Search, Plus, Edit2, Trash2, Download, CheckCircle, AlertTriangle, X, Database, Loader2, ShieldCheck, Activity, LogIn, LogOut, Clock, Laptop } from 'lucide-react';
+import { Users, Upload, Search, Plus, Edit2, Trash2, Download, CheckCircle, AlertTriangle, X, Database, Loader2, ShieldCheck, Activity, LogIn, LogOut, Clock, Laptop, Mail } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUsers } from '../../hooks/useUsers';
 import { useProjects } from '../../hooks/useProjects';
@@ -12,9 +12,10 @@ import { User, ActivityLog } from '../../types';
 import { useCenters } from '../../hooks/useCenters';
 import { useAnalyticCodes } from '../../hooks/useAnalyticCodes';
 import { useSuppliers } from '../../hooks/useSuppliers';
+import { EmailLogViewer } from './EmailLogViewer';
 
 export function SuperManager() {
-  const [subTab, setSubTab] = useState<'activity' | 'entities'>('activity');
+  const [subTab, setSubTab] = useState<'activity' | 'emails' | 'entities'>('activity');
   const { user: currentUser } = useAuth();
   const { users, updateUser } = useUsers();
   const { projects, addProject, updateProject, deleteProject } = useProjects();
@@ -108,6 +109,19 @@ export function SuperManager() {
           </button>
           <button
             type="button"
+            onClick={() => setSubTab('emails')}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-[11px] uppercase tracking-wider transition-all",
+              subTab === 'emails'
+                ? "bg-brand-primary text-black shadow-lg shadow-brand-primary/20"
+                : "text-slate-400 hover:text-white hover:bg-white/5"
+            )}
+          >
+            <Mail size={15} />
+            <span>Registre de Correus</span>
+          </button>
+          <button
+            type="button"
             onClick={() => setSubTab('entities')}
             className={cn(
               "flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-[11px] uppercase tracking-wider transition-all",
@@ -124,6 +138,8 @@ export function SuperManager() {
 
       {subTab === 'activity' ? (
         <ActivityLogViewer users={users} />
+      ) : subTab === 'emails' ? (
+        <EmailLogViewer users={users} />
       ) : (
         <div className="space-y-12 animate-in fade-in duration-300">
           {/* Secció 1: Projectes */}
