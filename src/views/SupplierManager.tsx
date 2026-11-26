@@ -451,12 +451,12 @@ export default function SupplierManager() {
                 </div>
                 {selectedHistory && selectedHistory.orderCount > 0 ? (
                   <div className="divide-y divide-white/5">
-                    {selectedHistory.orders.slice(0, HISTORY_SHOWN).map(({ request: r, date }) => (
+                    {selectedHistory.orders.slice(0, HISTORY_SHOWN).map(({ request: r, date, amount }) => (
                       <Link key={r.id} to={`/compres/${r.id}`} className="flex items-center gap-3 py-2 text-xs hover:text-brand-primary">
                         <span className="font-black text-brand-primary shrink-0 w-24">{r.code || r.id}</span>
                         <span className="flex-1 min-w-0 truncate text-slate-300">{r.itemDescription}</span>
                         <span className="text-slate-500 shrink-0">{formatDate(date)}</span>
-                        <span className="font-bold text-white shrink-0">{formatEuros(r.finalAmount ?? r.estimatedAmount ?? 0)}</span>
+                        <span className="font-bold text-white shrink-0">{formatEuros(amount)}</span>
                       </Link>
                     ))}
                   </div>

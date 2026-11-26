@@ -66,6 +66,35 @@ export type RequestStatus =
   | 'tancada'
   | 'incidencia';
 
+/**
+ * Línia d'article d'una sol·licitud (p. ex. "3 auriculars"). Cada línia es valida,
+ * es comanda i es rep per separat.
+ */
+export interface RequestItem {
+  id: string;
+  description: string;
+  quantity: number;
+  unitPrice: number; // Preu unitari estimat (IVA inclòs)
+  productUrl?: string;
+  supplierId?: string;
+  supplierName?: string;
+
+  // Aprovació parcial: una línia rebutjada ja no continua el circuit
+  status: 'activa' | 'rebutjada';
+  rejectedAt?: string;
+  rejectedBy?: string;
+  rejectedRole?: string;
+  rejectedStep?: RequestStatus;
+  rejectionReason?: string;
+
+  // Comanda: preu unitari acordat amb el proveïdor
+  finalUnitPrice?: number;
+
+  // Recepció parcial: unitats rebudes fins ara
+  receivedQuantity?: number;
+  lastReceivedAt?: string;
+}
+
 export interface PurchaseRequest {
   id: string;
   code?: string; // Codi llegible PR-YYYY-XXX
@@ -108,7 +137,11 @@ export interface PurchaseRequest {
   supplierId?: string;
   supplierName?: string;
   productUrl?: string;
-  
+
+  // Articles de la sol·licitud (els expedients antics no en tenen: vegeu getRequestItems)
+  items?: RequestItem[];
+  partiallyReceivedAt?: string; // Última entrega parcial registrada
+
   // Metadades seguiment
   attachmentsCount: number;
   incidentsCount?: number;

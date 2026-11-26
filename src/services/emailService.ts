@@ -1,5 +1,6 @@
 import { PurchaseRequest, RequestStatus } from '../types';
 import { STATUS_LABELS } from '../constants';
+import { hasItems, lineEstimated, lineFinal } from '../lib/requestItems';
 
 const GOOGLE_SCRIPT_WEBHOOK_URL = import.meta.env.VITE_GOOGLE_SCRIPT_WEBHOOK_URL || 'https://script.google.com/macros/s/AKfycbx9_0gwoVDMUz65D3tW0nqp5RoAbs7VaqcPMonWhNqTgME9iUOwyrpOBZQg19Qn3gKj3Q/exec'; 
 
@@ -29,6 +30,52 @@ const escapeHtml = (value: unknown): string =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+
+const eurosEs = (n: number) => `${n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+const ORDERED_STATUSES: RequestStatus[] = ['comanda_emesa', 'rebuda', 'tancada'];
+
+/**
+ * Línies d'article per al text pla dels correus (buit per als expedients antics d'una sola línia).
+ */
+const itemsPlainText = (request: PurchaseRequest): string => {
+  if (!hasItems(request)) return '';
+  const ordered = ORDERED_STATUSES.includes(request.status);
+  return `- Articles:\n` + request.items!.map(it => {
+    const rejected = it.status === 'rebutjada';
+    const amount = eurosEs(ordered ? lineFinal(it) : lineEstimated(it));
+    const received = ordered && !rejected ? ` · rebudes ${it.receivedQuantity || 0}/${it.quantity}` : '';
+    return `    · ${it.quantity}× ${it.description} — ${amount}${it.supplierName ? ` (${it.supplierName})` : ''}${received}${rejected ? ' [NO APROVAT]' : ''}`;
+  }).join('\n') + '\n';
+};
+
+/**
+ * Fila HTML amb la llista d'articles (buida per als expedients antics d'una sola línia).
+ */
+const itemsHtmlRow = (request: PurchaseRequest): string => {
+  if (!hasItems(request)) return '';
+  const ordered = ORDERED_STATUSES.includes(request.status);
+  const rows = request.items!.map(it => {
+    const rejected = it.status === 'rebutjada';
+    const amount = eurosEs(ordered ? lineFinal(it) : lineEstimated(it));
+    const meta = [
+      it.supplierName ? escapeHtml(it.supplierName) : '',
+      ordered && !rejected ? `rebudes ${it.receivedQuantity || 0}/${it.quantity}` : '',
+      rejected ? '<span style="color: #dc2626; font-weight: 700;">no aprovat</span>' : '',
+    ].filter(Boolean).join(' · ');
+    const name = it.productUrl
+      ? `<a href="${escapeHtml(it.productUrl)}" style="color: #0f172a;">${escapeHtml(it.description)}</a>`
+      : escapeHtml(it.description);
+    return `<li style="margin: 0 0 4px 0;${rejected ? ' text-decoration: line-through; color: #94a3b8;' : ''}">` +
+      `<strong>${it.quantity}×</strong> ${name} — ${escapeHtml(amount)}` +
+      (meta ? `<br><span style="font-size: 11px; color: #64748b;">${meta}</span>` : '') +
+      `</li>`;
+  }).join('');
+  return `
+                      <tr>
+                        <td style="font-size: 12px; color: #64748b; font-weight: 600; vertical-align: top;">Articles:</td>
+                        <td style="font-size: 13px; color: #0f172a;"><ul style="margin: 0; padding-left: 16px;">${rows}</ul></td>
+                      </tr>`;
+};
 
 export const emailService = {
   /**
@@ -348,6 +395,7 @@ export const emailService = {
       `- Àrea: ${request.areaName || request.areaId}\n` +
       `- Projecte / Codi Analític: ${request.projectId || 'S/P'} / ${request.analyticCode || 'S/C'}\n` +
       `- Concepte: ${request.itemDescription}\n` +
+      itemsPlainText(request) +
       `- Import: ${amountFormatted}\n` +
       `- Urgència: ${urgencyLabel}\n` +
       (extraData?.actorName ? `- Tramitat per: ${extraData.actorName}\n` : '') +
@@ -420,7 +468,7 @@ export const emailService = {
                       <tr>
                         <td style="font-size: 12px; color: #64748b; font-weight: 600; vertical-align: top;">Concepte:</td>
                         <td style="font-size: 13px; color: #0f172a; font-weight: 700;">${escapeHtml(request.itemDescription)}</td>
-                      </tr>
+                      </tr>${itemsHtmlRow(request)}
                       <tr>
                         <td style="font-size: 12px; color: #64748b; font-weight: 600; padding-top: 8px;">Import estimat:</td>
                         <td style="font-size: 16px; color: #059669; font-weight: 800; padding-top: 8px;">${escapeHtml(amountFormatted)}</td>
@@ -699,6 +747,7 @@ export const emailService = {
       `Detalls de l'expedient:\n` +
       `- Codi: ${requestCode}\n` +
       `- Concepte: ${request.itemDescription}\n` +
+      itemsPlainText(request) +
       `- Import: ${amountFormatted}\n` +
       (request.supplierName ? `- Proveïdor: ${request.supplierName}\n` : '') +
       (extraData?.actorName ? `- Acció feta per: ${extraData.actorName}\n` : '') +
@@ -751,7 +800,7 @@ export const emailService = {
                       <tr>
                         <td width="35%" style="font-size: 12px; color: #64748b; font-weight: 600;">Concepte:</td>
                         <td style="font-size: 13px; color: #0f172a; font-weight: 700;">${escapeHtml(request.itemDescription)}</td>
-                      </tr>
+                      </tr>${itemsHtmlRow(request)}
                       <tr>
                         <td style="font-size: 12px; color: #64748b; font-weight: 600;">Estat actual:</td>
                         <td style="font-size: 13px; color: #0f172a; font-weight: 700;">

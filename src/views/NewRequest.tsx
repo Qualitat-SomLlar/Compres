@@ -17,7 +17,9 @@ import {
 import toast from 'react-hot-toast';
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { User, Attachment, AttachmentCategory, RequestStatus, PurchaseRequest } from '../types';
+import { User, Attachment, AttachmentCategory, RequestStatus, RequestItem } from '../types';
+import { RequestItemsEditor, emptyItem } from '../components/RequestItemsEditor';
+import { itemsEstimatedTotal, summarizeItems, normalizeUrl, getItemSuppliers, cleanItemsForSave } from '../lib/requestItems';
 import { CATEGORIES, ATTACHMENT_CATEGORIES, normalizeAreaId } from '../constants';
 import UserSelector from '../components/UserSelector';
 import CustomSelect from '../components/CustomSelect';
@@ -59,6 +61,9 @@ export default function NewRequest({ user }: { user: User }) {
     url: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [items, setItems] = useState<RequestItem[]>([emptyItem()]);
+  const estimatedTotal = itemsEstimatedTotal(items);
+  const requiresThreeQuotes = estimatedTotal >= 5000;
   const [formData, setFormData] = useState({
     requestingTechnicianId: '',
     requestingTechnicianName: '',
@@ -71,13 +76,8 @@ export default function NewRequest({ user }: { user: User }) {
     destinationCenterName: '',
     itemDescription: '',
     justification: '',
-    supplierId: '',
-    supplierName: '',
-    productUrl: '',
     urgency: 'mitjana' as 'baixa' | 'mitjana' | 'alta' | 'critica',
     deadline: '',
-    estimatedAmount: 0,
-    requiresThreeQuotes: false,
     areaId: user.areaId || ''
   });
 
@@ -89,15 +89,6 @@ export default function NewRequest({ user }: { user: User }) {
       requestingTechnicianEmail: worker.email,
       areaId: normalizeAreaId(worker.areaId || prev.areaId)
     }));
-  };
-
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseFloat(e.target.value) || 0;
-    setFormData({
-      ...formData,
-      estimatedAmount: val,
-      requiresThreeQuotes: val >= 5000
-    });
   };
 
   const handleAddDocumentLink = (e?: React.FormEvent) => {
@@ -145,18 +136,43 @@ export default function NewRequest({ user }: { user: User }) {
 
   const saveRequest = async (mode: 'submit' | 'esborrany') => {
     const isSubmit = mode === 'submit';
+    // Només es desen les línies amb descripció
+    const filledItems = items
+      .filter(it => it.description.trim())
+      .map(it => ({
+        ...it,
+        description: it.description.trim(),
+        quantity: Math.max(1, Math.floor(Number(it.quantity) || 1)),
+        unitPrice: Math.max(0, Number(it.unitPrice) || 0),
+        productUrl: normalizeUrl(it.productUrl),
+        supplierName: (it.supplierName || '').trim(),
+      }));
     if (isSubmit) {
       if (!formData.requestingTechnicianId) {
         toast.error('Siusplau, selecciona el sol·licitant');
         return;
       }
+      if (filledItems.length === 0) {
+        toast.error('Afegeix almenys un article amb la seva descripció');
+        return;
+      }
+      if (filledItems.length !== items.length) {
+        toast.error('Hi ha articles sense descripció: completa-la o treu la línia');
+        return;
+      }
+      if (filledItems.some(it => !it.unitPrice)) {
+        toast.error('Indica el preu unitari estimat de cada article');
+        return;
+      }
     } else {
       // Per a esborranys només demanem una descripció mínima o el sol·licitant
-      if (!formData.itemDescription.trim() && !formData.requestingTechnicianName) {
-        toast.error('Indica almenys una breu descripció o el sol·licitant per guardar com a esborrany');
+      if (!formData.itemDescription.trim() && filledItems.length === 0 && !formData.requestingTechnicianName) {
+        toast.error('Indica almenys un article, una breu descripció o el sol·licitant per guardar com a esborrany');
         return;
       }
     }
+    const totalAmount = itemsEstimatedTotal(filledItems);
+    const suppliersOfItems = getItemSuppliers(filledItems);
 
     setIsSubmitting(true);
     const loadingToast = toast.loading(isSubmit ? 'Tramitant expedient...' : 'Desant esborrany...');
@@ -172,7 +188,14 @@ export default function NewRequest({ user }: { user: User }) {
       // 1. Crear el document a Firestore
       const newRequest = await addRequest({
         ...formData,
-        itemDescription: formData.itemDescription?.trim() || 'Sense descripció',
+        items: cleanItemsForSave(filledItems),
+        estimatedAmount: totalAmount,
+        requiresThreeQuotes: totalAmount >= 5000,
+        // Proveïdor i enllaç generals: només si són únics (compatibilitat amb vistes i informes)
+        supplierId: suppliersOfItems.length === 1 ? suppliersOfItems[0].id : '',
+        supplierName: suppliersOfItems.map(s => s.name).join(', '),
+        productUrl: filledItems.length === 1 ? filledItems[0].productUrl || '' : '',
+        itemDescription: formData.itemDescription?.trim() || summarizeItems(filledItems) || 'Sense descripció',
         justification: formData.justification?.trim() || '',
         deadline: formData.deadline || new Date().toISOString().split('T')[0],
         createdByUserId: user.id,
@@ -235,6 +258,7 @@ export default function NewRequest({ user }: { user: User }) {
           targetStatus,
           estimatedAmount: newRequest.estimatedAmount,
           itemDescription: newRequest.itemDescription,
+          itemsCount: filledItems.length,
           destinationCenterName: newRequest.destinationCenterName,
           filesUploaded: attachments.length
         }
@@ -425,11 +449,11 @@ export default function NewRequest({ user }: { user: User }) {
             </div>
 
             <div className="space-y-3">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Concepte detallat</label>
-              <input 
-                type="text" 
-                placeholder="Què s'ha de comprar exactament?" 
-                className="input-field" 
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Concepte general (opcional)</label>
+              <input
+                type="text"
+                placeholder="Ex: Equipament per a l'oficina del centre. Si el deixes buit, es genera a partir dels articles."
+                className="input-field"
                 value={formData.itemDescription}
                 onChange={e => setFormData({...formData, itemDescription: e.target.value})}
               />
@@ -437,57 +461,21 @@ export default function NewRequest({ user }: { user: User }) {
 
             <div className="space-y-3">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Justificació de la despesa</label>
-              <textarea 
-                rows={3} 
-                placeholder="Explica la necessitat d'aquesta sol·licitud per a l'entitat o projecte." 
-                className="input-field resize-none" 
+              <textarea
+                rows={3}
+                placeholder="Explica la necessitat d'aquesta sol·licitud per a l'entitat o projecte."
+                className="input-field resize-none"
                 value={formData.justification}
                 onChange={e => setFormData({...formData, justification: e.target.value})}
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 pt-4 border-t border-white/[0.05]">
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-between">
-                  <span>Proveïdor proposat (Opcional)</span>
-                </label>
-                <input 
-                  type="text" 
-                  list="suppliers-list-suggestions"
-                  placeholder="Ex: Amazon, Nom de l'empresa o proveïdor..." 
-                  className="input-field" 
-                  value={formData.supplierName}
-                  onChange={e => {
-                    const val = e.target.value;
-                    const matched = suppliers.find(s => s.name.toLowerCase() === val.toLowerCase());
-                    setFormData({
-                      ...formData, 
-                      supplierName: val,
-                      supplierId: matched ? matched.id : ''
-                    });
-                  }}
-                />
-                <datalist id="suppliers-list-suggestions">
-                  {suppliers.map(s => (
-                    <option key={s.id} value={s.name} />
-                  ))}
-                </datalist>
-                <p className="text-[10px] text-slate-500">Pots indicar un proveïdor orientatiu. Serà obligatori confirmar-lo en el moment d'emetre la comanda.</p>
-              </div>
-
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                  Enllaç web del producte o catàleg (Opcional)
-                </label>
-                <input 
-                  type="url" 
-                  placeholder="https://... URL directa de compra o fitxa" 
-                  className="input-field font-mono text-xs" 
-                  value={formData.productUrl}
-                  onChange={e => setFormData({...formData, productUrl: e.target.value})}
-                />
-                <p className="text-[10px] text-slate-500">Enllaç directe per facilitar la revisió o comanda del bé o servei.</p>
-              </div>
+            <div className="space-y-3 pt-4 border-t border-white/[0.05]">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                Articles <span className="text-red-500">*</span>
+              </label>
+              <p className="text-[10px] text-slate-500">Afegeix una línia per a cada article diferent, amb la quantitat, el preu unitari estimat i, si en tens, l'enllaç i el proveïdor. Cada article es pot aprovar i rebre per separat.</p>
+              <RequestItemsEditor items={items} onChange={setItems} suppliers={suppliers} />
             </div>
           </div>
         </section>
@@ -597,12 +585,10 @@ export default function NewRequest({ user }: { user: User }) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
             <div className="space-y-3">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Import Estimat (€)</label>
-              <input 
-                type="number" 
-                placeholder="0.00" 
-                className="input-field font-black text-4xl text-white py-6 bg-white/[0.02] border-brand-primary/20" 
-                onChange={handleAmountChange}
-              />
+              <div className="input-field font-black text-4xl text-white py-6 bg-white/[0.02] border-brand-primary/20">
+                {estimatedTotal.toLocaleString('ca-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+              <p className="text-[10px] text-slate-500">Suma automàtica dels articles.</p>
             </div>
             <div className="space-y-3">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Prioritat de compra</label>
@@ -628,7 +614,7 @@ export default function NewRequest({ user }: { user: User }) {
           </div>
 
           {/* Avís dinàmic de 3 pressupostos */}
-          {formData.requiresThreeQuotes && (
+          {requiresThreeQuotes && (
             <div className="mt-12 p-10 bg-amber-500/[0.02] border border-amber-500/20 rounded-3xl flex gap-8 animate-in zoom-in-95 duration-700">
               <div className="w-16 h-16 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-500 shrink-0 shadow-[0_0_20px_rgba(245,158,11,0.1)]">
                 <AlertTriangle size={32} />

@@ -124,6 +124,16 @@ describe('circuit d\'aprovació', () => {
     await assertFails(approve('altre', 'pendent_direccio'));
   });
 
+  test('aprovació parcial: qui valida pot marcar articles com a no aprovats', async () => {
+    await seed('pendent_coordinacio');
+    await assertSucceeds(approve('coordTics', 'pendent_direccio', {
+      coordinationApprovedAt: 't1',
+      items: [{ id: 'a', description: 'Auriculars', quantity: 3, unitPrice: 20, status: 'activa' },
+              { id: 'b', description: 'Pantalla', quantity: 1, unitPrice: 150, status: 'rebutjada' }],
+      estimatedAmount: 60,
+    }));
+  });
+
   test('es pot retornar i rebutjar des de la fase pròpia', async () => {
     await seed('pendent_coordinacio');
     await assertSucceeds(approve('coordTics', 'retornada', { lastReturnComment: 'falta info' }));
@@ -292,6 +302,14 @@ describe('creació de sol·licituds', () => {
     await assertFails(create('coordTics', own('coordTics', 'aprovada')));
     await assertFails(create('coordTics', { ...own('coordTics', 'pendent_direccio'), coordinationApprovedAt: 't' }));
   });
+  test('es pot crear amb articles i import estimat', async () => {
+    await seed('esborrany');
+    await assertSucceeds(create('coordTics', {
+      ...own('coordTics', 'pendent_direccio'),
+      items: [{ id: 'a', description: 'Auriculars', quantity: 3, unitPrice: 20, status: 'activa' }],
+      estimatedAmount: 60,
+    }));
+  });
   test('Finances la pot crear directament aprovada', async () => {
     await seed('esborrany');
     await assertSucceeds(create('finances', { ...own('finances', 'aprovada'), areaId: 'tics' }));
@@ -360,5 +378,28 @@ describe('comentaris dels expedients', () => {
     await assertFails(updateDoc(doc(asUser('tecnic1'), 'requestComments', 'c1'), { text: 'canviat' }));
     await assertFails(deleteDoc(doc(asUser('finances'), 'requestComments', 'c1')));
     await assertSucceeds(deleteDoc(doc(asUser('tecnic1'), 'requestComments', 'c1')));
+  });
+});
+
+describe('recepció parcial', () => {
+  const items = [{ id: 'a', description: 'Auriculars', quantity: 3, unitPrice: 20, status: 'activa', receivedQuantity: 2 }];
+  const receive = (uid: string, extra: Record<string, unknown> = {}) =>
+    updateDoc(doc(asUser(uid), 'purchaseRequests', 'r1'), { items, partiallyReceivedAt: 't1', updatedAt: 't1', ...extra });
+
+  test('qui confirma la recepció pot registrar una entrega parcial sense canviar d\'estat', async () => {
+    await seed('comanda_emesa');
+    await assertSucceeds(receive('finances'));
+  });
+  test('un tècnic aliè no pot registrar entregues', async () => {
+    await seed('comanda_emesa');
+    await assertFails(receive('altre'));
+  });
+  test('una entrega parcial no pot tocar altres camps', async () => {
+    await seed('comanda_emesa');
+    await assertFails(receive('finances', { finalAmount: 1 }));
+  });
+  test('fora de la fase de comanda emesa no es poden registrar entregues', async () => {
+    await seed('aprovada');
+    await assertFails(receive('altre'));
   });
 });

@@ -1,4 +1,5 @@
 import { PurchaseRequest, RequestStatus, Supplier } from '../types';
+import { hasItems, activeItems, lineFinal } from '../lib/requestItems';
 
 const toTime = (iso?: string) => (iso ? new Date(iso).getTime() : NaN);
 const submittedOf = (r: PurchaseRequest) => r.submittedAt || r.createdAt;
@@ -143,18 +144,32 @@ const normalizeName = (name?: string) => (name || '').trim().toLowerCase().repla
 /**
  * Historial de compres d'un proveïdor: comandes emeses, import total i última compra.
  * Les comandes antigues sense supplierId s'associen pel nom del proveïdor.
+ * En les comandes amb articles de diversos proveïdors només compta l'import dels seus articles.
  */
 export function getSupplierHistory(supplier: Pick<Supplier, 'id' | 'name'>, requests: PurchaseRequest[]) {
   const name = normalizeName(supplier.name);
+  const matches = (id?: string, supplierName?: string) =>
+    id ? id === supplier.id : (!!name && normalizeName(supplierName) === name);
+
   const orders = requests
     .filter(r => ORDERED_STATUSES.has(r.status))
-    .filter(r => r.supplierId ? r.supplierId === supplier.id : (!!name && normalizeName(r.supplierName) === name))
-    .map(r => ({ request: r, date: r.orderIssuedAt || r.updatedAt || r.createdAt }))
+    .map(r => {
+      const lines = hasItems(r) ? activeItems(r.items!).filter(it => it.supplierId || it.supplierName) : [];
+      if (lines.length > 0) {
+        const own = lines.filter(it => matches(it.supplierId, it.supplierName));
+        return own.length ? { request: r, amount: own.reduce((sum, it) => sum + lineFinal(it), 0) } : null;
+      }
+      return matches(r.supplierId, r.supplierName)
+        ? { request: r, amount: r.finalAmount ?? r.estimatedAmount ?? 0 }
+        : null;
+    })
+    .filter((o): o is { request: PurchaseRequest; amount: number } => o !== null)
+    .map(o => ({ ...o, date: o.request.orderIssuedAt || o.request.updatedAt || o.request.createdAt }))
     .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   return {
     orders,
     orderCount: orders.length,
-    totalSpent: orders.reduce((sum, o) => sum + (o.request.finalAmount ?? o.request.estimatedAmount ?? 0), 0),
+    totalSpent: Math.round(orders.reduce((sum, o) => sum + o.amount, 0) * 100) / 100,
     lastOrderAt: orders[0]?.date as string | undefined,
   };
 }

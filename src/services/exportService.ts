@@ -1,6 +1,13 @@
 import { jsPDF } from 'jspdf';
 import { PurchaseRequest, Quote, Attachment } from '../types';
 import { STATUS_LABELS } from '../constants';
+import { hasItems, lineEstimated, lineFinal } from '../lib/requestItems';
+
+const ORDERED_STATUSES = ['comanda_emesa', 'rebuda', 'tancada', 'incidencia'];
+const itemStateLabel = (r: PurchaseRequest, it: NonNullable<PurchaseRequest['items']>[number]) =>
+  it.status === 'rebutjada' ? 'No aprovat'
+    : ORDERED_STATUSES.includes(r.status) ? `Rebudes ${it.receivedQuantity || 0}/${it.quantity}`
+    : 'Aprovat';
 import { SOM_LLAR_LOGO_BASE64 } from './somLlarLogoBase64';
 
 export const exportService = {
@@ -124,6 +131,49 @@ export const exportService = {
     const splitDesc = doc.splitTextToSize(request.itemDescription || 'Sense descripció', 180);
     doc.text(splitDesc, 15, currentY);
     currentY += (splitDesc.length * 4.5) + 4;
+
+    // Taula d'articles (sol·licituds amb diverses línies)
+    if (hasItems(request)) {
+      const ordered = ORDERED_STATUSES.includes(request.status);
+      const cols = { qty: 15, desc: 27, supplier: 105, price: 145, total: 165, state: 195 };
+      const ensureSpace = (needed: number) => {
+        if (currentY + needed > 280) { doc.addPage(); currentY = 20; }
+      };
+      ensureSpace(14);
+      doc.setFillColor(241, 245, 249);
+      doc.rect(15, currentY - 4, 180, 6, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+      doc.text('Qt.', cols.qty + 1, currentY);
+      doc.text('Article', cols.desc, currentY);
+      doc.text('Proveïdor', cols.supplier, currentY);
+      doc.text(ordered ? 'Preu u. acordat' : 'Preu u. estimat', cols.price, currentY, { align: 'right' });
+      doc.text('Subtotal', cols.total + 8, currentY, { align: 'right' });
+      doc.text('Estat', cols.state - 1, currentY, { align: 'right' });
+      currentY += 6;
+      doc.setFont('helvetica', 'normal');
+      request.items!.forEach(it => {
+        const descLines = doc.splitTextToSize(it.description || '', 75);
+        const supplierLines = doc.splitTextToSize(it.supplierName || '-', 36);
+        const rowHeight = Math.max(descLines.length, supplierLines.length) * 4 + 1.5;
+        ensureSpace(rowHeight);
+        const rejected = it.status === 'rebutjada';
+        if (rejected) doc.setTextColor(lightSlate[0], lightSlate[1], lightSlate[2]);
+        else doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+        const unit = ordered ? (it.finalUnitPrice ?? it.unitPrice) : it.unitPrice;
+        doc.text(String(it.quantity), cols.qty + 1, currentY);
+        doc.text(descLines, cols.desc, currentY);
+        doc.text(supplierLines, cols.supplier, currentY);
+        doc.text(`${(Number(unit) || 0).toLocaleString('ca-ES')} €`, cols.price, currentY, { align: 'right' });
+        doc.text(`${(ordered ? lineFinal(it) : lineEstimated(it)).toLocaleString('ca-ES')} €`, cols.total + 8, currentY, { align: 'right' });
+        doc.text(itemStateLabel(request, it), cols.state - 1, currentY, { align: 'right' });
+        currentY += rowHeight;
+      });
+      doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+      currentY += 3;
+      ensureSpace(60);
+    }
 
     doc.setFont('helvetica', 'bold');
     doc.text("Memòria justificativa de la necessitat:", 15, currentY);
@@ -268,6 +318,9 @@ export const exportService = {
       'Codi Analític': r.analyticCode || '',
       'Tipus Compra': r.purchaseType || 'be',
       'Descripció': r.itemDescription || '',
+      'Articles': hasItems(r)
+        ? r.items!.map(it => `${it.quantity}× ${it.description}${it.status === 'rebutjada' ? ' (no aprovat)' : ''}`).join('; ')
+        : '',
       'Import Estimat (€)': r.estimatedAmount || 0,
       'Import Adjudicat (€)': r.finalAmount !== undefined ? r.finalAmount : (r.estimatedAmount || 0),
       'Proveïdor Adjudicat': r.supplierName || '',
@@ -283,6 +336,27 @@ export const exportService = {
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Expedients');
+
+    // Full amb una fila per article (només sol·licituds amb línies d'article)
+    const itemRows = requests.filter(hasItems).flatMap(r => r.items!.map(it => ({
+      'Codi Expedient': r.code || r.id,
+      'Estat Expedient': STATUS_LABELS[r.status]?.label || r.status,
+      'Article': it.description,
+      'Quantitat': it.quantity,
+      'Preu Unitari Estimat (€)': it.unitPrice,
+      'Preu Unitari Acordat (€)': it.finalUnitPrice ?? '',
+      'Subtotal (€)': ORDERED_STATUSES.includes(r.status) ? lineFinal(it) : lineEstimated(it),
+      'Proveïdor': it.supplierName || '',
+      'Enllaç': it.productUrl || '',
+      'Estat Article': itemStateLabel(r, it),
+      'Unitats Rebudes': it.receivedQuantity || 0,
+      'Motiu No Aprovació': it.rejectionReason || '',
+    })));
+    if (itemRows.length > 0) {
+      const itemsSheet = XLSX.utils.json_to_sheet(itemRows);
+      itemsSheet['!cols'] = Object.keys(itemRows[0]).map(k => ({ wch: Math.max(k.length + 2, 14) }));
+      XLSX.utils.book_append_sheet(workbook, itemsSheet, 'Articles');
+    }
 
     // Ajust automàtic de columnes
     const colWidths = Object.keys(data[0] || {}).map(k => ({ wch: Math.max(k.length + 2, 14) }));

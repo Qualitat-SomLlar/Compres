@@ -28,6 +28,7 @@ import { workflowService } from '../services/workflowService';
 import { exportService } from '../services/exportService';
 import { User, RequestStatus, PurchaseRequest } from '../types';
 import { cn } from '../lib/utils';
+import { hasItems, activeItems, getRequestItems, getReceiptProgress } from '../lib/requestItems';
 import toast from 'react-hot-toast';
 
 type TabView = 'all' | 'my_turn' | 'my_requests' | 'pending' | 'closed';
@@ -144,7 +145,8 @@ export default function RequestsList({ user: propUser }: RequestsListProps) {
         const term = searchTerm.toLowerCase();
         const matchesCode = (r.code || '').toLowerCase().includes(term);
         const matchesId = r.id.toLowerCase().includes(term);
-        const matchesDesc = (r.itemDescription || '').toLowerCase().includes(term);
+        const matchesDesc = (r.itemDescription || '').toLowerCase().includes(term)
+          || (r.items || []).some(it => (it.description || '').toLowerCase().includes(term) || (it.supplierName || '').toLowerCase().includes(term));
         const matchesTech = (r.requestingTechnicianName || '').toLowerCase().includes(term);
         const matchesCreator = (r.createdByUserName || '').toLowerCase().includes(term);
         const matchesSupplier = (r.supplierName || '').toLowerCase().includes(term);
@@ -473,6 +475,18 @@ export default function RequestsList({ user: propUser }: RequestsListProps) {
                         {request.itemDescription}
                       </div>
                       <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                        {hasItems(request) && request.items!.length > 1 && (
+                          <span className="text-[8px] font-black text-slate-300 bg-white/5 px-1.5 py-0.5 rounded border border-white/10 uppercase tracking-widest">
+                            {activeItems(request.items!).length < request.items!.length
+                              ? `${activeItems(request.items!).length}/${request.items!.length} articles aprovats`
+                              : `${request.items!.length} articles`}
+                          </span>
+                        )}
+                        {request.status === 'comanda_emesa' && getReceiptProgress(getRequestItems(request)).received > 0 && (
+                          <span className="text-[8px] font-black text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 uppercase tracking-widest">
+                            Rebuda parcialment ({getReceiptProgress(getRequestItems(request)).received}/{getReceiptProgress(getRequestItems(request)).ordered})
+                          </span>
+                        )}
                         {request.supplierName && (
                           <span className="text-[9px] text-brand-primary font-bold truncate max-w-[150px]">
                             ✓ {request.supplierName}

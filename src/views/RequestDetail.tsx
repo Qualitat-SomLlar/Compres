@@ -24,7 +24,13 @@ import {
 import toast from 'react-hot-toast';
 import { exportService } from '../services/exportService';
 import { STATUS_LABELS, getHierarchyRole, normalizeAreaId, CATEGORIES } from '../constants';
-import { User, RequestStatus, AttachmentCategory, PurchaseRequest, Attachment, Quote, ActivityLog, Supplier, RequestComment } from '../types';
+import { User, RequestStatus, AttachmentCategory, PurchaseRequest, Attachment, Quote, ActivityLog, Supplier, RequestComment, RequestItem } from '../types';
+import { RequestItemsSection } from '../components/RequestItemsSection';
+import { ReceiveItemsModal } from '../components/ReceiveItemsModal';
+import {
+  getRequestItems, hasItems, activeItems, isActive, rejectItems, applyReception, getReceiptProgress,
+  itemsEstimatedTotal, itemsFinalTotal, getItemSuppliers, normalizeUrl, cleanItemsForSave,
+} from '../lib/requestItems';
 import { cn } from '../lib/utils';
 import StatusBadge from '../components/StatusBadge';
 import { AddQuoteModal } from '../components/AddQuoteModal';
@@ -80,11 +86,12 @@ export default function RequestDetail({ user }: { user: User }) {
 
   // Gestió d'Emissió Formal de Comanda
   const [showEmitOrderModal, setShowEmitOrderModal] = useState(false);
-  const [orderSupplierName, setOrderSupplierName] = useState('');
-  const [orderSupplierId, setOrderSupplierId] = useState('');
-  const [orderProductUrl, setOrderProductUrl] = useState('');
-  const [orderFinalAmount, setOrderFinalAmount] = useState<number | string>('');
+  const [orderItems, setOrderItems] = useState<RequestItem[]>([]);
   const [orderNotes, setOrderNotes] = useState('');
+
+  // Aprovació parcial (articles desmarcats per qui valida) i recepció per entregues
+  const [itemsToReject, setItemsToReject] = useState<Set<string>>(new Set());
+  const [showReceiveModal, setShowReceiveModal] = useState(false);
 
   // Gestió de 3 Pressupostos Reals
   const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -324,6 +331,11 @@ export default function RequestDetail({ user }: { user: User }) {
     return () => unsubQuotes();
   }, [request?.id]);
 
+  // En canviar de fase, la selecció d'articles a rebutjar es reinicia
+  useEffect(() => {
+    setItemsToReject(new Set());
+  }, [request?.id, request?.status]);
+
   if (loadingRequests) {
     return (
       <div className="max-w-6xl mx-auto p-20 flex flex-col items-center justify-center gap-4 bg-brand-secondary rounded-3xl border border-white/5 animate-in fade-in">
@@ -346,15 +358,27 @@ export default function RequestDetail({ user }: { user: User }) {
     );
   }
 
+  const isApprovalPhase = ['pendent_coordinacio', 'pendent_direccio', 'pendent_finances'].includes(request.status);
+
   const handleOpenEmitOrderModal = () => {
     if (!request) return;
     // Expedients antics sense supplierId: s'intenta trobar el proveïdor del registre pel nom
-    const knownSupplier = suppliers.find(s => s.id === request.supplierId)
-      || suppliers.find(s => request.supplierName && s.name.trim().toLowerCase() === request.supplierName.trim().toLowerCase());
-    setOrderSupplierName(knownSupplier?.name || request.supplierName || '');
-    setOrderSupplierId(knownSupplier?.id || '');
-    setOrderProductUrl(request.productUrl || '');
-    setOrderFinalAmount(request.finalAmount !== undefined ? request.finalAmount : (request.estimatedAmount || 0));
+    const findSupplier = (id?: string, name?: string) =>
+      suppliers.find(s => !!id && s.id === id)
+      || suppliers.find(s => !!name?.trim() && s.name.trim().toLowerCase() === name.trim().toLowerCase());
+    // Proveïdor general (p. ex. el del pressupost adjudicat), per a les línies que no en tenen
+    const requestSupplier = findSupplier(request.supplierId, request.supplierName);
+    const legacy = !hasItems(request);
+    setOrderItems(getRequestItems(request).map(it => {
+      if (!isActive(it)) return it;
+      const known = findSupplier(it.supplierId, it.supplierName) || (!it.supplierName?.trim() ? requestSupplier : undefined);
+      return {
+        ...it,
+        supplierId: known?.id || '',
+        supplierName: known?.name || it.supplierName || '',
+        finalUnitPrice: it.finalUnitPrice ?? (legacy && request.finalAmount !== undefined ? request.finalAmount : it.unitPrice),
+      };
+    }));
     setOrderNotes(comment || '');
     setShowEmitOrderModal(true);
   };
@@ -386,18 +410,26 @@ export default function RequestDetail({ user }: { user: User }) {
     e.preventDefault();
     if (!request) return;
 
-    if (!orderSupplierId || !orderSupplierName.trim()) {
-      toast.error('Tria el proveïdor del registre per emetre la comanda');
+    const lines = activeItems(orderItems);
+    if (lines.some(it => !it.supplierId || !(it.supplierName || '').trim())) {
+      toast.error(lines.length > 1
+        ? 'Tria el proveïdor del registre de cada article per emetre la comanda'
+        : 'Tria el proveïdor del registre per emetre la comanda');
+      return;
+    }
+    if (lines.some(it => it.finalUnitPrice === undefined || isNaN(Number(it.finalUnitPrice)))) {
+      toast.error('Indica el preu unitari acordat de cada article');
       return;
     }
 
-    let formattedProductUrl = orderProductUrl.trim();
-    if (formattedProductUrl && !formattedProductUrl.startsWith('http://') && !formattedProductUrl.startsWith('https://')) {
-      formattedProductUrl = 'https://' + formattedProductUrl;
-    }
-
-    const numFinal = parseFloat(String(orderFinalAmount));
-    const finalAmount = isNaN(numFinal) || numFinal <= 0 ? request.estimatedAmount : numFinal;
+    const finalItems = orderItems.map(it => isActive(it)
+      ? { ...it, productUrl: normalizeUrl(it.productUrl), supplierName: (it.supplierName || '').trim(), finalUnitPrice: Number(it.finalUnitPrice) }
+      : it);
+    const finalAmount = itemsFinalTotal(finalItems);
+    const orderSuppliers = getItemSuppliers(finalItems);
+    const orderSupplierName = orderSuppliers.map(s => s.name).join(', ');
+    const finalActive = activeItems(finalItems);
+    const formattedProductUrl = finalActive.length === 1 ? finalActive[0].productUrl || '' : '';
 
     setIsProcessing(true);
     try {
@@ -409,10 +441,11 @@ export default function RequestDetail({ user }: { user: User }) {
 
       const updateData: Partial<PurchaseRequest> = {
         status: 'comanda_emesa',
-        supplierName: orderSupplierName.trim(),
-        supplierId: orderSupplierId || '',
-        productUrl: formattedProductUrl || '',
+        supplierName: orderSupplierName,
+        supplierId: orderSuppliers.length === 1 ? orderSuppliers[0].id : '',
+        productUrl: formattedProductUrl,
         finalAmount: finalAmount,
+        items: cleanItemsForSave(finalItems),
         observations: newObservations,
         orderIssuedAt: new Date().toISOString()
       };
@@ -440,11 +473,12 @@ export default function RequestDetail({ user }: { user: User }) {
         'request_updated',
         'Emissió Formal de Comanda',
         request,
-        `S'ha emès formalment la comanda al proveïdor "${orderSupplierName.trim()}" per import de ${finalAmount}€.${formattedProductUrl ? ` Enllaç del producte: ${formattedProductUrl}` : ''}`,
+        `S'ha emès formalment la comanda (${finalActive.length} ${finalActive.length === 1 ? 'article' : 'articles'}) ${orderSuppliers.length > 1 ? 'als proveïdors' : 'al proveïdor'} "${orderSupplierName}" per import de ${finalAmount}€.${formattedProductUrl ? ` Enllaç del producte: ${formattedProductUrl}` : ''}`,
         {
-          supplierName: orderSupplierName.trim(),
+          supplierName: orderSupplierName,
           productUrl: formattedProductUrl,
-          finalAmount: finalAmount
+          finalAmount: finalAmount,
+          items: finalActive.map(it => `${it.quantity}× ${it.description} (${it.supplierName}, ${it.finalUnitPrice}€/u.)`)
         }
       );
 
@@ -465,6 +499,26 @@ export default function RequestDetail({ user }: { user: User }) {
     // Si estem aprovant a la fase de comanda, és obligatori assignar proveïdor mitjançant el modal
     if (action === 'approve' && request.status === 'aprovada') {
       handleOpenEmitOrderModal();
+      return;
+    }
+
+    // La recepció es registra article per article (pot ser parcial)
+    if (action === 'approve' && request.status === 'comanda_emesa') {
+      setShowReceiveModal(true);
+      return;
+    }
+
+    // Aprovació parcial: cal aprovar almenys un article (si no, s'ha de rebutjar la sol·licitud)
+    const currentItems = getRequestItems(request);
+    const rejectingIds = action === 'approve' && isApprovalPhase
+      ? currentItems.filter(it => isActive(it) && itemsToReject.has(it.id)).map(it => it.id)
+      : [];
+    if (rejectingIds.length > 0 && rejectingIds.length >= activeItems(currentItems).length) {
+      toast.error("No has aprovat cap article. Si no se n'aprova cap, rebutja la sol·licitud.");
+      return;
+    }
+    if (rejectingIds.length > 0 && !comment.trim()) {
+      toast.error("Indica al comentari el motiu pel qual no aproves alguns articles");
       return;
     }
 
@@ -498,6 +552,15 @@ export default function RequestDetail({ user }: { user: User }) {
       if (isSubmission) {
         updateData.initialStatus = newStatus;
         updateData.submittedAt = nowIso;
+      }
+
+      const rejectedDescriptions = currentItems.filter(it => rejectingIds.includes(it.id)).map(it => `${it.quantity}× ${it.description}`);
+      if (rejectingIds.length > 0) {
+        const updatedItems = rejectItems(currentItems, rejectingIds, {
+          by: user.name, role: user.role, step: request.status, at: nowIso, reason: comment,
+        });
+        updateData.items = cleanItemsForSave(updatedItems);
+        updateData.estimatedAmount = itemsEstimatedTotal(updatedItems);
       }
 
       // Afegir timestamps d'aprovació i comentaris estructurats segons la fase o acció
@@ -570,9 +633,12 @@ export default function RequestDetail({ user }: { user: User }) {
             ? 'Retornada per Esmena'
             : `Actualitzada a ${STATUS_LABELS[newStatus]?.label || newStatus}`;
 
-      const actionDetails = comment 
-        ? `Estat actualitzat a "${STATUS_LABELS[newStatus]?.label || newStatus}". Observació: ${comment}`
-        : `Estat actualitzat a "${STATUS_LABELS[newStatus]?.label || newStatus}".`;
+      const partialNote = rejectedDescriptions.length > 0
+        ? ` Aprovació parcial: no s'aproven ${rejectedDescriptions.join(', ')}.`
+        : '';
+      const actionDetails = comment
+        ? `Estat actualitzat a "${STATUS_LABELS[newStatus]?.label || newStatus}".${partialNote} Observació: ${comment}`
+        : `Estat actualitzat a "${STATUS_LABELS[newStatus]?.label || newStatus}".${partialNote}`;
 
       activityService.logRequestAction(
         user,
@@ -584,15 +650,100 @@ export default function RequestDetail({ user }: { user: User }) {
           action,
           previousStatus: request.status,
           newStatus,
-          comment: comment || undefined
+          comment: comment || undefined,
+          ...(rejectedDescriptions.length > 0 ? { rejectedItems: rejectedDescriptions } : {})
         }
       );
 
-      toast.success(`Acció realitzada: ${STATUS_LABELS[newStatus]?.label}`);
+      toast.success(rejectedDescriptions.length > 0
+        ? `Aprovació parcial registrada (${rejectedDescriptions.length} ${rejectedDescriptions.length === 1 ? 'article no aprovat' : 'articles no aprovats'})`
+        : `Acció realitzada: ${STATUS_LABELS[newStatus]?.label}`);
       setComment('');
     } catch (error) {
       console.error(error);
       toast.error("Error al processar l'acció");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Registre d'una entrega (total o parcial) dels articles comandats
+  const handleConfirmReception = async (receivedNow: Record<string, number>, notes: string) => {
+    if (!request) return;
+    const currentItems = getRequestItems(request);
+    const nowIso = new Date().toISOString();
+    const updatedItems = applyReception(currentItems, receivedNow, nowIso);
+    const progress = getReceiptProgress(updatedItems);
+    const deliveredNow = activeItems(currentItems)
+      .map(it => ({ it, qty: Math.min(Math.max(0, Math.floor(Number(receivedNow[it.id]) || 0)), it.quantity - (Number(it.receivedQuantity) || 0)) }))
+      .filter(x => x.qty > 0)
+      .map(x => `${x.qty}× ${x.it.description}`);
+    if (deliveredNow.length === 0) {
+      toast.error('Indica almenys una unitat rebuda');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const noteText = (notes || comment).trim();
+      const formattedTimestamp = new Date().toLocaleDateString('ca-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      const entry = `[${formattedTimestamp} - ${user.name}] Recepció${progress.complete ? '' : ' parcial'}: ${deliveredNow.join(', ')}.${noteText ? ` ${noteText}` : ''}`;
+      const updateData: Partial<PurchaseRequest> = {
+        items: cleanItemsForSave(updatedItems),
+        observations: request.observations ? `${request.observations}\n\n${entry}` : entry,
+      };
+      if (progress.complete) {
+        updateData.status = 'rebuda';
+        updateData.receivedAt = nowIso;
+      } else {
+        updateData.partiallyReceivedAt = nowIso;
+      }
+
+      await updateRequest(request.id, updateData);
+      const updatedRequest = { ...request, ...updateData } as PurchaseRequest;
+
+      if (progress.complete) {
+        await notifyInApp('compra_rebuda', updatedRequest);
+        await dispatchEmail('compra_rebuda', updatedRequest, {
+          comment: noteText, previousStatus: request.status, actorName: user.name, actorRole: user.role,
+        });
+      } else {
+        // Entrega parcial: només avís a l'aplicació per al sol·licitant
+        const code = request.code || request.id;
+        const requesterIds = [...new Set([request.createdByUserId, request.requestingTechnicianId])]
+          .filter((uid): uid is string => !!uid && uid !== user.id);
+        await Promise.all(requesterIds.map(userId => addNotification({
+          userId,
+          title: `Recepció parcial: ${code}`,
+          message: `Han arribat ${deliveredNow.join(', ')}. Encara en falten ${progress.pending} unitats.`,
+          type: 'info',
+          requestId: request.id,
+        }).catch(err => console.warn("No s'ha pogut crear la notificació de recepció parcial:", err))));
+      }
+
+      activityService.logRequestAction(
+        user,
+        'order_received',
+        progress.complete ? 'Recepció Completa' : 'Recepció Parcial',
+        { ...request, status: updatedRequest.status },
+        `${progress.complete ? 'Recepció completa' : 'Recepció parcial'}: ${deliveredNow.join(', ')}. Rebudes ${progress.received} de ${progress.ordered} unitats.${noteText ? ` Observació: ${noteText}` : ''}`,
+        {
+          delivered: deliveredNow,
+          received: progress.received,
+          ordered: progress.ordered,
+          complete: progress.complete,
+          comment: noteText || undefined,
+        }
+      );
+
+      toast.success(progress.complete
+        ? 'Recepció confirmada: ha arribat tot el material'
+        : `Entrega parcial registrada (${progress.received}/${progress.ordered} unitats)`);
+      setShowReceiveModal(false);
+      setComment('');
+    } catch (err) {
+      console.error('Error registrant la recepció:', err);
+      toast.error("No s'ha pogut registrar la recepció");
     } finally {
       setIsProcessing(false);
     }
@@ -856,6 +1007,15 @@ export default function RequestDetail({ user }: { user: User }) {
   };
 
   const canApprove = workflowService.canUserApprove(user, request, centerResponsibleEmails);
+  const detailItems = getRequestItems(request);
+  const approvingCount = activeItems(detailItems).filter(it => !itemsToReject.has(it.id)).length;
+  const activeCountDetail = activeItems(detailItems).length;
+  const receiptProgress = getReceiptProgress(detailItems);
+  const toggleItemToReject = (itemId: string) => setItemsToReject(prev => {
+    const next = new Set(prev);
+    if (next.has(itemId)) next.delete(itemId); else next.add(itemId);
+    return next;
+  });
   const canManageQuotes = workflowService.canManageQuotes(user, request);
   const canDeleteAttachment = (file: Attachment) =>
     workflowService.isAdminProfile(user) || file.uploadedByUserId === user.id;
@@ -883,7 +1043,7 @@ export default function RequestDetail({ user }: { user: User }) {
       case 'pendent_direccio': return 'Validar Direcció';
       case 'pendent_finances': return 'Aprovar Finances';
       case 'aprovada': return 'Emetre Comanda';
-      case 'comanda_emesa': return 'Confirmar Recepció';
+      case 'comanda_emesa': return receiptProgress.received > 0 ? 'Registrar Entrega' : 'Confirmar Recepció';
       case 'rebuda': return 'Validar Factura i Tancar';
       case 'esborrany':
       case 'retornada': return 'Tramitar a Coordinació';
@@ -1108,6 +1268,14 @@ export default function RequestDetail({ user }: { user: User }) {
             </div>
           </div>
 
+          {/* Articles de la sol·licitud (aprovació parcial i recepció per article) */}
+          <RequestItemsSection
+            request={request}
+            selectable={canApprove && isApprovalPhase}
+            rejectedIds={itemsToReject}
+            onToggle={toggleItemToReject}
+          />
+
           {/* Cadena de Validacions i Comentaris Jeràrquics */}
           <RequestValidationChain
             request={request}
@@ -1217,6 +1385,7 @@ export default function RequestDetail({ user }: { user: User }) {
                         >
                           {isProcessing && <Loader2 size={14} className="animate-spin" />}
                           {getActionLabel(request.status)}
+                          {isApprovalPhase && itemsToReject.size > 0 && ` (${approvingCount}/${activeCountDetail})`}
                         </button>
                       </>
                     )}
@@ -1273,20 +1442,25 @@ export default function RequestDetail({ user }: { user: User }) {
       {showEmitOrderModal && (
         <EmitOrderModal
           suppliers={suppliers}
-          orderSupplierId={orderSupplierId}
-          setOrderSupplierId={setOrderSupplierId}
-          orderSupplierName={orderSupplierName}
-          setOrderSupplierName={setOrderSupplierName}
-          orderProductUrl={orderProductUrl}
-          setOrderProductUrl={setOrderProductUrl}
-          orderFinalAmount={orderFinalAmount}
-          setOrderFinalAmount={setOrderFinalAmount}
+          orderItems={orderItems}
+          setOrderItems={setOrderItems}
+          adjudicatedAmount={hasItems(request) && activeCountDetail > 1 ? request.finalAmount : undefined}
           orderNotes={orderNotes}
           setOrderNotes={setOrderNotes}
           isProcessing={isProcessing}
           onSubmit={handleConfirmEmitOrder}
           onCreateSupplier={handleCreateSupplierFromOrder}
           onClose={() => setShowEmitOrderModal(false)}
+        />
+      )}
+
+      {/* Modal de Recepció (total o parcial) */}
+      {showReceiveModal && (
+        <ReceiveItemsModal
+          items={detailItems}
+          isProcessing={isProcessing}
+          onSubmit={handleConfirmReception}
+          onClose={() => setShowReceiveModal(false)}
         />
       )}
     </div>

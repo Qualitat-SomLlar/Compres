@@ -131,24 +131,26 @@ service cloud.firestore {
     // Camps propis de cada fase
     function stepFields(s) {
       return s in ['esborrany', 'retornada'] ? ['initialStatus', 'submittedAt']
+        // 'items' i 'estimatedAmount': aprovació parcial (articles no aprovats)
         : s == 'pendent_coordinacio'
-          ? ['coordinationApprovedAt', 'coordinationComment', 'coordinationApprovedBy', 'coordinationApproverRole']
+          ? ['coordinationApprovedAt', 'coordinationComment', 'coordinationApprovedBy', 'coordinationApproverRole', 'items', 'estimatedAmount']
         : s == 'pendent_direccio'
-          ? ['areaDirectionApprovedAt', 'areaDirectionComment', 'areaDirectionApprovedBy', 'areaDirectionApproverRole']
+          ? ['areaDirectionApprovedAt', 'areaDirectionComment', 'areaDirectionApprovedBy', 'areaDirectionApproverRole', 'items', 'estimatedAmount']
         : s == 'pendent_finances'
-          ? ['financeApprovedAt', 'financeComment', 'financeApprovedBy', 'financeApproverRole']
+          ? ['financeApprovedAt', 'financeComment', 'financeApprovedBy', 'financeApproverRole', 'items', 'estimatedAmount']
         : s == 'aprovada'
-          ? ['supplierName', 'supplierId', 'productUrl', 'finalAmount', 'orderIssuedAt']
-        : s == 'comanda_emesa' ? ['receivedAt']
+          ? ['supplierName', 'supplierId', 'productUrl', 'finalAmount', 'orderIssuedAt', 'items']
+        : s == 'comanda_emesa' ? ['receivedAt', 'items', 'partiallyReceivedAt']
         : s == 'rebuda' ? ['closedAt']
         : [];
     }
     // Camps que no es poden fixar en crear una sol·licitud
     function approvalFields() {
-      return stepFields('pendent_coordinacio')
-        .concat(stepFields('pendent_direccio'))
-        .concat(stepFields('pendent_finances'))
-        .concat(['receivedAt', 'closedAt', 'rejectedAt', 'rejectedBy', 'lastReturnedAt', 'lastReturnedBy']);
+      // Llista explícita: els camps de fase també inclouen 'items' i 'estimatedAmount', que sí es fixen en crear
+      return ['coordinationApprovedAt', 'coordinationComment', 'coordinationApprovedBy', 'coordinationApproverRole',
+              'areaDirectionApprovedAt', 'areaDirectionComment', 'areaDirectionApprovedBy', 'areaDirectionApproverRole',
+              'financeApprovedAt', 'financeComment', 'financeApprovedBy', 'financeApproverRole',
+              'receivedAt', 'closedAt', 'rejectedAt', 'rejectedBy', 'lastReturnedAt', 'lastReturnedBy'];
     }
 
     // Pressupostos comparatius i adjudicació: el sol·licitant mentre no s'ha aprovat
@@ -181,7 +183,11 @@ service cloud.firestore {
         || (validTransition(s, t)
             && canActOnStep(u, resource.data)
             && changed.hasOnly(workflowFields().concat(stepFields(s)))
-            && (!(s in ['esborrany', 'retornada']) || validSubmitTarget(u, resource.data, t)));
+            && (!(s in ['esborrany', 'retornada']) || validSubmitTarget(u, resource.data, t)))
+        // Entrega parcial: la comanda continua emesa, només canvien les unitats rebudes
+        || (s == 'comanda_emesa' && t == 'comanda_emesa'
+            && canActOnStep(u, resource.data)
+            && changed.hasOnly(['items', 'partiallyReceivedAt', 'observations', 'updatedAt']));
     }
 
     match /{allPaths=**} {

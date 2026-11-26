@@ -74,3 +74,23 @@ test('getSupplierHistory: comandes emeses per id o, si no en tenen, pel nom', ()
   assert.equal(history.totalSpent, 150);
   assert.equal(history.lastOrderAt, day(20));
 });
+
+test('getSupplierHistory: en comandes amb diversos proveïdors només compta els seus articles', () => {
+  const supplier = { id: 's1', name: 'Amazon' };
+  const history = getSupplierHistory(supplier, [
+    makeRequest('comanda_emesa', {
+      id: 'multi', supplierName: 'Amazon, MediaMarkt', finalAmount: 260, orderIssuedAt: day(3),
+      items: [
+        { id: 'a', description: 'Auriculars', quantity: 3, unitPrice: 20, status: 'activa', supplierId: 's1', supplierName: 'Amazon' },
+        { id: 'b', description: 'Pantalla', quantity: 1, unitPrice: 200, status: 'activa', supplierId: 's2', supplierName: 'MediaMarkt' },
+        { id: 'c', description: 'Mòbil', quantity: 1, unitPrice: 300, status: 'rebutjada', supplierId: 's1', supplierName: 'Amazon' },
+      ],
+    }),
+    makeRequest('comanda_emesa', {
+      id: 'altre', finalAmount: 200,
+      items: [{ id: 'x', description: 'Pantalla', quantity: 1, unitPrice: 200, status: 'activa', supplierId: 's2', supplierName: 'MediaMarkt' }],
+    }),
+  ]);
+  assert.deepEqual(history.orders.map(o => o.request.id), ['multi']);
+  assert.equal(history.totalSpent, 60);
+});
