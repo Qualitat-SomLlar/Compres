@@ -131,13 +131,13 @@ service cloud.firestore {
     // Camps propis de cada fase
     function stepFields(s) {
       return s in ['esborrany', 'retornada'] ? ['initialStatus', 'submittedAt']
-        // 'items' i 'estimatedAmount': aprovació parcial (articles no aprovats)
+        // 'items', 'estimatedAmount' i 'requiresThreeQuotes': aprovació parcial (articles no aprovats)
         : s == 'pendent_coordinacio'
-          ? ['coordinationApprovedAt', 'coordinationComment', 'coordinationApprovedBy', 'coordinationApproverRole', 'items', 'estimatedAmount']
+          ? ['coordinationApprovedAt', 'coordinationComment', 'coordinationApprovedBy', 'coordinationApproverRole', 'items', 'estimatedAmount', 'requiresThreeQuotes']
         : s == 'pendent_direccio'
-          ? ['areaDirectionApprovedAt', 'areaDirectionComment', 'areaDirectionApprovedBy', 'areaDirectionApproverRole', 'items', 'estimatedAmount']
+          ? ['areaDirectionApprovedAt', 'areaDirectionComment', 'areaDirectionApprovedBy', 'areaDirectionApproverRole', 'items', 'estimatedAmount', 'requiresThreeQuotes']
         : s == 'pendent_finances'
-          ? ['financeApprovedAt', 'financeComment', 'financeApprovedBy', 'financeApproverRole', 'items', 'estimatedAmount']
+          ? ['financeApprovedAt', 'financeComment', 'financeApprovedBy', 'financeApproverRole', 'items', 'estimatedAmount', 'requiresThreeQuotes']
         : s == 'aprovada'
           ? ['supplierName', 'supplierId', 'productUrl', 'finalAmount', 'orderIssuedAt', 'items']
         : s == 'comanda_emesa' ? ['receivedAt', 'items', 'partiallyReceivedAt']

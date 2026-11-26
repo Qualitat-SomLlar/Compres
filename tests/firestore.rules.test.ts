@@ -131,6 +131,7 @@ describe('circuit d\'aprovació', () => {
       items: [{ id: 'a', description: 'Auriculars', quantity: 3, unitPrice: 20, status: 'activa' },
               { id: 'b', description: 'Pantalla', quantity: 1, unitPrice: 150, status: 'rebutjada' }],
       estimatedAmount: 60,
+      requiresThreeQuotes: false,
     }));
   });
 

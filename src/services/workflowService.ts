@@ -17,6 +17,7 @@ export type WorkflowEvent =
   | 'compra_aprovada'
   | 'compra_tramitada'
   | 'compra_rebuda'
+  | 'compra_rebuda_parcial'
   | 'compra_tancada'
   | 'retornada_esmena'
   | 'rebutjada'
@@ -33,7 +34,7 @@ export interface EventRecipient {
   template: 'task' | 'status';
   task?: 'approve' | 'emit_order' | 'close_invoice';
   roleName?: string;
-  variant?: 'registered' | 'center';
+  variant?: 'registered' | 'center' | 'partial';
 }
 
 export const PHASE_ROLE_NAMES: Partial<Record<RequestStatus, string>> = {
@@ -253,6 +254,7 @@ export const workflowService = {
    * - Aprovada: Administració de Compres (N5), per emetre la comanda.
    * - Comanda emesa: el sol·licitant i el responsable del centre de destí (que confirmarà la recepció).
    * - Rebuda: el sol·licitant i Comptabilitat (conformitat de factura).
+   * - Rebuda parcialment (entrega parcial): només el sol·licitant.
    * - Tancada: Administració de Compres (N5).
    * - Retornada / rebutjada: només el sol·licitant.
    * - Incidència: Administració de Compres (N5) i el sol·licitant.
@@ -314,6 +316,9 @@ export const workflowService = {
       case 'compra_rebuda':
         addRole('comptabilitat', { template: 'task', task: 'close_invoice', roleName: 'Comptabilitat' });
         addRequester({ template: 'status' });
+        break;
+      case 'compra_rebuda_parcial':
+        addRequester({ template: 'status', variant: 'partial' });
         break;
       case 'compra_tancada':
         addRole('admin_compres', { template: 'status' });

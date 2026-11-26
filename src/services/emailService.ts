@@ -584,7 +584,7 @@ export const emailService = {
       actorRole?: string;
       previousStatus?: RequestStatus;
       // 'registered': confirmació d'enviament; 'center': avís al responsable del centre de destí
-      variant?: 'registered' | 'center';
+      variant?: 'registered' | 'center' | 'partial';
     }
   ) {
     const platformUrl = getPlatformUrl(customAppUrl);
@@ -623,6 +623,17 @@ export const emailService = {
         : `La sol·licitud s'ha enviat a ${phaseText[newStatus] || 'validació'}. Només rebràs un altre avís si es retorna per esmenar, si es rebutja o quan s'emeti la comanda.`;
       buttonText = '📄 Consultar Estat de la Compra &rarr;';
       buttonGradient = 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)';
+    } else if (newStatus === 'comanda_emesa' && extraData?.variant === 'partial') {
+      icon = '📦';
+      headline = `Entrega Parcial Rebuda`;
+      bannerColor = 'linear-gradient(135deg, #d97706 0%, #b45309 100%)';
+      badgeText = 'REBUDA PARCIALMENT';
+      badgeBg = '#fef3c7';
+      badgeColor = '#92400e';
+      nextStepTitle = 'Què falta?';
+      nextStepExplanation = "Ha arribat una part del material de la comanda. A la llista d'articles pots veure quantes unitats de cadascun s'han rebut. Quan arribi la resta, el responsable del centre la registrarà i rebràs un nou avís.";
+      buttonText = '📄 Consultar Estat de la Compra &rarr;';
+      buttonGradient = 'linear-gradient(135deg, #d97706 0%, #b45309 100%)';
     } else if (newStatus === 'comanda_emesa' && extraData?.variant === 'center') {
       icon = '🚚';
       headline = `Comanda en Camí al teu Centre`;

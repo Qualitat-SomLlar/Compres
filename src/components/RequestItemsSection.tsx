@@ -2,7 +2,7 @@ import React from 'react';
 import { Package, ExternalLink, CheckCircle2, XCircle, Truck } from 'lucide-react';
 import { PurchaseRequest, RequestItem } from '../types';
 import { cn } from '../lib/utils';
-import { getHierarchyRole, STATUS_LABELS } from '../constants';
+import { getHierarchyRole, STATUS_LABELS, THREE_QUOTES_THRESHOLD } from '../constants';
 import {
   getRequestItems, isActive, lineEstimated, lineFinal, itemsEstimatedTotal, itemsFinalTotal, getReceiptProgress,
 } from '../lib/requestItems';
@@ -73,6 +73,9 @@ export function RequestItemsSection({ request, selectable, rejectedIds, onToggle
           <span>
             Import que aproves: <strong className="text-white">{euros(itemsEstimatedTotal(pendingApproval))}</strong>
             <span className="text-slate-500"> ({pendingApproval.length} de {activeCount} articles)</span>
+            {request.requiresThreeQuotes && itemsEstimatedTotal(pendingApproval) < THREE_QUOTES_THRESHOLD && (
+              <span className="block text-amber-400 mt-1">Per sota de {THREE_QUOTES_THRESHOLD.toLocaleString('ca-ES')} €: ja no caldran 3 pressupostos.</span>
+            )}
           </span>
         ) : (
           <span>Total estimat: <strong className="text-white">{euros(itemsEstimatedTotal(items))}</strong></span>

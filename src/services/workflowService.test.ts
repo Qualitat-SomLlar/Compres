@@ -213,6 +213,7 @@ test('getEventRecipients: comanda, recepció, tancament i incidència', () => {
   assert.deepEqual(destinataris('compra_rebuda', 'rebuda'), [
     'k1:task/close_invoice', 'creador:status', 'tecnic1:status',
   ]);
+  assert.deepEqual(destinataris('compra_rebuda_parcial', 'comanda_emesa'), ['creador:status/partial', 'tecnic1:status/partial']);
   assert.deepEqual(destinataris('compra_tancada', 'tancada'), ['a1:status']);
   assert.deepEqual(destinataris('incidencia', 'incidencia'), ['a1:status', 'creador:status', 'tecnic1:status']);
 });

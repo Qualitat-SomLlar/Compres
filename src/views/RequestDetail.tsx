@@ -26,6 +26,7 @@ import { exportService } from '../services/exportService';
 import { STATUS_LABELS, getHierarchyRole, normalizeAreaId, CATEGORIES } from '../constants';
 import { User, RequestStatus, AttachmentCategory, PurchaseRequest, Attachment, Quote, ActivityLog, Supplier, RequestComment, RequestItem } from '../types';
 import { RequestItemsSection } from '../components/RequestItemsSection';
+import { THREE_QUOTES_THRESHOLD } from '../constants';
 import { ReceiveItemsModal } from '../components/ReceiveItemsModal';
 import {
   getRequestItems, hasItems, activeItems, isActive, rejectItems, applyReception, getReceiptProgress,
@@ -561,6 +562,8 @@ export default function RequestDetail({ user }: { user: User }) {
         });
         updateData.items = cleanItemsForSave(updatedItems);
         updateData.estimatedAmount = itemsEstimatedTotal(updatedItems);
+        // El llindar de 3 pressupostos es calcula sobre l'import finalment aprovat
+        updateData.requiresThreeQuotes = updateData.estimatedAmount >= THREE_QUOTES_THRESHOLD;
       }
 
       // Afegir timestamps d'aprovació i comentaris estructurats segons la fase o acció
@@ -708,7 +711,10 @@ export default function RequestDetail({ user }: { user: User }) {
           comment: noteText, previousStatus: request.status, actorName: user.name, actorRole: user.role,
         });
       } else {
-        // Entrega parcial: només avís a l'aplicació per al sol·licitant
+        // Entrega parcial: avís a l'aplicació i correu al sol·licitant
+        await dispatchEmail('compra_rebuda_parcial', updatedRequest, {
+          comment: noteText, previousStatus: request.status, actorName: user.name, actorRole: user.role,
+        });
         const code = request.code || request.id;
         const requesterIds = [...new Set([request.createdByUserId, request.requestingTechnicianId])]
           .filter((uid): uid is string => !!uid && uid !== user.id);

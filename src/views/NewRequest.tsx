@@ -20,7 +20,7 @@ import { db } from '../lib/firebase';
 import { User, Attachment, AttachmentCategory, RequestStatus, RequestItem } from '../types';
 import { RequestItemsEditor, emptyItem } from '../components/RequestItemsEditor';
 import { itemsEstimatedTotal, summarizeItems, normalizeUrl, getItemSuppliers, cleanItemsForSave } from '../lib/requestItems';
-import { CATEGORIES, ATTACHMENT_CATEGORIES, normalizeAreaId } from '../constants';
+import { CATEGORIES, ATTACHMENT_CATEGORIES, normalizeAreaId, THREE_QUOTES_THRESHOLD } from '../constants';
 import UserSelector from '../components/UserSelector';
 import CustomSelect from '../components/CustomSelect';
 import CustomDatePicker from '../components/CustomDatePicker';
@@ -63,7 +63,7 @@ export default function NewRequest({ user }: { user: User }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [items, setItems] = useState<RequestItem[]>([emptyItem()]);
   const estimatedTotal = itemsEstimatedTotal(items);
-  const requiresThreeQuotes = estimatedTotal >= 5000;
+  const requiresThreeQuotes = estimatedTotal >= THREE_QUOTES_THRESHOLD;
   const [formData, setFormData] = useState({
     requestingTechnicianId: '',
     requestingTechnicianName: '',
@@ -190,7 +190,7 @@ export default function NewRequest({ user }: { user: User }) {
         ...formData,
         items: cleanItemsForSave(filledItems),
         estimatedAmount: totalAmount,
-        requiresThreeQuotes: totalAmount >= 5000,
+        requiresThreeQuotes: totalAmount >= THREE_QUOTES_THRESHOLD,
         // Proveïdor i enllaç generals: només si són únics (compatibilitat amb vistes i informes)
         supplierId: suppliersOfItems.length === 1 ? suppliersOfItems[0].id : '',
         supplierName: suppliersOfItems.map(s => s.name).join(', '),

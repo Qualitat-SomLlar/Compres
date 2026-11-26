@@ -186,6 +186,9 @@ export const ATTACHMENT_CATEGORIES = [
   { id: 'altres', name: 'Altres' }
 ];
 
+// Import (IVA inclòs) a partir del qual calen 3 pressupostos, sobre l'import finalment aprovat
+export const THREE_QUOTES_THRESHOLD = 5000;
+
 export const NOTIFICATION_EVENTS = [
   { id: 'alta_treballador', name: 'Alta de nou treballador/a (Benvinguda i accés)' },
   { id: 'solicitud_creada', name: 'Sol·licitud creada' },
@@ -195,6 +198,7 @@ export const NOTIFICATION_EVENTS = [
   { id: 'enviada_finances', name: 'Enviada a finances' },
   { id: 'compra_aprovada', name: 'Compra aprovada' },
   { id: 'compra_tramitada', name: 'Compra tramitada / Comanda emesa' },
+  { id: 'compra_rebuda_parcial', name: 'Entrega parcial de la comanda' },
   { id: 'compra_rebuda', name: 'Compra rebuda / Comanda entregada' },
   { id: 'incidencia', name: 'Incidència' },
   { id: 'compra_tancada', name: 'Compra tancada' }
