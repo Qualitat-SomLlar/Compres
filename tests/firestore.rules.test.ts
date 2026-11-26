@@ -311,6 +311,11 @@ describe('creació de sol·licituds', () => {
       estimatedAmount: 60,
     }));
   });
+  test('en nom d\'una direcció d\'àrea de la mateixa àrea, entra a Finances', async () => {
+    await seed('esborrany');
+    await assertSucceeds(create('coordSocial', { ...own('coordSocial', 'pendent_finances'), requestingTechnicianId: 'dirTics' }));
+    await assertFails(create('coordSocial', { ...own('coordSocial', 'pendent_finances'), requestingTechnicianId: 'tecnic1' }));
+  });
   test('Finances la pot crear directament aprovada', async () => {
     await seed('esborrany');
     await assertSucceeds(create('finances', { ...own('finances', 'aprovada'), areaId: 'tics' }));

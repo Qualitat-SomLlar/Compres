@@ -81,6 +81,9 @@ export default function NewRequest({ user }: { user: User }) {
     areaId: user.areaId || ''
   });
 
+  // Persona sol·licitant triada (pot tenir un càrrec més alt que qui registra la sol·licitud)
+  const solicitant = users.find(u => u.id === formData.requestingTechnicianId);
+
   const handleWorkerSelect = (worker: User) => {
     setFormData(prev => ({
       ...prev,
@@ -182,8 +185,8 @@ export default function NewRequest({ user }: { user: User }) {
       const selectedCenter = centers.find(c => c.id === formData.destinationCenterId);
       const selectedAnalytic = analyticCodes.find(ac => ac.code === formData.analyticCode);
       const requestAreaId = normalizeAreaId(formData.areaId || selectedCenter?.area || selectedAnalytic?.area || user.areaId || 'social');
-      // Cada càrrec se salta el seu nivell de validació i els inferiors
-      const targetStatus: RequestStatus = isSubmit ? workflowService.getInitialStatus(user, requestAreaId) : 'esborrany';
+      // Cada càrrec se salta el seu nivell de validació i els inferiors (compta el més alt entre qui registra i qui sol·licita)
+      const targetStatus: RequestStatus = isSubmit ? workflowService.getInitialStatus(user, requestAreaId, [solicitant]) : 'esborrany';
 
       // 1. Crear el document a Firestore
       const newRequest = await addRequest({
@@ -345,7 +348,7 @@ export default function NewRequest({ user }: { user: User }) {
                   <Building2 size={12} className="text-brand-primary shrink-0" />
                   <span>Àrea d'adscripció: <strong className="text-white">{getAreaName(formData.areaId)}</strong></span>
                   <span className="text-slate-600">•</span>
-                  <span className="text-slate-400">Primera validació: <strong className="text-white">{workflowService.getPhaseLabel(workflowService.getInitialStatus(user, formData.areaId), getAreaName(formData.areaId))}</strong></span>
+                  <span className="text-slate-400">Primera validació: <strong className="text-white">{workflowService.getPhaseLabel(workflowService.getInitialStatus(user, formData.areaId, [solicitant]), getAreaName(formData.areaId))}</strong></span>
                 </div>
               )}
             </div>

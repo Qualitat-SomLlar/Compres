@@ -144,6 +144,13 @@ test('getInitialStatus: els nivells d\'àrea només se salten a la pròpia àrea
   assert.equal(workflowService.getInitialStatus(makeUser('direccio_area', 'social'), 'tics'), 'pendent_coordinacio');
 });
 
+test('getInitialStatus: si es registra en nom d\'una altra persona, compta el càrrec més alt', () => {
+  const registra = makeUser('coordinacio', 'social');
+  assert.equal(workflowService.getInitialStatus(registra, 'tics', [makeUser('direccio_area', 'tics')]), 'pendent_finances');
+  assert.equal(workflowService.getInitialStatus(makeUser('direccio_area', 'tics'), 'tics', [makeUser('tecnic', 'tics')]), 'pendent_finances');
+  assert.equal(workflowService.getInitialStatus(registra, 'tics', [undefined]), 'pendent_coordinacio');
+});
+
 test('canCreateRequest: només Coordinació (N2) o superior', () => {
   assert.equal(workflowService.canCreateRequest(makeUser('tecnic')), false);
   assert.equal(workflowService.canCreateRequest(undefined), false);

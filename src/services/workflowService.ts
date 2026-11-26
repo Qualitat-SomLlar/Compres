@@ -48,8 +48,20 @@ export const workflowService = {
   /**
    * Fase on entra una sol·licitud quan s'envia: cada càrrec se salta el seu nivell i els inferiors.
    * Els nivells d'àrea (N2, N3) només se salten si la compra és de la mateixa àrea de qui l'envia.
+   * Si la sol·licitud es registra en nom d'una altra persona (`others`: qui la registra i la persona
+   * sol·licitant), compta el càrrec més alt de tots dos.
    */
-  getInitialStatus(submitter: User | undefined, areaId?: string): RequestStatus {
+  getInitialStatus(submitter: User | undefined, areaId?: string, others: (User | undefined)[] = []): RequestStatus {
+    const order: RequestStatus[] = ['pendent_coordinacio', 'pendent_direccio', 'pendent_finances', 'aprovada'];
+    return [submitter, ...others]
+      .map(u => this.getInitialStatusFor(u, areaId))
+      .reduce((best, s) => (order.indexOf(s) > order.indexOf(best) ? s : best), 'pendent_coordinacio' as RequestStatus);
+  },
+
+  /**
+   * Fase inicial segons el càrrec d'una sola persona (equivalent a startStatus de firestore.rules).
+   */
+  getInitialStatusFor(submitter: User | undefined, areaId?: string): RequestStatus {
     if (!submitter) return 'pendent_coordinacio';
     const level = levelOf(submitter);
     if (level >= 4 || ABOVE_APPROVAL_ROLES.includes(submitter.role)) return 'aprovada';

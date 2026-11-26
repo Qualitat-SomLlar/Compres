@@ -527,12 +527,15 @@ export default function RequestDetail({ user }: { user: User }) {
     
     try {
       // En enviar (o reenviar després d'una esmena), cada càrrec se salta el seu nivell i els inferiors.
-      // Si ho fa la supervisió en nom d'algú, compta el càrrec de qui va crear la sol·licitud.
+      // Compta el càrrec més alt entre qui va registrar la sol·licitud i la persona sol·licitant
+      // (si ho fa la supervisió en nom d'algú, no compta el càrrec de la supervisió).
       const isSubmission = action === 'approve' && ['esborrany', 'retornada'].includes(request.status);
       const isRequester = request.createdByUserId === user.id || request.requestingTechnicianId === user.id;
-      const submitter = isRequester ? user : (users.find(u => u.id === request.createdByUserId) || user);
+      const creator = users.find(u => u.id === request.createdByUserId);
+      const solicitant = users.find(u => u.id === request.requestingTechnicianId);
+      const submitter = isRequester ? user : (creator || user);
       const newStatus = isSubmission
-        ? workflowService.getInitialStatus(submitter, request.areaId)
+        ? workflowService.getInitialStatus(submitter, request.areaId, [creator, solicitant])
         : workflowService.getNextStatus(request.status, action);
       
       const nowIso = new Date().toISOString();

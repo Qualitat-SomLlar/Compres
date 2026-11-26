@@ -96,8 +96,16 @@ service cloud.firestore {
         : isCoordinatorU(u) ? 'pendent_direccio'
         : 'pendent_coordinacio';
     }
+    // Perfil d'un usuari pel seu id (buit si no existeix)
+    function profileOf(id) {
+      return id is string && id != '' && exists(/databases/$(database)/documents/users/$(id))
+        ? get(/databases/$(database)/documents/users/$(id)).data : {};
+    }
+    // Compta el càrrec més alt entre qui envia, qui va registrar la sol·licitud i la persona sol·licitant
     function validSubmitTarget(u, req, t) {
-      return t == 'pendent_coordinacio' || t == startStatus(u, req);
+      return t == 'pendent_coordinacio' || t == startStatus(u, req)
+        || t == startStatus(profileOf(req.get('requestingTechnicianId', '')), req)
+        || t == startStatus(profileOf(req.get('createdByUserId', '')), req);
     }
 
     // Qui pot actuar sobre la fase actual de l'expedient
@@ -161,7 +169,7 @@ service cloud.firestore {
         || (req.status in ['pendent_coordinacio', 'pendent_direccio', 'pendent_finances'] && canActOnStep(u, req));
     }
     function canCreateRequest(u, req) {
-      return canCreateU(u) && req.status in ['esborrany', 'pendent_coordinacio', startStatus(u, req)];
+      return canCreateU(u) && (req.status == 'esborrany' || validSubmitTarget(u, req, req.status));
     }
     function requestOf(requestId) {
       return get(/databases/$(database)/documents/purchaseRequests/$(requestId)).data;
