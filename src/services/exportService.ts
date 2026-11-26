@@ -2,6 +2,14 @@ import { jsPDF } from 'jspdf';
 import { PurchaseRequest, Quote, Attachment } from '../types';
 import { STATUS_LABELS } from '../constants';
 import { hasItems, lineEstimated, lineFinal } from '../lib/requestItems';
+import { workflowService } from './workflowService';
+
+const NOT_REQUIRED = 'No requerida';
+type ApprovalStep = 'pendent_coordinacio' | 'pendent_direccio' | 'pendent_finances';
+// Text del nivell de validació a l'Excel: data, "No requerida" (saltat pel càrrec de qui l'envia) o "Pendent"
+const stepCell = (r: PurchaseRequest, step: ApprovalStep, approvedAt?: string) =>
+  approvedAt ? new Date(approvedAt).toLocaleDateString('ca-ES')
+    : workflowService.isStepSkipped(r, step) ? NOT_REQUIRED : 'Pendent';
 
 const ORDERED_STATUSES = ['comanda_emesa', 'rebuda', 'tancada', 'incidencia'];
 const itemStateLabel = (r: PurchaseRequest, it: NonNullable<PurchaseRequest['items']>[number]) =>
@@ -246,6 +254,9 @@ export const exportService = {
       doc.setTextColor(lightSlate[0], lightSlate[1], lightSlate[2]);
       doc.text(`Data: ${new Date(request.coordinationApprovedAt).toLocaleDateString('ca-ES')}`, 18, currentY + 20);
       doc.text("Estat: Conforme", 18, currentY + 25);
+    } else if (workflowService.isStepSkipped(request, 'pendent_coordinacio')) {
+      doc.text(NOT_REQUIRED, 18, currentY + 16);
+      doc.text("pel càrrec de qui la sol·licita", 18, currentY + 21);
     } else {
       doc.text("Pendent de validació", 18, currentY + 18);
     }
@@ -267,7 +278,12 @@ export const exportService = {
       doc.text(`Data: ${new Date(request.areaDirectionApprovedAt).toLocaleDateString('ca-ES')}`, 80, currentY + 20);
       doc.text("Estat: Conforme", 80, currentY + 25);
     } else {
-      doc.text("Pendent de validació", 80, currentY + 18);
+      if (workflowService.isStepSkipped(request, 'pendent_direccio')) {
+        doc.text(NOT_REQUIRED, 80, currentY + 16);
+        doc.text("pel càrrec de qui la sol·licita", 80, currentY + 21);
+      } else {
+        doc.text("Pendent de validació", 80, currentY + 18);
+      }
     }
 
     // Finances
@@ -286,6 +302,9 @@ export const exportService = {
       doc.setTextColor(lightSlate[0], lightSlate[1], lightSlate[2]);
       doc.text(`Data: ${new Date(request.financeApprovedAt).toLocaleDateString('ca-ES')}`, 142, currentY + 20);
       doc.text("Estat: Aprovat / Comptabilitzat", 142, currentY + 25);
+    } else if (workflowService.isStepSkipped(request, 'pendent_finances')) {
+      doc.text(NOT_REQUIRED, 142, currentY + 16);
+      doc.text("pel càrrec de qui la sol·licita", 142, currentY + 21);
     } else {
       doc.text("Pendent d'aprovació", 142, currentY + 18);
     }
@@ -326,9 +345,9 @@ export const exportService = {
       'Proveïdor Adjudicat': r.supplierName || '',
       'Urgència': r.urgency || 'mitjana',
       'Termini': r.deadline || '',
-      'Validació Coordinació': r.coordinationApprovedAt ? new Date(r.coordinationApprovedAt).toLocaleDateString('ca-ES') : 'Pendent',
-      'Validació Direcció': r.areaDirectionApprovedAt ? new Date(r.areaDirectionApprovedAt).toLocaleDateString('ca-ES') : 'Pendent',
-      'Aprovació Finances': r.financeApprovedAt ? new Date(r.financeApprovedAt).toLocaleDateString('ca-ES') : 'Pendent',
+      'Validació Coordinació': stepCell(r, 'pendent_coordinacio', r.coordinationApprovedAt),
+      'Validació Direcció': stepCell(r, 'pendent_direccio', r.areaDirectionApprovedAt),
+      'Aprovació Finances': stepCell(r, 'pendent_finances', r.financeApprovedAt),
       'Data Recepció': r.receivedAt ? new Date(r.receivedAt).toLocaleDateString('ca-ES') : '',
       'Data Tancament': r.closedAt ? new Date(r.closedAt).toLocaleDateString('ca-ES') : ''
     }));

@@ -1,6 +1,7 @@
 import { Clock } from 'lucide-react';
 import { PurchaseRequest } from '../types';
 import { TimelineStep } from './TimelineStep';
+import { workflowService } from '../services/workflowService';
 
 interface RequestSignatureFlowProps {
   request: PurchaseRequest;
@@ -10,6 +11,9 @@ interface RequestSignatureFlowProps {
 }
 
 export function RequestSignatureFlow({ request, financeLabel, areaDirectorsLabel, areaCoordinatorsLabel }: RequestSignatureFlowProps) {
+  // Un nivell que l'expedient s'ha saltat pel càrrec de qui l'envia es mostra com a "no requerit", no com a signat
+  const skipped = (step: 'pendent_coordinacio' | 'pendent_direccio' | 'pendent_finances', approvedAt?: string) =>
+    !approvedAt && workflowService.isStepSkipped(request, step);
   return (
     <div className="card p-10 bg-brand-primary/[0.02] border-brand-primary/20">
       <h4 className="text-[10px] font-black text-brand-primary uppercase tracking-[0.2em] mb-10 flex items-center gap-3">
@@ -38,21 +42,21 @@ export function RequestSignatureFlow({ request, financeLabel, areaDirectorsLabel
         />
         <TimelineStep 
           title="Finances" 
-          status={request.financeApprovedAt || ['aprovada', 'comanda_emesa', 'rebuda', 'tancada'].includes(request.status) ? 'completed' : request.status === 'rebutjada' ? 'error' : 'pending'} 
+          status={skipped('pendent_finances', request.financeApprovedAt) ? 'skipped' : request.financeApprovedAt || ['aprovada', 'comanda_emesa', 'rebuda', 'tancada'].includes(request.status) ? 'completed' : request.status === 'rebutjada' ? 'error' : 'pending'} 
           role={financeLabel} 
           date={request.financeApprovedAt ? new Date(request.financeApprovedAt).toLocaleDateString('ca-ES') : undefined}
           active={request.status === 'pendent_finances'} 
         />
         <TimelineStep 
           title="Direcció Àrea" 
-          status={request.areaDirectionApprovedAt || ['pendent_finances', 'aprovada', 'comanda_emesa', 'rebuda', 'tancada'].includes(request.status) ? 'completed' : request.status === 'rebutjada' ? 'error' : 'pending'} 
+          status={skipped('pendent_direccio', request.areaDirectionApprovedAt) ? 'skipped' : request.areaDirectionApprovedAt || ['pendent_finances', 'aprovada', 'comanda_emesa', 'rebuda', 'tancada'].includes(request.status) ? 'completed' : request.status === 'rebutjada' ? 'error' : 'pending'} 
           role={areaDirectorsLabel} 
           date={request.areaDirectionApprovedAt ? new Date(request.areaDirectionApprovedAt).toLocaleDateString('ca-ES') : undefined}
           active={request.status === 'pendent_direccio'} 
         />
         <TimelineStep 
           title="Coordinació" 
-          status={request.coordinationApprovedAt || ['pendent_direccio', 'pendent_finances', 'aprovada', 'comanda_emesa', 'rebuda', 'tancada'].includes(request.status) ? 'completed' : request.status === 'rebutjada' ? 'error' : 'pending'} 
+          status={skipped('pendent_coordinacio', request.coordinationApprovedAt) ? 'skipped' : request.coordinationApprovedAt || ['pendent_direccio', 'pendent_finances', 'aprovada', 'comanda_emesa', 'rebuda', 'tancada'].includes(request.status) ? 'completed' : request.status === 'rebutjada' ? 'error' : 'pending'} 
           role={areaCoordinatorsLabel} 
           date={request.coordinationApprovedAt ? new Date(request.coordinationApprovedAt).toLocaleDateString('ca-ES') : undefined}
           active={request.status === 'pendent_coordinacio'} 
